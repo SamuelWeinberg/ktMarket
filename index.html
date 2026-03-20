@@ -1,0 +1,1965 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🧪 TEST | KT Market</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+:root {
+  --navy:   #0D1B2A;
+  --navy2:  #1B2E42;
+  --navy3:  #243B53;
+  --blue:   #1A6CF2;
+  --blue2:  #2A7FFF;
+  --cyan:   #00C2CB;
+  --gold:   #F5A623;
+  --green:  #22C55E;
+  --red:    #EF4444;
+  --purple: #8B5CF6;
+  --text:   #F0F4F8;
+  --text2:  #8FA3B8;
+  --text3:  #5A7A96;
+  --border: rgba(255,255,255,0.08);
+  --card:   rgba(255,255,255,0.04);
+  --card2:  rgba(255,255,255,0.07);
+  --radius: 14px;
+  --rsm:    8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min-height:100vh;direction:rtl;}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:var(--navy);}
+::-webkit-scrollbar-thumb{background:var(--navy3);border-radius:3px;}
+
+/* ── SCREENS ── */
+.screen{display:none;min-height:100vh;}
+.screen.active{display:flex;}
+
+/* ── LOGIN ── */
+#s-login{align-items:center;justify-content:center;position:relative;overflow:hidden;}
+#s-login::before{content:'';position:absolute;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(26,108,242,.1) 0%,transparent 70%);top:-250px;left:-150px;pointer-events:none;}
+#s-login::after{content:'';position:absolute;width:500px;height:500px;border-radius:50%;background:radial-gradient(circle,rgba(0,194,203,.07) 0%,transparent 70%);bottom:-150px;right:-100px;pointer-events:none;}
+.login-card{background:var(--navy2);border:1px solid var(--border);border-radius:20px;padding:48px 44px;width:400px;position:relative;z-index:1;animation:fadeUp .5s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.login-logo{text-align:center;margin-bottom:36px;}
+.logo-icon{width:60px;height:60px;background:linear-gradient(135deg,var(--blue),var(--cyan));border-radius:18px;display:inline-flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:12px;}
+.login-logo h1{font-size:22px;font-weight:800;color:var(--text);}
+.login-logo p{font-size:13px;color:var(--text3);margin-top:4px;}
+.fg{margin-bottom:16px;}
+.fg label{display:block;font-size:12px;color:var(--text2);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;}
+.fg input{width:100%;padding:11px 14px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:'Heebo',sans-serif;font-size:14px;transition:border-color .2s;direction:ltr;text-align:right;}
+.fg input:focus{outline:none;border-color:var(--blue);}
+.btn-login{width:100%;padding:13px;background:linear-gradient(135deg,var(--blue),var(--blue2));border:none;border-radius:var(--rsm);color:#fff;font-family:'Heebo',sans-serif;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px;transition:opacity .2s,transform .1s;}
+.btn-login:hover{opacity:.9;transform:translateY(-1px);}
+.btn-login:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.err-box{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#FCA5A5;padding:10px 14px;border-radius:var(--rsm);font-size:13px;margin-top:12px;display:none;text-align:center;}
+
+/* ── SETUP (SQL instructions) ── */
+#s-setup{align-items:center;justify-content:center;}
+.setup-card{background:var(--navy2);border:1px solid var(--border);border-radius:20px;padding:36px;width:700px;max-width:95vw;max-height:90vh;overflow-y:auto;}
+.setup-card h2{font-size:20px;font-weight:800;margin-bottom:8px;}
+.setup-card p{font-size:13px;color:var(--text2);margin-bottom:20px;}
+.sql-block{background:var(--navy);border:1px solid var(--border);border-radius:var(--rsm);padding:16px;font-family:monospace;font-size:12px;color:#93C5FD;line-height:1.7;margin-bottom:16px;overflow-x:auto;white-space:pre;}
+.step{display:flex;gap:12px;align-items:flex-start;margin-bottom:16px;}
+.step-num{width:28px;height:28px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;}
+.step p{font-size:13px;color:var(--text2);margin:0;padding-top:4px;}
+.step a{color:var(--blue);}
+
+/* ── APP ── */
+#s-app{flex-direction:column;}
+.sidebar{position:fixed;top:0;right:0;width:230px;height:100vh;background:var(--navy2);border-left:1px solid var(--border);padding:24px 0;z-index:100;display:flex;flex-direction:column;}
+.sb-logo{padding:0 20px 24px;border-bottom:1px solid var(--border);margin-bottom:12px;}
+.sb-logo .lsm{width:38px;height:38px;background:linear-gradient(135deg,var(--blue),var(--cyan));border-radius:11px;display:inline-flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:8px;}
+.sb-logo span{display:block;font-size:14px;font-weight:800;color:var(--text);}
+.sb-logo small{font-size:11px;color:var(--text3);}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;font-size:13.5px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .15s;position:relative;}
+.nav-item:hover{color:var(--text);background:var(--card);}
+.nav-item.active{color:var(--text);background:var(--card2);}
+.nav-item.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blue);border-radius:0 2px 2px 0;}
+.nav-icon{font-size:16px;width:22px;text-align:center;}
+.sb-footer{margin-top:auto;padding:16px 20px;border-top:1px solid var(--border);}
+.user-badge{display:flex;align-items:center;gap:10px;}
+.user-av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;}
+.user-name{font-size:13px;font-weight:600;color:var(--text);}
+.user-role{font-size:11px;color:var(--text3);}
+.logout-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:20px;margin-right:auto;padding:2px;transition:color .15s;}
+.logout-btn:hover{color:var(--red);}
+.main{margin-right:230px;padding:28px;min-height:100vh;flex:1;}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;}
+.topbar h2{font-size:22px;font-weight:800;}
+.topbar-sub{font-size:13px;color:var(--text3);margin-top:2px;}
+.topbar-actions{display:flex;gap:10px;align-items:center;}
+
+/* ── PAGES ── */
+.page{display:none;}
+.page.active{display:block;animation:fadeIn .3s ease;}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* ── CARDS / METRICS ── */
+.metrics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+.mc{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:relative;overflow:hidden;transition:border-color .2s;}
+.mc:hover{border-color:rgba(255,255,255,.14);}
+.mc::before{content:'';position:absolute;top:0;right:0;width:60px;height:60px;border-radius:0 var(--radius) 0 60px;opacity:.08;}
+.mc.blue::before{background:var(--blue);}
+.mc.cyan::before{background:var(--cyan);}
+.mc.gold::before{background:var(--gold);}
+.mc.green::before{background:var(--green);}
+.mc.purple::before{background:var(--purple);}
+.mc-label{font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+.mc-value{font-size:26px;font-weight:800;color:var(--text);line-height:1;margin-bottom:8px;}
+.mc-change{font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;}
+.mc-change.up{background:rgba(34,197,94,.12);color:var(--green);}
+.mc-change.down{background:rgba(239,68,68,.12);color:var(--red);}
+.mc-change.flat{background:rgba(143,163,184,.1);color:var(--text2);}
+
+/* ── SECTION CARD ── */
+.sc{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:20px;overflow:hidden;}
+.sc-header{padding:15px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.sc-header h3{font-size:14px;font-weight:700;}
+.sc-header span{font-size:12px;color:var(--text3);}
+
+/* ── TABLE ── */
+table{width:100%;border-collapse:collapse;}
+th{padding:10px 16px;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;background:rgba(255,255,255,.02);text-align:center;}
+th:first-child{text-align:right;}
+td{padding:13px 16px;font-size:13px;border-top:1px solid var(--border);text-align:center;color:var(--text);}
+td:first-child{text-align:right;font-weight:600;}
+tr:hover td{background:rgba(255,255,255,.02);}
+.total-row td{background:rgba(26,108,242,.06);font-weight:700;border-top:2px solid rgba(26,108,242,.2);}
+.pct{display:inline-block;padding:3px 8px;border-radius:20px;font-size:12px;font-weight:700;}
+.pct.up{background:rgba(34,197,94,.12);color:var(--green);}
+.pct.dn{background:rgba(239,68,68,.12);color:var(--red);}
+.pct.fl{background:rgba(143,163,184,.1);color:var(--text3);}
+
+/* ── BUTTONS ── */
+.btn{padding:9px 16px;border-radius:var(--rsm);font-family:'Heebo',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;display:inline-flex;align-items:center;gap:6px;}
+.btn-primary{background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;}
+.btn-primary:hover{opacity:.88;transform:translateY(-1px);}
+.btn-ghost{background:var(--card2);border:1px solid var(--border);color:var(--text2);}
+.btn-ghost:hover{color:var(--text);border-color:rgba(255,255,255,.2);}
+.btn-danger{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#FCA5A5;}
+.btn-danger:hover{background:rgba(239,68,68,.25);}
+.btn-wa{background:#25D366;color:#fff;font-size:14px;padding:11px 20px;}
+.btn-wa:hover{background:#1DAE56;}
+.btn-wa svg{width:16px;height:16px;fill:#fff;}
+.btn-sm{padding:6px 12px;font-size:12px;}
+
+/* ── INPUT PAGE ── */
+.date-bar{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;gap:16px;}
+.date-bar label{font-size:13px;color:var(--text2);font-weight:500;}
+.date-bar input[type=date]{padding:8px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:'Heebo',sans-serif;font-size:14px;font-weight:600;direction:ltr;}
+.date-bar input:focus{outline:none;border-color:var(--blue);}
+.input-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:20px;}
+.input-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;transition:border-color .2s;}
+.input-card:hover{border-color:rgba(26,108,242,.35);}
+.input-card h4{font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.bdot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+.irow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+.ifield label{display:block;font-size:10px;color:var(--text3);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;}
+.ifield input{width:100%;padding:9px 10px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:'Heebo',sans-serif;font-size:14px;font-weight:600;transition:border-color .2s;direction:ltr;text-align:center;}
+.ifield input:focus{outline:none;border-color:var(--blue);background:rgba(26,108,242,.05);}
+.save-bar{display:flex;gap:12px;align-items:center;padding:16px 20px;background:rgba(26,108,242,.06);border:1px solid rgba(26,108,242,.2);border-radius:var(--radius);}
+.save-bar .sm{font-size:13px;color:var(--text2);margin-right:auto;}
+
+/* ── ADMIN PAGE ── */
+.users-grid{display:grid;gap:14px;}
+.user-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;display:flex;align-items:center;gap:14px;}
+.u-av{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0;}
+.u-info{flex:1;}
+.u-name{font-size:14px;font-weight:700;}
+.u-email{font-size:12px;color:var(--text3);margin-top:2px;}
+.role-badge{display:inline-flex;align-items:center;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.role-super{background:rgba(239,68,68,.15);color:#FCA5A5;border:1px solid rgba(239,68,68,.3);}
+.role-network{background:rgba(245,166,35,.15);color:#FCD34D;border:1px solid rgba(245,166,35,.3);}
+.role-branch{background:rgba(34,197,94,.15);color:#86EFAC;border:1px solid rgba(34,197,94,.3);}
+
+/* ── COMPARE ── */
+.ctrl-bar{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 20px;margin-bottom:18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.ctrl-bar label{font-size:13px;color:var(--text2);white-space:nowrap;}
+.ctrl-bar input[type=date]{padding:7px 10px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:'Heebo',sans-serif;font-size:13px;direction:ltr;}
+.ctrl-bar input:focus{outline:none;border-color:var(--blue);}
+.mode-tabs{display:flex;background:var(--navy3);border-radius:var(--rsm);padding:3px;gap:2px;}
+.mode-tab{padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;color:var(--text3);cursor:pointer;transition:all .15s;border:none;background:none;font-family:'Heebo',sans-serif;}
+.mode-tab.active{background:var(--blue);color:#fff;}
+
+/* ── WA PAGE ── */
+.wa-preview{background:var(--navy);border:1px solid var(--border);border-radius:var(--rsm);padding:16px;font-size:13px;line-height:1.9;white-space:pre-wrap;direction:rtl;max-height:380px;overflow-y:auto;margin-bottom:14px;color:var(--text);}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--navy2);border:1px solid var(--border);border-radius:20px;padding:28px;width:480px;max-width:95vw;max-height:88vh;overflow-y:auto;animation:fadeUp .25s ease;position:relative;}
+.modal h3{font-size:17px;font-weight:700;margin-bottom:18px;}
+.modal-close{position:absolute;top:14px;left:16px;background:none;border:none;color:var(--text3);font-size:24px;cursor:pointer;line-height:1;}
+.modal-close:hover{color:var(--text);}
+.modal-actions{display:flex;gap:10px;margin-top:16px;}
+.modal .fg{margin-bottom:14px;}
+select{width:100%;padding:11px 14px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:'Heebo',sans-serif;font-size:14px;cursor:pointer;}
+select:focus{outline:none;border-color:var(--blue);}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--navy2);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:10px;z-index:9999;transition:transform .3s ease;pointer-events:none;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+
+/* ── LOADING ── */
+.loading{display:flex;align-items:center;justify-content:center;padding:60px;color:var(--text3);font-size:14px;gap:10px;}
+.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:60px 20px;color:var(--text3);}
+.empty .ei{font-size:40px;margin-bottom:12px;}
+.empty p{font-size:14px;}
+
+/* ── BOTTOM NAV (mobile) ── */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--navy2);border-top:1px solid var(--border);z-index:200;padding:6px 0 env(safe-area-inset-bottom,6px);}
+.bottom-nav-inner{display:flex;justify-content:space-around;align-items:center;width:100%;}
+.bn-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 12px;cursor:pointer;border-radius:var(--rsm);transition:all .15s;border:none;background:none;color:var(--text3);font-family:'Heebo',sans-serif;flex:1;}
+.bn-item.active{color:var(--blue);}
+.bn-icon{font-size:20px;line-height:1;}
+.bn-label{font-size:10px;font-weight:600;}
+.mobile-header{display:none;position:sticky;top:0;left:0;right:0;width:100%;background:var(--navy2);border-bottom:2px solid var(--border);z-index:999;padding:14px 16px;align-items:center;justify-content:space-between;flex-direction:row;min-height:56px;}
+.mobile-header h2{font-size:16px;font-weight:800;}
+.mobile-header .mh-right{display:flex;gap:8px;align-items:center;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1024px){
+  #page-monthly .metrics-grid{grid-template-columns:repeat(2,1fr)!important;}
+  #page-monthly table{font-size:11px;}
+  #page-monthly th,#page-monthly td{padding:6px 8px;}
+  #forecast-content > div{grid-template-columns:repeat(2,1fr)!important;}
+  .sidebar{display:none !important;}
+  .bottom-nav{display:block !important;}
+  .mobile-header{display:flex !important;}
+  .main{margin-right:0;padding:10px;padding-top:10px;padding-bottom:80px;}
+  .topbar{display:none;}
+  .metrics-grid{grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px;}
+  .mc{padding:14px;}
+  .mc-value{font-size:20px;}
+  .input-grid{grid-template-columns:1fr;}
+  .irow{grid-template-columns:1fr 1fr 1fr;}
+  .sc-header{padding:12px 14px;}
+  .sc-header h3{font-size:13px;}
+  .sc-header span{font-size:10px;}
+  table{font-size:11px;}
+  th,td{padding:6px 8px;}
+  th{font-size:10px;}
+  .login-card{width:92vw;padding:32px 24px;}
+  .ctrl-bar{gap:8px;padding:12px;}
+  .ctrl-bar input[type=date]{font-size:12px;padding:6px 8px;}
+  .save-bar{flex-wrap:wrap;padding:12px;}
+  .save-bar .sm{width:100%;margin:0;}
+  .modal{padding:20px;}
+  .metrics-grid > div:nth-child(3),.metrics-grid > div:nth-child(4){display:block;}
+  .wa-preview{max-height:260px;}
+  .btn-wa span.wa-txt{display:none;}
+  .hide-mobile{display:none !important;}
+}
+@media(max-width:480px){
+  .irow{grid-template-columns:1fr;}
+  .metrics-grid{grid-template-columns:1fr 1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="s-login" class="screen active">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-icon">📊</div>
+      <h1>KT Market</h1>
+      <p>מערכת ניהול מכירות רשת</p><div style="margin-top:10px;background:rgba(245,166,35,.15);border:1px solid rgba(245,166,35,.4);border-radius:8px;padding:6px 12px;font-size:12px;color:#FCD34D;text-align:center">🧪 סביבת טסטים</div>
+    </div>
+    <div class="fg"><label>אימייל</label><input type="email" id="l-email" placeholder="your@email.com" autocomplete="email"></div>
+    <div class="fg"><label>סיסמה</label><input type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password"></div>
+    <button class="btn-login" id="l-btn" onclick="doLogin()">כניסה למערכת</button>
+    <div class="err-box" id="l-err"></div>
+  </div>
+</div>
+
+<!-- SETUP INSTRUCTIONS (shown if tables don't exist) -->
+<div id="s-setup" class="screen">
+  <div class="setup-card">
+    <h2>🔧 הגדרה ראשונית — דקה אחת</h2>
+    <p>צריך ליצור את הטבלאות במסד הנתונים. עשה את זה פעם אחת ואז הכל עובד!</p>
+    <div class="step">
+      <div class="step-num">1</div>
+      <p>נכנס ל־ <a href="https://supabase.com/dashboard/project/twfwfoulehqnnplzkxsc/sql/new" target="_blank">SQL Editor בפרויקט שלך</a></p>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <p>העתק את ה־SQL הבא, הדבק ולחץ Run:</p>
+    </div>
+    <div style="position:relative">
+      <div class="sql-block" id="setup-sql"></div>
+      <button class="btn btn-ghost btn-sm" style="position:absolute;top:10px;left:10px" onclick="copySQL()">העתק</button>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <p>לאחר הרצה מוצלחת, לחץ כאן:</p>
+    </div>
+    <button class="btn btn-primary" onclick="checkSetup()" style="width:100%">✅ סיימתי — כנס למערכת</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="s-app" class="screen">
+
+  <!-- MOBILE HEADER -->
+  <div class="mobile-header">
+    <h2 id="mobile-title">דשבורד</h2>
+    <div class="mh-right">
+      <button onclick="doLogout()" style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#FCA5A5;font-size:12px;font-weight:700;padding:7px 12px;border-radius:8px;cursor:pointer;font-family:Heebo,sans-serif">יציאה</button>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <button class="bn-item active" onclick="gotoPage('dashboard')" id="bn-dashboard">
+        <span class="bn-icon">🏠</span><span class="bn-label">בית</span>
+      </button>
+      <button class="bn-item" onclick="gotoPage('input')" id="bn-input">
+        <span class="bn-icon">✏️</span><span class="bn-label">הכנסה</span>
+      </button>
+      <button class="bn-item" onclick="gotoPage('compare')" id="bn-compare">
+        <span class="bn-icon">📈</span><span class="bn-label">השוואה</span>
+      </button>
+      <button class="bn-item" onclick="gotoPage('charts')" id="bn-charts">
+        <span class="bn-icon">📊</span><span class="bn-label">גרפים</span>
+      </button>
+      <button class="bn-item" onclick="gotoPage('monthly')" id="bn-monthly">
+        <span class="bn-icon">📆</span><span class="bn-label">חודשי</span>
+      </button>
+      <button class="bn-item" onclick="gotoPage('whatsapp')" id="bn-whatsapp" style="display:flex">
+        <span class="bn-icon">💬</span><span class="bn-label">וואטסאפ</span>
+      </button>
+      <button class="bn-item" onclick="gotoPage('admin')" id="bn-admin" style="display:none">
+        <span class="bn-icon">⚙️</span><span class="bn-label">ניהול</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sb-logo">
+      <div class="lsm">📊</div>
+      <span>KT Market</span>
+      <small id="sb-branch-label">רשת מכירות</small>
+    </div>
+    <div class="nav-item active" onclick="gotoPage('dashboard')" id="nav-dashboard"><span class="nav-icon">🏠</span><span>דשבורד</span></div>
+    <div class="nav-item" onclick="gotoPage('input')" id="nav-input"><span class="nav-icon">✏️</span><span>הכנסת נתונים</span></div>
+    <div class="nav-item" onclick="gotoPage('compare')" id="nav-compare"><span class="nav-icon">📈</span><span>השוואות</span></div>
+    <div class="nav-item" onclick="gotoPage('charts')" id="nav-charts"><span class="nav-icon">📊</span><span>גרפים</span></div>
+    <div class="nav-item" onclick="gotoPage('monthly')" id="nav-monthly"><span class="nav-icon">📆</span><span>דוח חודשי</span></div>
+    <div class="nav-item" onclick="gotoPage('import')" id="nav-import" style="display:none"><span class="nav-icon">📥</span><span>ייבוא נתונים</span></div>
+    <div class="nav-item" onclick="gotoPage('whatsapp')" id="nav-whatsapp"><span class="nav-icon">💬</span><span>שלח בוואטסאפ</span></div>
+    <div class="nav-item" onclick="gotoPage('admin')" id="nav-admin" style="display:none"><span class="nav-icon">⚙️</span><span>ניהול משתמשים</span></div>
+    <div class="sb-footer">
+      <div class="user-badge">
+        <div class="user-av" id="sb-av">?</div>
+        <div><div class="user-name" id="sb-name">—</div><div class="user-role" id="sb-role">—</div></div>
+        <button class="logout-btn" onclick="doLogout()" title="התנתק">↪</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h2 id="page-title">דשבורד</h2>
+        <div class="topbar-sub" id="page-sub"></div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost" onclick="gotoPage('input')" id="tb-input-btn">✏️ עדכון יומי</button>
+        <button class="btn btn-wa" onclick="openWAModal()">
+          <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          שלח דוח
+        </button>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div id="greeting-card" style="display:none;background:linear-gradient(135deg,rgba(26,108,242,.15),rgba(0,194,203,.1));border:1px solid rgba(26,108,242,.3);border-radius:14px;padding:18px 22px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div id="greeting-text" style="font-size:18px;font-weight:800;color:#F0F4F8"></div>
+        <div id="greeting-sub" style="font-size:13px;color:#8FA3B8;margin-top:4px"></div>
+      </div>
+      <div style="font-size:36px">👋</div>
+    </div>
+    <div class="metrics-grid" id="metrics-grid"><div class="loading"><div class="spinner"></div> טוען...</div></div>
+      <div class="sc">
+        <div class="sc-header"><h3 id="dt-title">📅 השוואה יומית</h3><span id="dt-sub"></span></div>
+        <div style="overflow-x:auto"><table id="day-table"><tr><td class="loading"><div class="spinner"></div></td></tr></table></div>
+      </div>
+      <div class="sc" id="week-sc">
+        <div class="sc-header"><h3>📊 השוואה שבועית</h3><span id="wt-sub"></span></div>
+        <div style="overflow-x:auto"><table id="week-table"></table></div>
+      </div>
+    </div>
+
+    <!-- INPUT -->
+    <div class="page" id="page-input">
+      <div class="date-bar">
+        <label>📅 תאריך:</label>
+        <input type="date" id="inp-date">
+        <span style="font-size:12px;color:var(--text3)">מלא נתונים ולחץ שמור</span>
+      </div>
+      <div class="input-grid" id="input-cards"></div>
+      <div class="save-bar">
+        <span class="sm">לאחר מילוי הסניפים לחץ שמור — הנתונים נשמרים בענן</span>
+        <button class="btn btn-ghost" onclick="clearInputs()">🗑 נקה</button>
+        <button class="btn btn-primary" onclick="saveData()">💾 שמור</button>
+      </div>
+    </div>
+
+    <!-- COMPARE -->
+    <div class="page" id="page-compare">
+      <div class="ctrl-bar">
+        <div class="mode-tabs">
+          <button class="mode-tab active" onclick="setCmpMode('day')" id="cm-day">יומי</button>
+          <button class="mode-tab" onclick="setCmpMode('week')" id="cm-week">שבועי</button>
+        </div>
+        <div id="cmp-day-ctrl" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <label>תאריך א':</label><input type="date" id="c-d1">
+          <label>תאריך ב':</label><input type="date" id="c-d2">
+        </div>
+        <div id="cmp-week-ctrl" style="display:none;align-items:center;gap:10px;flex-wrap:wrap">
+          <label>שבוע א' מ:</label><input type="date" id="c-w1s"><label>עד:</label><input type="date" id="c-w1e">
+          <label>שבוע ב' מ:</label><input type="date" id="c-w2s"><label>עד:</label><input type="date" id="c-w2e">
+        </div>
+        <button class="btn btn-primary" onclick="runCompare()" style="margin-right:auto">חשב</button>
+      </div>
+      <div class="sc">
+        <div class="sc-header"><h3 id="cmp-title">תוצאות</h3></div>
+        <div style="overflow-x:auto"><table id="cmp-table"></table></div>
+      </div>
+    </div>
+
+    <!-- WHATSAPP -->
+    <div class="page" id="page-whatsapp">
+      <div class="ctrl-bar" style="margin-bottom:18px">
+        <div class="mode-tabs">
+          <button class="mode-tab active" onclick="setWAMode('day')" id="wa-day-tab">יומי</button>
+          <button class="mode-tab" onclick="setWAMode('week')" id="wa-week-tab">שבועי</button>
+        </div>
+        <div id="wa-day-ctrl" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <label>תאריך א':</label><input type="date" id="wa-d1" onchange="buildWA()">
+          <label>תאריך ב':</label><input type="date" id="wa-d2" onchange="buildWA()">
+        </div>
+        <div id="wa-week-ctrl" style="display:none;align-items:center;gap:10px;flex-wrap:wrap">
+          <label>שבוע א' מ:</label><input type="date" id="wa-w1s" onchange="buildWA()"><label>עד:</label><input type="date" id="wa-w1e" onchange="buildWA()">
+          <label>שבוע ב' מ:</label><input type="date" id="wa-w2s" onchange="buildWA()"><label>עד:</label><input type="date" id="wa-w2e" onchange="buildWA()">
+        </div>
+      </div>
+      <div class="sc">
+        <div class="sc-header"><h3>💬 תצוגה מקדימה</h3><button class="btn btn-ghost btn-sm" onclick="copyWA()">⎘ העתק</button></div>
+        <div style="padding:16px">
+          <div class="wa-preview" id="wa-box"></div>
+          <a class="btn btn-wa" id="wa-link" href="#" target="_blank" style="width:100%;justify-content:center;text-decoration:none">
+            <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            שלח בוואטסאפ
+          </a>
+        </div>
+      </div>
+    </div>
+
+
+
+
+    <!-- IMPORT -->
+    <div class="page" id="page-import">
+      <div class="sc" style="margin-bottom:20px">
+        <div class="sc-header">
+          <h3>📥 ייבוא קבצי קומקס</h3>
+          <span>גרור קובץ XLS מקומקס — המערכת מזהה אוטומטית</span>
+        </div>
+        <div style="padding:20px">
+          <!-- Drop zone -->
+          <div id="drop-zone" style="border:2px dashed rgba(26,108,242,.4);border-radius:var(--radius);padding:40px;text-align:center;cursor:pointer;transition:all .2s;background:rgba(26,108,242,.03)" 
+               ondragover="event.preventDefault();this.style.borderColor='var(--blue)';this.style.background='rgba(26,108,242,.08)'"
+               ondragleave="this.style.borderColor='rgba(26,108,242,.4)';this.style.background='rgba(26,108,242,.03)'"
+               ondrop="handleDrop(event)"
+               onclick="document.getElementById('file-input').click()">
+            <div style="font-size:40px;margin-bottom:12px">📂</div>
+            <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">גרור קבצי XLS לכאן</div>
+            <div style="font-size:13px;color:var(--text3)">או לחץ לבחירת קבצים — אפשר כמה בבת אחת</div>
+            <input type="file" id="file-input" accept=".xls,.xlsx" multiple style="display:none" onchange="handleFiles(this.files)">
+          </div>
+
+          <!-- Branch selector -->
+          <div style="margin-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <label style="font-size:13px;color:var(--text2);font-weight:600">סניף (אם לא מזוהה אוטומטית):</label>
+            <select id="import-branch" style="padding:8px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:13px">
+              <option value="auto">זיהוי אוטומטי</option>
+              <option value="חריש">חריש</option>
+              <option value="אמוראים">אמוראים</option>
+              <option value="רב חנן">רב חנן</option>
+              <option value="ריש לקיש">ריש לקיש</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview -->
+      <div class="sc" id="import-preview-card" style="display:none;margin-bottom:20px">
+        <div class="sc-header">
+          <h3>👀 תצוגה מקדימה — לפני שמירה</h3>
+          <span id="import-preview-count"></span>
+        </div>
+        <div style="overflow-x:auto;max-height:400px;overflow-y:auto">
+          <table id="import-preview-table"></table>
+        </div>
+        <div style="padding:16px;display:flex;gap:12px;align-items:center">
+          <span style="font-size:13px;color:var(--text2);margin-left:auto" id="import-summary"></span>
+          <button class="btn btn-ghost" onclick="clearImport()">🗑 נקה</button>
+          <button class="btn btn-primary" onclick="saveImport()" id="import-save-btn">💾 שמור במסד הנתונים</button>
+        </div>
+      </div>
+
+      <!-- Log -->
+      <div class="sc" id="import-log-card" style="display:none">
+        <div class="sc-header"><h3>📋 יומן ייבוא</h3></div>
+        <div style="padding:16px;font-family:monospace;font-size:12px;color:var(--text2);max-height:200px;overflow-y:auto;line-height:1.8" id="import-log"></div>
+      </div>
+    </div>
+
+    <!-- MONTHLY -->
+    <div class="page" id="page-monthly">
+      <!-- Month selector -->
+      <div class="ctrl-bar" style="margin-bottom:18px;flex-wrap:wrap;gap:10px">
+        <label>חודש:</label>
+        <select id="month-sel" onchange="buildMonthly()" style="padding:7px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:13px;cursor:pointer"></select>
+        <label>שנה:</label>
+        <select id="year-sel" onchange="buildMonthly()" style="padding:7px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:13px;cursor:pointer">
+          <option value="2026">2026</option>
+          <option value="2025">2025</option>
+        </select>
+      </div>
+
+      <!-- Summary cards -->
+      <div class="metrics-grid" id="monthly-metrics" style="margin-bottom:18px"></div>
+
+      <!-- Forecast card -->
+      <div class="sc" id="forecast-card" style="margin-bottom:18px">
+        <div class="sc-header"><h3>🔮 תחזית סגירת חודש</h3></div>
+        <div style="padding:16px" id="forecast-content"></div>
+      </div>
+
+      <!-- Branch breakdown table -->
+      <div class="sc" style="margin-bottom:18px">
+        <div class="sc-header">
+          <h3 id="monthly-table-title">📊 פירוט לפי סניף</h3>
+          <span id="monthly-table-sub"></span>
+        </div>
+        <div style="overflow-x:auto"><table id="monthly-table"></table></div>
+      </div>
+
+      <!-- Daily breakdown -->
+      <div class="sc">
+        <div class="sc-header"><h3>📅 פירוט יומי</h3></div>
+        <div style="overflow-x:auto"><table id="daily-breakdown-table"></table></div>
+      </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="page" id="page-charts">
+      <div class="sc" style="margin-bottom:20px">
+        <div class="sc-header">
+          <h3>📈 מגמת מכירות שבועית</h3>
+          <div class="mode-tabs" style="display:inline-flex">
+            <button class="mode-tab active" onclick="setChartBranch('all')" id="cb-all">רשת</button>
+            <button class="mode-tab" onclick="setChartBranch('חריש')" id="cb-1">חריש</button>
+            <button class="mode-tab" onclick="setChartBranch('אמוראים')" id="cb-2">אמוראים</button>
+            <button class="mode-tab" onclick="setChartBranch('רב חנן')" id="cb-3">רב חנן</button>
+            <button class="mode-tab" onclick="setChartBranch('ריש לקיש')" id="cb-4">ריש לקיש</button>
+          </div>
+        </div>
+        <div style="padding:16px"><canvas id="trend-chart" style="max-height:280px"></canvas></div>
+      </div>
+      <div class="sc" style="margin-bottom:20px">
+        <div class="sc-header"><h3>🏆 השוואת סניפים — שבוע נוכחי</h3></div>
+        <div style="padding:16px"><canvas id="branch-chart" style="max-height:260px"></canvas></div>
+      </div>
+      <div class="sc">
+        <div class="sc-header"><h3>📊 סל ממוצע לפי יום בשבוע</h3></div>
+        <div style="padding:16px"><canvas id="dow-chart" style="max-height:260px"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ADMIN -->
+    <div class="page" id="page-admin">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div></div>
+        <button class="btn btn-primary" onclick="openAddUser()">+ הוסף משתמש</button>
+      </div>
+      <div class="users-grid" id="users-list"><div class="loading"><div class="spinner"></div> טוען...</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- WA MODAL -->
+<div class="modal-overlay" id="wa-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('wa-modal')">×</button>
+    <h3>💬 שלח דוח בוואטסאפ</h3>
+    <div class="mode-tabs" style="margin-bottom:14px;display:inline-flex">
+      <button class="mode-tab active" onclick="setMWAMode('day')" id="mwa-day">יומי</button>
+      <button class="mode-tab" onclick="setMWAMode('week')" id="mwa-week">שבועי</button>
+    </div>
+    <div class="wa-preview" id="mwa-box"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="copyMWA()" style="flex:1">⎘ העתק</button>
+      <a class="btn btn-wa" id="mwa-link" href="#" target="_blank" style="flex:2;text-decoration:none;justify-content:center">
+        <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        שלח
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- ADD USER MODAL -->
+<div class="modal-overlay" id="add-user-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('add-user-modal')">×</button>
+    <h3>➕ הוסף משתמש חדש</h3>
+    <div class="fg"><label>שם מלא</label><input type="text" id="nu-name" placeholder="ישראל ישראלי"></div>
+    <div class="fg"><label>אימייל</label><input type="email" id="nu-email" placeholder="israel@email.com" dir="ltr"></div>
+    <div class="fg"><label>סיסמה זמנית</label><input type="password" id="nu-pass" placeholder="לפחות 6 תווים"></div>
+    <div class="fg">
+      <label>תפקיד</label>
+      <select id="nu-role" onchange="toggleBranchSel()">
+        <option value="super_admin">🔴 Super Admin (רואה הכל)</option>
+        <option value="network_manager">🟡 מנהל רשת (רואה הכל, לא מנהל)</option>
+        <option value="branch_manager" selected>🟢 מנהל סניף (הסניף שלו בלבד)</option>
+      </select>
+    </div>
+    <div class="fg" id="branch-sel-wrap">
+      <label>סניף משויך</label>
+      <select id="nu-branch">
+        <option value="חריש">חריש</option>
+        <option value="אמוראים">אמוראים</option>
+        <option value="רב חנן">רב חנן</option>
+        <option value="ריש לקיש">ריש לקיש</option>
+      </select>
+    </div>
+    <div class="err-box" id="nu-err"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('add-user-modal')" style="flex:1">ביטול</button>
+      <button class="btn btn-primary" onclick="addUser()" style="flex:2">צור משתמש</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"><span id="toast-msg">✅ נשמר</span></div>
+
+<script>
+// ─── SUPABASE ─────────────────────────────────────────────────────────────────
+const SUPA_URL = 'https://dkpqgyieoidrydxfiwhd.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRrcHFneWllb2lkcnlkeGZpd2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MzA4NDgsImV4cCI6MjA4OTMwNjg0OH0.cFYdJK7P58pc_VlQxCo4HdLVRPkyiLz_8hMLepoK3Ws';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
+const BRANCHES = ['חריש','אמוראים','רב חנן','ריש לקיש'];
+const BCOLORS  = ['#1A6CF2','#00C2CB','#F5A623','#22C55E'];
+const ROLES    = { super_admin:'🔴 Super Admin', network_manager:'🟡 מנהל רשת', branch_manager:'🟢 מנהל סניף' };
+const ROLE_CSS = { super_admin:'role-super', network_manager:'role-network', branch_manager:'role-branch' };
+const PAGE_TITLES = { dashboard:'דשבורד', input:'הכנסת נתונים', compare:'השוואות', whatsapp:'שלח בוואטסאפ', admin:'ניהול משתמשים', charts:'גרפים ומגמות', monthly:'דוח חודשי', import:'ייבוא נתונים מקומקס' };
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let currentUser = null;
+let currentProfile = null;
+let salesData = [];
+let cmpMode = 'day';
+let waMode  = 'day';
+let mwaMode = 'day';
+
+// ─── SETUP SQL ────────────────────────────────────────────────────────────────
+const SETUP_SQL = `-- יצירת טבלת פרופילים
+create table if not exists public.profiles (
+  id uuid references auth.users on delete cascade primary key,
+  email text,
+  full_name text,
+  role text default 'branch_manager',
+  branch text,
+  created_at timestamptz default now()
+);
+
+-- יצירת טבלת מכירות
+create table if not exists public.sales (
+  id bigserial primary key,
+  date date not null,
+  branch text not null,
+  tickets integer,
+  avg_basket numeric(10,2),
+  total numeric(12,2),
+  created_by uuid references auth.users,
+  created_at timestamptz default now(),
+  unique(date, branch)
+);
+
+-- הפעלת RLS
+alter table public.profiles enable row level security;
+alter table public.sales enable row level security;
+
+-- פרופיל: כל אחד רואה את עצמו
+create policy if not exists "profiles_self" on public.profiles
+  for all using (auth.uid() = id);
+
+-- מכירות: super_admin ו-network_manager רואים הכל
+create policy if not exists "sales_admin_all" on public.sales
+  for all using (
+    exists (select 1 from public.profiles
+            where id = auth.uid()
+            and role in ('super_admin','network_manager'))
+  );
+
+-- מכירות: branch_manager רואה רק את הסניף שלו
+create policy if not exists "sales_branch_own" on public.sales
+  for all using (
+    exists (select 1 from public.profiles
+            where id = auth.uid()
+            and role = 'branch_manager'
+            and branch = sales.branch)
+  );
+
+-- פונקציה לעדכון פרופיל בהרשמה
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer as $$
+begin
+  insert into public.profiles (id, email, full_name, role, branch)
+  values (new.id, new.email,
+    coalesce(new.raw_user_meta_data->>'full_name',''),
+    coalesce(new.raw_user_meta_data->>'role','branch_manager'),
+    coalesce(new.raw_user_meta_data->>'branch',''));
+  return new;
+end;
+$$;
+
+-- טריגר
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();`;
+
+document.getElementById('setup-sql').textContent = SETUP_SQL;
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function fmtILS(v){ if(!v&&v!==0)return'—'; return'₪'+Math.round(v).toLocaleString('he-IL'); }
+function fmtNum(v){ if(!v&&v!==0)return'—'; return Math.round(v).toLocaleString('he-IL'); }
+function pct(a,b){ if(!a||!b)return null; return(b-a)/a*100; }
+function fmtPct(v){ if(v===null||v===undefined)return'—'; const s=v>=0?'+':''; return s+v.toFixed(0)+'%'; }
+function pctBadge(v){
+  if(v===null||v===undefined)return'<span class="pct fl">—</span>';
+  const c=v>0.5?'up':v<-0.5?'dn':'fl';
+  const s=v>0?'+':'';
+  return`<span class="pct ${c}">${s}${v.toFixed(0)}%</span>`;
+}
+function dateMinus(date,days){ const d=new Date(date); d.setDate(d.getDate()-days); return d.toISOString().split('T')[0]; }
+function fmtD(d){ if(!d)return''; const[y,m,dd]=d.split('-'); return`${dd}/${m}`; }
+function lastDate(){ const dates=[...new Set(salesData.map(r=>r.date))].sort((a,b)=>a.localeCompare(b)); return dates[dates.length-1]||new Date().toISOString().split('T')[0]; }
+function visibleBranches(){ return currentProfile?.role==='branch_manager'?[currentProfile.branch]:BRANCHES; }
+function canSeeAll(){ return['super_admin','network_manager'].includes(currentProfile?.role); }
+
+function getByDate(date){
+  const res={};
+  salesData.filter(r=>r.date===date).forEach(r=>{ res[r.branch]=r; });
+  return res;
+}
+function getByRange(from,to){
+  const res={};
+  visibleBranches().forEach(b=>res[b]={tickets:0,avg_sum:0,avg_cnt:0,total:0});
+  salesData.filter(r=>r.date>=from&&r.date<=to).forEach(r=>{
+    if(!res[r.branch])return;
+    if(r.tickets)res[r.branch].tickets+=+r.tickets;
+    if(r.avg_basket){res[r.branch].avg_sum+=+r.avg_basket;res[r.branch].avg_cnt++;}
+    if(r.total)res[r.branch].total+=+r.total;
+  });
+  visibleBranches().forEach(b=>{ res[b].avg_basket=res[b].avg_cnt?res[b].avg_sum/res[b].avg_cnt:null; });
+  return res;
+}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function showToast(msg){ const t=document.getElementById('toast'); document.getElementById('toast-msg').textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+async function doLogin(){
+  const email=document.getElementById('l-email').value.trim();
+  const pass=document.getElementById('l-pass').value;
+  const btn=document.getElementById('l-btn');
+  const err=document.getElementById('l-err');
+  err.style.display='none';
+  btn.disabled=true; btn.textContent='מתחבר...';
+  const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error){ err.textContent='שגיאה: '+error.message; err.style.display='block'; btn.disabled=false; btn.textContent='כניסה למערכת'; return; }
+  await initApp(data.user);
+}
+document.getElementById('l-pass').addEventListener('keydown',e=>{ if(e.key==='Enter')doLogin(); });
+
+async function doLogout(){ await sb.auth.signOut(); currentUser=null; currentProfile=null; salesData=[]; showScreen('s-login'); }
+
+// ─── INIT APP ─────────────────────────────────────────────────────────────────
+async function initApp(user){
+  currentUser=user;
+  // Load profile
+  const {data:profile}=await sb.from('profiles').select('*').eq('id',user.id).single();
+  if(!profile){
+    // Profile might not exist yet — try setup
+    showScreen('s-setup'); return;
+  }
+  currentProfile=profile;
+
+  // Setup sidebar
+  const name=profile.full_name||profile.email||'משתמש';
+  document.getElementById('sb-av').textContent=name[0].toUpperCase();
+  document.getElementById('sb-av').style.background=profile.role==='super_admin'?'#EF4444':profile.role==='network_manager'?'#F5A623':'#22C55E';
+  document.getElementById('sb-name').textContent=name;
+  document.getElementById('sb-role').textContent=ROLES[profile.role]||profile.role;
+  if(profile.branch) document.getElementById('sb-branch-label').textContent=profile.branch;
+
+  // Request push notification permission
+  if('Notification' in window && Notification.permission === 'default'){
+    setTimeout(()=>{
+      Notification.requestPermission().then(p=>{
+        if(p==='granted') showToast('✅ התראות הופעלו!');
+      });
+    }, 3000);
+  }
+  // Save push subscription to Supabase
+  if('serviceWorker' in navigator && 'PushManager' in window){
+    navigator.serviceWorker.ready.then(reg=>{
+      // Store that this user wants notifications
+      sb.from('profiles').update({notifications_enabled:true}).eq('id',currentUser.id).then(()=>{});
+    });
+  }
+
+  // Personalized greeting card
+  const greetName = profile.full_name ? profile.full_name.split(' ')[0] : '';
+  if(greetName){
+    const hour = new Date().getHours();
+    const timeGreet = hour < 12 ? 'בוקר טוב' : hour < 17 ? 'צהריים טובים' : 'ערב טוב';
+    const gc = document.getElementById('greeting-card');
+    const gt = document.getElementById('greeting-text');
+    const gs = document.getElementById('greeting-sub');
+    if(gc && gt && gs){
+      gt.textContent = timeGreet + ' ' + greetName + ' 😊 כמה טוב לראות אותך!';
+      gs.textContent = 'ברוך הבא למערכת KT Market';
+      gc.style.display = 'flex';
+      setTimeout(()=>{ gc.style.transition='opacity 1s'; gc.style.opacity='0'; setTimeout(()=>gc.style.display='none',1000); }, 5000);
+    }
+  }
+
+  // Show/hide admin
+  if(profile.role==='super_admin'){
+    document.getElementById('nav-admin').style.display='flex';
+    const bna=document.getElementById('bn-admin');
+    if(bna)bna.style.display='flex';
+    document.getElementById('nav-import').style.display='flex';
+  }
+
+  // Hide input + WA for non-admins
+  if(profile.role!=='super_admin'){
+    document.getElementById('nav-input').style.display='none';
+    document.getElementById('tb-input-btn').style.display='none';
+    document.getElementById('nav-whatsapp').style.display='none';
+    const bni=document.getElementById('bn-input'); if(bni)bni.style.display='none';
+    const bnw=document.getElementById('bn-whatsapp'); if(bnw)bnw.style.display='none';
+  } else {
+    const bni=document.getElementById('bn-input'); if(bni)bni.style.display='flex';
+    const bnw=document.getElementById('bn-whatsapp'); if(bnw)bnw.style.display='flex';
+  }
+  // Charts visible for all roles
+
+  // Load sales data
+  await loadSalesData();
+
+  showScreen('s-app');
+  gotoPage('dashboard');
+  buildDashboard();
+  // Register push notifications
+  setTimeout(registerPush, 2000);
+  // Check for new notifications every 2 minutes
+  checkNotifications();
+  setInterval(checkNotifications, 120000);
+  initInputPage();
+}
+
+async function loadSalesData(){
+  // Load in batches to avoid Supabase default 1000 row limit
+  let allData = [];
+  let page = 0;
+  const pageSize = 1000;
+  while(true){
+    const {data, error} = await sb.from('sales')
+      .select('*')
+      .order('date')
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+    if(error || !data || data.length === 0) break;
+    allData = allData.concat(data);
+    if(data.length < pageSize) break;
+    page++;
+  }
+  salesData = allData;
+  console.log('Loaded', salesData.length, 'records, lastDate:', lastDate());
+}
+
+// ─── SETUP ────────────────────────────────────────────────────────────────────
+async function checkSetup(){
+  // Re-try loading profile
+  const {data:{user}}=await sb.auth.getUser();
+  if(user) await initApp(user);
+}
+function copySQL(){ navigator.clipboard.writeText(SETUP_SQL); showToast('✅ SQL הועתק!'); }
+
+// ─── PAGE NAV ─────────────────────────────────────────────────────────────────
+function gotoPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.bn-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  document.getElementById('nav-'+name).classList.add('active');
+  const bn=document.getElementById('bn-'+name);
+  if(bn)bn.classList.add('active');
+  const title=PAGE_TITLES[name]||name;
+  document.getElementById('page-title').textContent=title;
+  const mt=document.getElementById('mobile-title');
+  if(mt)mt.textContent=title;
+  if(name==='compare') initCompare();
+  if(name==='whatsapp') initWAPage();
+  if(name==='admin') loadUsers();
+  if(name==='charts') buildCharts();
+  if(name==='monthly') initMonthlyPage();
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+function buildDashboard(){
+  const ld=lastDate();
+  const prev=dateMinus(ld,7);
+  const d2=getByDate(ld), d1=getByDate(prev);
+  const vb=visibleBranches();
+
+  let tot2=0,tot1=0,tik2=0,tik1=0,a2s=0,a1s=0,ac=0;
+  vb.forEach(b=>{
+    const r2=d2[b]||{},r1=d1[b]||{};
+    if(r2.total)tot2+=+r2.total; if(r1.total)tot1+=+r1.total;
+    if(r2.tickets)tik2+=+r2.tickets; if(r1.tickets)tik1+=+r1.tickets;
+    if(r2.avg_basket){a2s+=+r2.avg_basket;ac++;} if(r1.avg_basket)a1s+=+r1.avg_basket;
+  });
+  const avg2=ac?a2s/ac:null,avg1=ac?a1s/ac:null;
+
+  const metrics=[
+    {label:'סכום כולל יומי',value:fmtILS(tot2),change:pct(tot1,tot2),color:'blue'},
+    {label:'פתקיות',value:fmtNum(tik2),change:pct(tik1,tik2),color:'cyan'},
+    {label:'סל ממוצע',value:fmtILS(avg2),change:pct(avg1,avg2),color:'gold'},
+    {label:'יום אחרון',value:fmtD(ld),change:null,color:'green'},
+  ];
+  document.getElementById('metrics-grid').innerHTML=metrics.map(m=>`
+    <div class="mc ${m.color}">
+      <div class="mc-label">${m.label}</div>
+      <div class="mc-value">${m.value}</div>
+      ${m.change!==null?`<span class="mc-change ${m.change>=0?'up':'down'}">${m.change>=0?'▲':'▼'} ${Math.abs(m.change).toFixed(0)}%</span>`:`<span class="mc-change flat">מול ${fmtD(prev)}</span>`}
+    </div>`).join('');
+
+  document.getElementById('dt-title').textContent=`📅 ${fmtD(ld)} מול ${fmtD(prev)}`;
+  buildCmpTable('day-table',d1,d2,fmtD(prev),fmtD(ld));
+
+  if(canSeeAll()){
+    const w2e=ld,w2s=dateMinus(ld,6),w1e=dateMinus(w2s,1),w1s=dateMinus(w1e,6);
+    document.getElementById('wt-sub').textContent=`${fmtD(w2s)}-${fmtD(w2e)} מול ${fmtD(w1s)}-${fmtD(w1e)}`;
+    buildCmpTable('week-table',getByRange(w1s,w1e),getByRange(w2s,w2e),`${fmtD(w1s)}-${fmtD(w1e)}`,`${fmtD(w2s)}-${fmtD(w2e)}`);
+  } else {
+    document.getElementById('week-sc').style.display='none';
+  }
+}
+
+function buildCmpTable(tableId,d1,d2,label1,label2){
+  const vb=visibleBranches();
+  let html=`<thead><tr>
+    <th>סניף</th>
+    <th>פתקיות ${label1}</th><th>פתקיות ${label2}</th><th>שינוי</th>
+    <th>סל ${label1}</th><th>סל ${label2}</th><th>שינוי</th>
+    <th>סכום ${label1}</th><th>סכום ${label2}</th><th>שינוי</th>
+  </tr></thead><tbody>`;
+  let np1=0,np2=0,ns1=0,ns2=0,na1=0,na2=0,nc=0;
+  vb.forEach(b=>{
+    const r1=d1[b]||{},r2=d2[b]||{};
+    const pp=pct(r1.tickets||null,r2.tickets||null);
+    const ap=pct(r1.avg_basket||null,r2.avg_basket||null);
+    const sp=pct(r1.total||null,r2.total||null);
+    html+=`<tr><td>${b}</td>
+      <td>${fmtNum(r1.tickets)}</td><td>${fmtNum(r2.tickets)}</td><td>${pctBadge(pp)}</td>
+      <td>${fmtILS(r1.avg_basket)}</td><td>${fmtILS(r2.avg_basket)}</td><td>${pctBadge(ap)}</td>
+      <td>${fmtILS(r1.total)}</td><td>${fmtILS(r2.total)}</td><td>${pctBadge(sp)}</td>
+    </tr>`;
+    if(r1.tickets)np1+=+r1.tickets; if(r2.tickets)np2+=+r2.tickets;
+    if(r1.total)ns1+=+r1.total; if(r2.total)ns2+=+r2.total;
+    if(r1.avg_basket){na1+=+r1.avg_basket;nc++;} if(r2.avg_basket)na2+=+r2.avg_basket;
+  });
+  if(vb.length>1){
+    const avg1=nc?na1/nc:null,avg2=nc?na2/nc:null;
+    html+=`<tr class="total-row"><td>סה"כ רשת</td>
+      <td>${fmtNum(np1)}</td><td>${fmtNum(np2)}</td><td>${pctBadge(pct(np1,np2))}</td>
+      <td>${fmtILS(avg1)}</td><td>${fmtILS(avg2)}</td><td>${pctBadge(pct(avg1,avg2))}</td>
+      <td>${fmtILS(ns1)}</td><td>${fmtILS(ns2)}</td><td>${pctBadge(pct(ns1,ns2))}</td>
+    </tr>`;
+  }
+  document.getElementById(tableId).innerHTML=html+'</tbody>';
+}
+
+// ─── INPUT ────────────────────────────────────────────────────────────────────
+function initInputPage(){
+  const today=new Date().toISOString().split('T')[0];
+  document.getElementById('inp-date').value=today;
+  const vb=visibleBranches();
+  document.getElementById('input-cards').innerHTML=vb.map((b,i)=>{
+    const ci=BRANCHES.indexOf(b);
+    return`<div class="input-card">
+      <h4><span class="bdot" style="background:${BCOLORS[ci>=0?ci:i]}"></span>${b}</h4>
+      <div class="irow">
+        <div class="ifield"><label>פתקיות</label><input type="number" id="i-${b}-t" placeholder="0" min="0"></div>
+        <div class="ifield"><label>סל ממוצע ₪</label><input type="number" id="i-${b}-a" placeholder="0.00" step="0.01" min="0"></div>
+        <div class="ifield"><label>סכום ₪</label><input type="number" id="i-${b}-s" placeholder="0" min="0"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function clearInputs(){ visibleBranches().forEach(b=>['t','a','s'].forEach(f=>{ const el=document.getElementById(`i-${b}-${f}`); if(el)el.value=''; })); }
+
+async function saveData(){
+  const date=document.getElementById('inp-date').value;
+  if(!date){ showToast('⚠️ בחר תאריך'); return; }
+  const rows=[];
+  visibleBranches().forEach(b=>{
+    const t=parseFloat(document.getElementById(`i-${b}-t`)?.value)||null;
+    const a=parseFloat(document.getElementById(`i-${b}-a`)?.value)||null;
+    const s=parseFloat(document.getElementById(`i-${b}-s`)?.value)||null;
+    if(t||a||s) rows.push({date,branch:b,tickets:t,avg_basket:a,total:s,created_by:currentUser.id});
+  });
+  if(!rows.length){ showToast('⚠️ לא הוכנסו נתונים'); return; }
+
+  // ── DUPLICATE CHECK for manual entry ──
+  const { existing, newCount, updateCount } = await checkDuplicatesInDB(rows);
+  if(updateCount > 0){
+    const branchNames = rows.filter(r=>existing.has(r.date+'_'+r.branch)).map(r=>r.branch).join(', ');
+    const confirmed = confirm(`⚠️ נמצאו ${updateCount} סניפים שכבר הוזנו לתאריך זה:\n${branchNames}\n\nהמשך ישכתב את הנתונים הקיימים. להמשיך?`);
+    if(!confirmed){ showToast('❌ ביטול — לא נשמר'); return; }
+  }
+
+  const {error}=await sb.from('sales').upsert(rows,{onConflict:'date,branch'});
+  if(error){ showToast('❌ שגיאה: '+error.message); return; }
+  await loadSalesData();
+  buildDashboard();
+  clearInputs();
+  const dateFormatted = date.split('-').reverse().join('/');
+  const msg = `📊 פדיון ${dateFormatted} עודכן! לחץ לצפייה בדשבורד`;
+  const toastMsg = updateCount > 0 
+    ? `✅ ${newCount} חדשים + ${updateCount} עודכנו!`
+    : `✅ נשמרו ${rows.length} סניפים בהצלחה!`;
+  showToast(toastMsg);
+  await notifyAllUsers(msg, date);
+}
+
+// ─── COMPARE ─────────────────────────────────────────────────────────────────
+function initCompare(){
+  const ld=lastDate();
+  document.getElementById('c-d1').value=dateMinus(ld,7);
+  document.getElementById('c-d2').value=ld;
+  document.getElementById('c-w1s').value=dateMinus(ld,13);
+  document.getElementById('c-w1e').value=dateMinus(ld,7);
+  document.getElementById('c-w2s').value=dateMinus(ld,6);
+  document.getElementById('c-w2e').value=ld;
+  runCompare();
+}
+function setCmpMode(m){
+  cmpMode=m;
+  document.getElementById('cmp-day-ctrl').style.display=m==='day'?'flex':'none';
+  document.getElementById('cmp-week-ctrl').style.display=m==='week'?'flex':'none';
+  document.getElementById('cm-day').classList.toggle('active',m==='day');
+  document.getElementById('cm-week').classList.toggle('active',m==='week');
+}
+function runCompare(){
+  if(cmpMode==='day'){
+    const d1=document.getElementById('c-d1').value,d2=document.getElementById('c-d2').value;
+    document.getElementById('cmp-title').textContent=`השוואה יומית: ${fmtD(d2)} מול ${fmtD(d1)}`;
+    buildCmpTable('cmp-table',getByDate(d1),getByDate(d2),fmtD(d1),fmtD(d2));
+  }else{
+    const w1s=document.getElementById('c-w1s').value,w1e=document.getElementById('c-w1e').value;
+    const w2s=document.getElementById('c-w2s').value,w2e=document.getElementById('c-w2e').value;
+    document.getElementById('cmp-title').textContent=`השוואה שבועית: ${fmtD(w2s)}-${fmtD(w2e)} מול ${fmtD(w1s)}-${fmtD(w1e)}`;
+    buildCmpTable('cmp-table',getByRange(w1s,w1e),getByRange(w2s,w2e),`${fmtD(w1s)}-${fmtD(w1e)}`,`${fmtD(w2s)}-${fmtD(w2e)}`);
+  }
+}
+
+// ─── WHATSAPP ─────────────────────────────────────────────────────────────────
+function buildWAText(mode,d1,d2,w1s,w1e,w2s,w2e){
+  const vb=visibleBranches();
+  if(mode==='day'){
+    const D1=getByDate(d1),D2=getByDate(d2);
+    let np1=0,np2=0,ns1=0,ns2=0,na1=0,na2=0,nc=0;
+    let txt=`📊 *דוח יומי: ${fmtD(d2)} מול ${fmtD(d1)}*\n\n`;
+    vb.forEach(b=>{
+      const r1=D1[b]||{},r2=D2[b]||{};
+      txt+=`*${b}:*\n`;
+      txt+=`פתקיות: ${fmtPct(pct(r1.tickets,r2.tickets))} (${fmtNum(r1.tickets)} ← ${fmtNum(r2.tickets)})\n`;
+      txt+=`סל: ${fmtPct(pct(r1.avg_basket,r2.avg_basket))} (${(+r1.avg_basket||0).toFixed(1)} ← ${(+r2.avg_basket||0).toFixed(1)})\n`;
+      txt+=`סכום: ${fmtPct(pct(r1.total,r2.total))} (${fmtILS(r1.total)} ← ${fmtILS(r2.total)})\n\n`;
+      if(r1.tickets)np1+=+r1.tickets; if(r2.tickets)np2+=+r2.tickets;
+      if(r1.total)ns1+=+r1.total; if(r2.total)ns2+=+r2.total;
+      if(r1.avg_basket){na1+=+r1.avg_basket;nc++;} if(r2.avg_basket)na2+=+r2.avg_basket;
+    });
+    if(vb.length>1){
+      const a1=nc?na1/nc:null,a2=nc?na2/nc:null;
+      txt+=`\n----------------\n*סיכום רשת יומי:*\n`;
+      txt+=`פתקיות: ${fmtPct(pct(np1,np2))} (${fmtNum(np1)} ← ${fmtNum(np2)})\n`;
+      txt+=`סל ממוצע: ${fmtPct(pct(a1,a2))} (${fmtILS(a1)} ← ${fmtILS(a2)})\n`;
+      txt+=`סכום כולל: ${fmtPct(pct(ns1,ns2))} (${fmtILS(ns1)} ← ${fmtILS(ns2)})`;
+    }
+    return txt;
+  }else{
+    const D1=getByRange(w1s,w1e),D2=getByRange(w2s,w2e);
+    let np1=0,np2=0,ns1=0,ns2=0,na1=0,na2=0,nc=0;
+    let txt=`📅 *דוח שבועי: ${fmtD(w2s)}-${fmtD(w2e)}*\n*מול: ${fmtD(w1s)}-${fmtD(w1e)}*\n\n`;
+    vb.forEach(b=>{
+      const r1=D1[b]||{},r2=D2[b]||{};
+      txt+=`*${b}:*\n`;
+      txt+=`פתקיות: ${fmtPct(pct(r1.tickets||null,r2.tickets||null))} (${fmtNum(r1.tickets)} ← ${fmtNum(r2.tickets)})\n`;
+      txt+=`סל: ${fmtPct(pct(r1.avg_basket||null,r2.avg_basket||null))} (${(r1.avg_basket||0).toFixed(1)} ← ${(r2.avg_basket||0).toFixed(1)})\n`;
+      txt+=`סכום: ${fmtPct(pct(r1.total||null,r2.total||null))} (${fmtILS(r1.total)} ← ${fmtILS(r2.total)})\n\n`;
+      np1+=r1.tickets||0; np2+=r2.tickets||0;
+      ns1+=r1.total||0; ns2+=r2.total||0;
+      if(r1.avg_basket){na1+=r1.avg_basket;nc++;} if(r2.avg_basket)na2+=r2.avg_basket;
+    });
+    if(vb.length>1){
+      const a1=nc?na1/nc:null,a2=nc?na2/nc:null;
+      txt+=`\n----------------\n*סיכום רשת שבועי:*\n`;
+      txt+=`פתקיות: ${fmtPct(pct(np1,np2))} (${fmtNum(np1)} ← ${fmtNum(np2)})\n`;
+      txt+=`סל ממוצע: ${fmtPct(pct(a1,a2))} (${fmtILS(a1)} ← ${fmtILS(a2)})\n`;
+      txt+=`סכום כולל: ${fmtPct(pct(ns1,ns2))} (${fmtILS(ns1)} ← ${fmtILS(ns2)})`;
+    }
+    return txt;
+  }
+}
+function initWAPage(){
+  const ld=lastDate();
+  document.getElementById('wa-d1').value=dateMinus(ld,7);
+  document.getElementById('wa-d2').value=ld;
+  document.getElementById('wa-w1s').value=dateMinus(ld,13);
+  document.getElementById('wa-w1e').value=dateMinus(ld,7);
+  document.getElementById('wa-w2s').value=dateMinus(ld,6);
+  document.getElementById('wa-w2e').value=ld;
+  buildWA();
+}
+function setWAMode(m){
+  waMode=m;
+  document.getElementById('wa-day-ctrl').style.display=m==='day'?'flex':'none';
+  document.getElementById('wa-week-ctrl').style.display=m==='week'?'flex':'none';
+  document.getElementById('wa-day-tab').classList.toggle('active',m==='day');
+  document.getElementById('wa-week-tab').classList.toggle('active',m==='week');
+  buildWA();
+}
+function buildWA(){
+  const txt=buildWAText(waMode,
+    document.getElementById('wa-d1').value,document.getElementById('wa-d2').value,
+    document.getElementById('wa-w1s').value,document.getElementById('wa-w1e').value,
+    document.getElementById('wa-w2s').value,document.getElementById('wa-w2e').value);
+  document.getElementById('wa-box').textContent=txt;
+  document.getElementById('wa-link').href='https://wa.me/?text='+encodeURIComponent(txt);
+}
+function copyWA(){ navigator.clipboard.writeText(document.getElementById('wa-box').textContent); showToast('✅ הועתק!'); }
+
+// ─── WA MODAL ─────────────────────────────────────────────────────────────────
+function openWAModal(){ buildMWA(); openModal('wa-modal'); }
+function setMWAMode(m){
+  mwaMode=m;
+  document.getElementById('mwa-day').classList.toggle('active',m==='day');
+  document.getElementById('mwa-week').classList.toggle('active',m==='week');
+  buildMWA();
+}
+function buildMWA(){
+  const ld=lastDate();
+  const txt=buildWAText(mwaMode,dateMinus(ld,7),ld,dateMinus(ld,13),dateMinus(ld,7),dateMinus(ld,6),ld);
+  document.getElementById('mwa-box').textContent=txt;
+  document.getElementById('mwa-link').href='https://wa.me/?text='+encodeURIComponent(txt);
+}
+function copyMWA(){ navigator.clipboard.writeText(document.getElementById('mwa-box').textContent); showToast('✅ הועתק!'); }
+
+// ─── ADMIN ────────────────────────────────────────────────────────────────────
+async function loadUsers(){
+  const {data,error}=await sb.from('profiles').select('*').order('created_at');
+  if(error){ document.getElementById('users-list').innerHTML=`<div class="empty"><p>שגיאה בטעינת משתמשים</p></div>`; return; }
+  if(!data?.length){ document.getElementById('users-list').innerHTML=`<div class="empty"><div class="ei">👥</div><p>אין משתמשים עדיין</p></div>`; return; }
+  document.getElementById('users-list').innerHTML=data.map(u=>`
+    <div class="user-card">
+      <div class="u-av" style="background:${u.role==='super_admin'?'#EF4444':u.role==='network_manager'?'#F5A623':'#22C55E'}">${(u.full_name||u.email||'?')[0].toUpperCase()}</div>
+      <div class="u-info">
+        <div class="u-name">${u.full_name||'—'}</div>
+        <div class="u-email">${u.email||''} ${u.branch?'· '+u.branch:''}</div>
+      </div>
+      <span class="role-badge ${ROLE_CSS[u.role]||''}">${ROLES[u.role]||u.role}</span>
+      ${u.id!==currentUser.id?`<button class="btn btn-ghost btn-sm" onclick="changeRole('${u.id}','${u.role}','${u.branch||''}')">✏️ ערוך</button>`:'<span style="font-size:11px;color:var(--text3)">אתה</span>'}
+    </div>`).join('');
+}
+
+function openAddUser(){ document.getElementById('nu-err').style.display='none'; openModal('add-user-modal'); toggleBranchSel(); }
+function toggleBranchSel(){
+  const role=document.getElementById('nu-role').value;
+  document.getElementById('branch-sel-wrap').style.display=role==='branch_manager'?'block':'none';
+}
+
+async function addUser(){
+  const name=document.getElementById('nu-name').value.trim();
+  const email=document.getElementById('nu-email').value.trim();
+  const pass=document.getElementById('nu-pass').value;
+  const role=document.getElementById('nu-role').value;
+  const branch=role==='branch_manager'?document.getElementById('nu-branch').value:'';
+  const err=document.getElementById('nu-err');
+  err.style.display='none';
+  if(!name||!email||!pass){ err.textContent='מלא את כל השדות'; err.style.display='block'; return; }
+  if(pass.length<6){ err.textContent='הסיסמה חייבת להיות לפחות 6 תווים'; err.style.display='block'; return; }
+
+  const {data,error}=await sb.auth.admin ? 
+    sb.auth.admin.createUser({email,password:pass,email_confirm:true,user_metadata:{full_name:name,role,branch}}) :
+    sb.auth.signUp({email,password:pass,options:{data:{full_name:name,role,branch}}});
+
+  if(error){ err.textContent='שגיאה: '+error.message; err.style.display='block'; return; }
+
+  // Manually insert/update profile since admin API may not be available
+  if(data?.user){
+    await sb.from('profiles').upsert({id:data.user.id,email,full_name:name,role,branch});
+  }
+
+  closeModal('add-user-modal');
+  showToast(`✅ משתמש ${name} נוצר בהצלחה!`);
+  loadUsers();
+}
+
+async function changeRole(uid,currentRole,currentBranch){
+  const newRole=prompt(`תפקיד נוכחי: ${ROLES[currentRole]}\nהכנס תפקיד חדש:\nsuper_admin / network_manager / branch_manager`);
+  if(!newRole||!ROLES[newRole])return;
+  let branch=currentBranch;
+  if(newRole==='branch_manager') branch=prompt('סניף:',currentBranch)||currentBranch;
+  await sb.from('profiles').update({role:newRole,branch}).eq('id',uid);
+  showToast('✅ תפקיד עודכן!');
+  loadUsers();
+}
+
+
+// ─── CHARTS ───────────────────────────────────────────────────────────────────
+let trendChart=null, branchChart=null, dowChart=null;
+let chartBranch = 'all';
+
+function setChartBranch(b){
+  chartBranch = b;
+  ['all','חריש','אמוראים','רב חנן','ריש לקיש'].forEach((br,i)=>{
+    const id = i===0?'cb-all':'cb-'+i;
+    const el=document.getElementById(id);
+    if(el) el.classList.toggle('active', br===b);
+  });
+  buildCharts();
+}
+
+function buildCharts(){
+  if(!salesData.length) return;
+  buildTrendChart();
+  buildBranchChart();
+  buildDowChart();
+}
+
+function getWeeklyTotals(branch){
+  const weeks = {};
+  salesData.forEach(r=>{
+    if(branch!=='all' && r.branch!==branch) return;
+    const d = new Date(r.date);
+    const day = d.getDay();
+    const sunday = new Date(d);
+    sunday.setDate(d.getDate() - day);
+    const key = sunday.toISOString().split('T')[0];
+    if(!weeks[key]) weeks[key]={total:0,tickets:0};
+    if(r.total) weeks[key].total += +r.total;
+    if(r.tickets) weeks[key].tickets += +r.tickets;
+  });
+  return Object.entries(weeks).sort((a,b)=>a[0].localeCompare(b[0])).slice(-10);
+}
+
+function buildTrendChart(){
+  const ctx = document.getElementById('trend-chart');
+  if(!ctx) return;
+  const weeks = getWeeklyTotals(chartBranch);
+  const labels = weeks.map(([d])=>{ const p=d.split('-'); return p[2]+'/'+p[1]; });
+  const totals = weeks.map(([,v])=>Math.round(v.total/1000));
+
+  if(trendChart) trendChart.destroy();
+  trendChart = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels,
+      datasets:[{
+        label: chartBranch==='all'?'סכום רשת (אלפי ₪)':'סכום (אלפי ₪)',
+        data: totals,
+        borderColor:'#1A6CF2',
+        backgroundColor:'rgba(26,108,242,0.1)',
+        fill:true,
+        tension:0.4,
+        pointBackgroundColor:'#1A6CF2',
+        pointRadius:4,
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{labels:{color:'#8FA3B8',font:{family:'Heebo'}}}},
+      scales:{
+        x:{ticks:{color:'#5A7A96',font:{family:'Heebo'}},grid:{color:'rgba(255,255,255,0.05)'}},
+        y:{ticks:{color:'#5A7A96',font:{family:'Heebo'},callback:v=>v+'K'},grid:{color:'rgba(255,255,255,0.05)'}}
+      }
+    }
+  });
+}
+
+function buildBranchChart(){
+  const ctx = document.getElementById('branch-chart');
+  if(!ctx) return;
+  const ld = lastDate();
+  const w2s = dateMinus(ld,6), w2e = ld;
+  const wd = getByRange(w2s, w2e);
+  const vb = visibleBranches();
+  const colors = ['#1A6CF2','#00C2CB','#F5A623','#22C55E'];
+
+  if(branchChart) branchChart.destroy();
+  branchChart = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels: vb,
+      datasets:[{
+        label:'סכום שבועי (₪)',
+        data: vb.map(b=>Math.round(wd[b]?.total||0)),
+        backgroundColor: vb.map((_,i)=>colors[i%4]+'CC'),
+        borderColor: vb.map((_,i)=>colors[i%4]),
+        borderWidth:1,
+        borderRadius:6,
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{labels:{color:'#8FA3B8',font:{family:'Heebo'}}}},
+      scales:{
+        x:{ticks:{color:'#8FA3B8',font:{family:'Heebo'}},grid:{color:'rgba(255,255,255,0.05)'}},
+        y:{ticks:{color:'#5A7A96',font:{family:'Heebo'},callback:v=>'₪'+v.toLocaleString('he-IL')},grid:{color:'rgba(255,255,255,0.05)'}}
+      }
+    }
+  });
+}
+
+function buildDowChart(){
+  const ctx = document.getElementById('dow-chart');
+  if(!ctx) return;
+  const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+  const dayData = Array(7).fill(0).map(()=>({sum:0,cnt:0}));
+  
+  salesData.forEach(r=>{
+    if(!r.avg_basket) return;
+    const dow = new Date(r.date).getDay();
+    dayData[dow].sum += +r.avg_basket;
+    dayData[dow].cnt++;
+  });
+  
+  const avgs = dayData.map(d=>d.cnt?Math.round(d.sum/d.cnt):0);
+
+  if(dowChart) dowChart.destroy();
+  dowChart = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels: days,
+      datasets:[{
+        label:'סל ממוצע (₪)',
+        data: avgs,
+        backgroundColor:'rgba(0,194,203,0.7)',
+        borderColor:'#00C2CB',
+        borderWidth:1,
+        borderRadius:6,
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{labels:{color:'#8FA3B8',font:{family:'Heebo'}}}},
+      scales:{
+        x:{ticks:{color:'#8FA3B8',font:{family:'Heebo'}},grid:{color:'rgba(255,255,255,0.05)'}},
+        y:{ticks:{color:'#5A7A96',font:{family:'Heebo'},callback:v=>'₪'+v},grid:{color:'rgba(255,255,255,0.05)'}}
+      }
+    }
+  });
+}
+
+
+
+
+// ─── IMPORT FROM COMMAX ────────────────────────────────────────────────────────
+let importData = [];
+
+function handleDrop(e){
+  e.preventDefault();
+  document.getElementById('drop-zone').style.borderColor='rgba(26,108,242,.4)';
+  document.getElementById('drop-zone').style.background='rgba(26,108,242,.03)';
+  handleFiles(e.dataTransfer.files);
+}
+
+function handleFiles(files){
+  importData = [];
+  document.getElementById('import-log-card').style.display='block';
+  document.getElementById('import-log').innerHTML = '';
+  
+  Array.from(files).forEach(file => {
+    logImport(`📂 מעבד: ${file.name}...`);
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const text = new TextDecoder('windows-1255').decode(e.target.result);
+        parseCommaxFile(text, file.name);
+      } catch(err) {
+        logImport(`❌ שגיאה ב-${file.name}: ${err.message}`);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function parseCommaxFile(html, filename){
+  // Parse HTML table
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const rows = doc.querySelectorAll('tr');
+  
+  // Auto-detect branch from filename or content
+  let branch = document.getElementById('import-branch').value;
+  if(branch === 'auto'){
+    // Try to detect from content
+    const bodyText = doc.body?.innerText || '';
+    if(bodyText.includes('חריש') || filename.includes('94626') || filename.includes('94327')) branch = 'חריש';
+    else if(bodyText.includes('אמוראים') || filename.includes('94054') || filename.includes('95248')) branch = 'אמוראים';
+    else if(bodyText.includes('רב חנן') || filename.includes('94132') || filename.includes('95121')) branch = 'רב חנן';
+    else if(bodyText.includes('ריש לקיש') || filename.includes('94239') || filename.includes('94957')) branch = 'ריש לקיש';
+    else {
+      logImport(`⚠️ לא זוהה סניף עבור ${filename} — בחר ידנית`);
+      return;
+    }
+  }
+  
+  let count = 0;
+  rows.forEach(row => {
+    const cells = row.querySelectorAll('td');
+    if(!cells.length) return;
+    const firstCell = cells[0]?.textContent?.trim();
+    if(!firstCell) return;
+    
+    // Check if it's DD/MM/YYYY format
+    const parts = firstCell.split('/');
+    if(parts.length !== 3) return;
+    
+    try {
+      const day = parseInt(parts[0]);
+      const month = parseInt(parts[1]);
+      const year = parseInt(parts[2]);
+      if(isNaN(day)||isNaN(month)||isNaN(year)) return;
+      if(day<1||day>31||month<1||month>12||year<2020) return;
+      
+      const parseNum = s => parseFloat((s||'').replace(/,/g,'').replace(/%/g,'').trim()) || null;
+      
+      const tickets    = parseNum(cells[2]?.textContent);
+      const total      = parseNum(cells[8]?.textContent);
+      const avg_basket = parseNum(cells[6]?.textContent);
+      
+      // Skip invalid rows
+      if(!tickets || tickets < 10) return;
+      if(!total || total < 1000) return;
+      
+      const date = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      importData.push({ date, branch, tickets, avg_basket, total });
+      count++;
+    } catch(e) {}
+  });
+  
+  logImport(`✅ ${branch}: נמצאו ${count} ימים`);
+  
+  if(importData.length > 0){
+    showImportPreview(); // async — runs in background
+  }
+}
+
+async function showImportPreview(){
+  // Sort by date
+  importData.sort((a,b) => a.date.localeCompare(b.date));
+  
+  // Remove duplicates within file (keep last)
+  const seen = {};
+  importData.forEach(r => { seen[r.date + '_' + r.branch] = r; });
+  importData = Object.values(seen).sort((a,b)=>a.date.localeCompare(b.date));
+  
+  document.getElementById('import-preview-card').style.display='block';
+  document.getElementById('import-preview-count').textContent = `${importData.length} רשומות`;
+  
+  const branches = [...new Set(importData.map(r=>r.branch))];
+  const months   = [...new Set(importData.map(r=>r.date.substring(0,7)))].sort();
+  document.getElementById('import-summary').textContent = 
+    `${branches.join(', ')} | ${months[0]} עד ${months[months.length-1]} | ${importData.length} ימים`;
+  
+  // ── CHECK DUPLICATES for preview coloring ──
+  logImport('🔍 בודק כפילויות לתצוגה מקדימה...');
+  const { existing, newCount, updateCount } = await checkDuplicatesInDB(importData);
+  showDuplicateSummary(newCount, updateCount);
+  if(updateCount > 0) logImport(`🟡 ${updateCount} רשומות שכבר קיימות (יסומנו בצהוב)`);
+  if(newCount > 0)    logImport(`🟢 ${newCount} רשומות חדשות`);
+
+  // Show preview table
+  let tbl = `<thead><tr><th>סטטוס</th><th>תאריך</th><th>סניף</th><th>פתקיות</th><th>סל ממוצע</th><th>סכום</th></tr></thead><tbody>`;
+  const preview = importData.slice(0, 30);
+  preview.forEach(r => {
+    const parts = r.date.split('-');
+    const isExisting = existing.has(r.date + '_' + r.branch);
+    const rowStyle = isExisting ? 'background:rgba(245,166,35,0.06)' : '';
+    tbl += `<tr style="${rowStyle}">
+      <td>${isExisting ? '🟡 עדכון' : '🟢 חדש'}</td>
+      <td>${parts[2]}/${parts[1]}/${parts[0]}</td>
+      <td>${r.branch}</td>
+      <td>${r.tickets?.toLocaleString('he-IL')||'—'}</td>
+      <td>₪${r.avg_basket?.toFixed(2)||'—'}</td>
+      <td>₪${Math.round(r.total||0).toLocaleString('he-IL')}</td>
+    </tr>`;
+  });
+  if(importData.length > 30){
+    tbl += `<tr><td colspan="6" style="text-align:center;color:var(--text3)">... ועוד ${importData.length-30} רשומות</td></tr>`;
+  }
+  document.getElementById('import-preview-table').innerHTML = tbl + '</tbody>';
+}
+
+// ─── DUPLICATE CHECK SKILL ────────────────────────────────────────────────────
+// בודק מה כבר קיים ב-DB לפני שמירה — מחזיר { existing: Set<"date_branch">, newCount, updateCount }
+async function checkDuplicatesInDB(rows){
+  if(!rows.length) return { existing: new Set(), newCount: 0, updateCount: 0 };
+  
+  // Get all unique dates in our import
+  const dates = [...new Set(rows.map(r => r.date))];
+  const branches = [...new Set(rows.map(r => r.branch))];
+  
+  // Query DB for those specific dates+branches
+  const {data, error} = await sb.from('sales')
+    .select('date,branch')
+    .in('date', dates)
+    .in('branch', branches);
+  
+  if(error){ logImport(`⚠️ לא הצלחתי לבדוק כפילויות: ${error.message}`); return { existing: new Set(), newCount: rows.length, updateCount: 0 }; }
+  
+  const existing = new Set((data||[]).map(r => r.date + '_' + r.branch));
+  const updateCount = rows.filter(r => existing.has(r.date + '_' + r.branch)).length;
+  const newCount = rows.length - updateCount;
+  
+  return { existing, newCount, updateCount };
+}
+
+function showDuplicateSummary(newCount, updateCount){
+  const el = document.getElementById('import-summary');
+  if(!el) return;
+  const parts = el.textContent.split(' | ').slice(0,3);
+  let badge = '';
+  if(newCount > 0)    badge += `<span style="color:var(--green);font-weight:700">🟢 ${newCount} חדשות</span>  `;
+  if(updateCount > 0) badge += `<span style="color:var(--gold);font-weight:700">🟡 ${updateCount} יעודכנו (קיימות)</span>`;
+  el.innerHTML = parts.join(' | ') + ' — ' + badge;
+}
+
+async function saveImport(){
+  if(!importData.length){ showToast('⚠️ אין נתונים לשמירה'); return; }
+  
+  const btn = document.getElementById('import-save-btn');
+  btn.disabled = true;
+  btn.textContent = '🔍 בודק כפילויות...';
+  logImport('🔍 בודק מה כבר קיים במסד הנתונים...');
+  
+  // ── DUPLICATE CHECK ──
+  const { existing, newCount, updateCount } = await checkDuplicatesInDB(importData);
+  
+  if(updateCount > 0){
+    logImport(`🟡 נמצאו ${updateCount} רשומות שכבר קיימות — יעודכנו (לא יתווספו כפולות)`);
+  }
+  if(newCount > 0){
+    logImport(`🟢 ${newCount} רשומות חדשות שיתווספו`);
+  }
+  logImport('──────────────────────────────');
+  
+  btn.textContent = '⏳ שומר...';
+  
+  // Upsert in batches of 100
+  const batchSize = 100;
+  let saved = 0;
+  let errors = 0;
+  
+  for(let i=0; i<importData.length; i+=batchSize){
+    const batch = importData.slice(i, i+batchSize).map(r=>({
+      date: r.date,
+      branch: r.branch,
+      tickets: r.tickets ? Math.round(r.tickets) : null,
+      avg_basket: r.avg_basket || null,
+      total: r.total ? Math.round(r.total) : null,
+      created_by: currentUser.id
+    }));
+    
+    const {error} = await sb.from('sales').upsert(batch, {onConflict:'date,branch'});
+    if(error){ 
+      errors++;
+      logImport(`❌ שגיאה בשמירת אצווה ${i/batchSize+1}: ${error.message}`);
+    } else {
+      saved += batch.length;
+      logImport(`✅ נשמרו ${saved}/${importData.length} רשומות...`);
+    }
+  }
+  
+  btn.disabled = false;
+  btn.textContent = '💾 שמור במסד הנתונים';
+  
+  if(errors === 0){
+    showToast(`✅ ${newCount} חדשות, ${updateCount} עודכנו — הכל נשמר!`);
+    await loadSalesData();
+    buildDashboard();
+    logImport(`🎉 סיום! ${newCount} חדשות + ${updateCount} עודכנו (ללא כפילויות)`);
+    importData = [];
+    setTimeout(()=>{ document.getElementById('import-preview-card').style.display='none'; }, 2500);
+  } else {
+    showToast(`⚠️ נשמרו ${saved} רשומות, ${errors} שגיאות`);
+  }
+}
+
+function clearImport(){
+  importData = [];
+  document.getElementById('import-preview-card').style.display='none';
+  document.getElementById('import-log-card').style.display='none';
+  document.getElementById('file-input').value='';
+}
+
+function logImport(msg){
+  const log = document.getElementById('import-log');
+  if(!log) return;
+  log.innerHTML += msg + '<br>';
+  log.scrollTop = log.scrollHeight;
+}
+
+// ─── MONTHLY REPORT ────────────────────────────────────────────────────────────
+const MONTH_NAMES = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+const DOW_NAMES = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+
+function initMonthlyPage(){
+  const sel = document.getElementById('month-sel');
+  if(!sel) return;
+  sel.innerHTML = MONTH_NAMES.map((m,i)=>`<option value="${i+1}">${m}</option>`).join('');
+  const now = new Date();
+  sel.value = now.getMonth()+1;
+  buildMonthly();
+}
+
+function getMonthData(year, month){
+  const prefix = `${year}-${String(month).padStart(2,'0')}`;
+  return salesData.filter(r=>r.date.startsWith(prefix));
+}
+
+function calcMonthStats(data, vb){
+  const branchTotals = {};
+  vb.forEach(b=>branchTotals[b]={total:0,tickets:0,avg_sum:0,avg_cnt:0,days:0});
+  data.forEach(r=>{
+    if(!branchTotals[r.branch]) return;
+    if(r.total){branchTotals[r.branch].total+=+r.total; branchTotals[r.branch].days++;}
+    if(r.tickets) branchTotals[r.branch].tickets+=+r.tickets;
+    if(r.avg_basket){branchTotals[r.branch].avg_sum+=+r.avg_basket; branchTotals[r.branch].avg_cnt++;}
+  });
+  const netTotal = Object.values(branchTotals).reduce((s,b)=>s+b.total,0);
+  const netTickets = Object.values(branchTotals).reduce((s,b)=>s+b.tickets,0);
+  const netAvgSum = Object.values(branchTotals).reduce((s,b)=>s+b.avg_sum,0);
+  const netAvgCnt = Object.values(branchTotals).reduce((s,b)=>s+b.avg_cnt,0);
+  return {branchTotals, netTotal, netTickets, netAvg: netAvgCnt?netAvgSum/netAvgCnt:0};
+}
+
+function buildMonthly(){
+  const month = parseInt(document.getElementById('month-sel').value);
+  const year  = parseInt(document.getElementById('year-sel').value);
+  const vb = visibleBranches();
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const today = new Date();
+  const isCurrentMonth = today.getFullYear()===year && today.getMonth()+1===month;
+  const daysDone = isCurrentMonth ? today.getDate()-1 : daysInMonth;
+  const daysLeft = isCurrentMonth ? daysInMonth - daysDone : 0;
+
+  // Current month data
+  const currData = getMonthData(year, month);
+  const curr = calcMonthStats(currData, vb);
+
+  // Previous month
+  const prevMonth = month===1 ? 12 : month-1;
+  const prevYear  = month===1 ? year-1 : year;
+  const prevData  = getMonthData(prevYear, prevMonth);
+  const prev      = calcMonthStats(prevData, vb);
+  const hasPrev   = prev.netTotal > 0;
+
+  // Same month last year
+  const lyData = getMonthData(year-1, month);
+  const ly     = calcMonthStats(lyData, vb);
+  const hasLY  = ly.netTotal > 0;
+
+  // Growth rate from prev month vs last year prev month
+  const prevLYData = getMonthData(year-1, prevMonth);
+  const prevLY     = calcMonthStats(prevLYData, vb);
+  const growthRate = (prevLY.netTotal > 10000 && prev.netTotal > 10000) ? 
+    (prev.netTotal - prevLY.netTotal) / prevLY.netTotal : null;
+
+  // Target = ly * (1 + growthRate) — only if we have valid last year data
+  const target = (hasLY && ly.netTotal > 10000 && growthRate!==null) ? 
+    ly.netTotal * (1 + growthRate) : null;
+  // targetPct = current vs target — only meaningful mid-month
+  const targetPct = (target && target > 10000 && curr.netTotal > 0) ? 
+    curr.netTotal/target*100 : null;
+
+  // ── Metric cards ──────────────────────────────────────────────────────────
+  const doneLabel = isCurrentMonth ? `${daysDone} ימים` : `${daysInMonth} ימים`;
+  const prevPct = pct(prev.netTotal, curr.netTotal);
+  
+  document.getElementById('monthly-metrics').innerHTML = [
+    {label:`סכום ${MONTH_NAMES[month-1]} ${year}`, value:fmtILS(curr.netTotal), color:'blue', 
+     sub: hasPrev ? `${prevPct>=0?'+':''}${prevPct?.toFixed(0)}% מ${MONTH_NAMES[prevMonth-1]}` : doneLabel},
+    {label:'פתקיות', value:fmtNum(curr.netTickets), color:'cyan', sub:doneLabel},
+    {label:'סל ממוצע', value:fmtILS(curr.netAvg), color:'gold', sub:'ממוצע חודשי'},
+    {label: target?'הושג עד היום':'ממוצע יומי', 
+     value: target ? `${targetPct?.toFixed(0)}%` : fmtILS(daysDone?curr.netTotal/daysDone:0), 
+     color: target ? (targetPct>=100?'green':'gold') : 'green', 
+     sub: target ? `מתוך יעד ${fmtILS(target)}` : 'לא כולל שבת'},
+  ].map(m=>`
+    <div class="mc ${m.color}">
+      <div class="mc-label">${m.label}</div>
+      <div class="mc-value">${m.value}</div>
+      <span class="mc-change flat">${m.sub}</span>
+    </div>`).join('');
+
+  // ── Forecast card ──────────────────────────────────────────────────────────
+  if(isCurrentMonth && daysLeft > 0){
+    const dailyTotals = {};
+    currData.forEach(r=>{ if(!dailyTotals[r.date]) dailyTotals[r.date]=0; if(r.total) dailyTotals[r.date]+=+r.total; });
+    const nonShabbat = Object.entries(dailyTotals).filter(([d,v])=>new Date(d).getDay()!==6 && v>50000);
+    const avgWeekday = nonShabbat.length ? nonShabbat.reduce((s,[,v])=>s+v,0)/nonShabbat.length : 0;
+    
+    let projRemaining = 0;
+    for(let d=daysDone+1; d<=daysInMonth; d++){
+      const dow = new Date(year, month-1, d).getDay();
+      if(dow===6) projRemaining += 35000;
+      else if(dow===5) projRemaining += avgWeekday * 0.75;
+      else projRemaining += avgWeekday;
+    }
+    const projected = curr.netTotal + projRemaining;
+    const projVsTarget = target ? (projected/target*100) : null;
+
+    document.getElementById('forecast-content').innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(${target?4:3},1fr);gap:12px;margin-bottom:10px">
+        <div style="background:rgba(26,108,242,.08);border:1px solid rgba(26,108,242,.2);border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">עד היום</div>
+          <div style="font-size:18px;font-weight:800">${fmtILS(curr.netTotal)}</div>
+        </div>
+        <div style="background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.2);border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">תחזית שארית</div>
+          <div style="font-size:18px;font-weight:800">${fmtILS(projRemaining)}</div>
+        </div>
+        <div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">תחזית סגירה</div>
+          <div style="font-size:20px;font-weight:800;color:var(--green)">${fmtILS(projected)}</div>
+        </div>
+        ${target ? `<div style="background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.3);border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">תחזית לסוף חודש</div>
+          <div style="font-size:20px;font-weight:800;color:${projVsTarget>=100?'var(--green)':'var(--gold)'}">${projVsTarget?.toFixed(0)}%</div>
+          <div style="font-size:10px;color:var(--text3)">${fmtILS(target)}</div>
+        </div>` : ''}
+      </div>
+      <div style="font-size:12px;color:var(--text3);text-align:center">
+        נשארו ${daysLeft} ימים | ממוצע יום רגיל: ${fmtILS(avgWeekday)}
+        ${growthRate!==null ? ` | קצב צמיחה: ${(growthRate*100).toFixed(1)}%` : ''}
+      </div>`;
+    document.getElementById('forecast-card').style.display='block';
+  } else {
+    document.getElementById('forecast-card').style.display='none';
+  }
+
+  // ── Branch comparison table ────────────────────────────────────────────────
+  document.getElementById('monthly-table-title').textContent = 
+    `📊 השוואה חודשית — ${MONTH_NAMES[month-1]} ${year}`;
+  
+  let cols = `<th>סניף</th><th>${MONTH_NAMES[month-1]} ${year}</th>`;
+  if(hasPrev) cols += `<th>${MONTH_NAMES[prevMonth-1]}</th><th>שינוי</th>`;
+  if(hasLY)   cols += `<th>${MONTH_NAMES[month-1]} ${year-1}</th><th>שינוי</th>`;
+  cols += `<th>פתקיות</th><th>סל ממוצע</th>`;
+  if(target)  cols += `<th>יעד</th><th>% ביצוע</th>`;
+
+  let tbl = `<thead><tr>${cols}</tr></thead><tbody>`;
+  
+  let netPrevTotal=0, netLYTotal=0, netTargetTotal=0;
+
+  vb.forEach(b=>{
+    const c = curr.branchTotals[b];
+    const p = prev.branchTotals[b];
+    const l = ly.branchTotals[b];
+    const plY = prevLY.branchTotals[b];
+    const brGrowth = (plY?.total && p?.total) ? (p.total-plY.total)/plY.total : null;
+    const brTarget = (l?.total && brGrowth!==null) ? l.total*(1+brGrowth) : null;
+    const brTargetPct = brTarget ? c.total/brTarget*100 : null;
+    
+    if(p?.total) netPrevTotal += p.total;
+    if(l?.total) netLYTotal  += l.total;
+    if(brTarget)  netTargetTotal += brTarget;
+
+    const avgB = c.avg_cnt ? c.avg_sum/c.avg_cnt : null;
+    
+    tbl += `<tr><td>${b}</td>
+      <td>${fmtILS(c.total)}</td>
+      ${hasPrev ? `<td>${fmtILS(p?.total)}</td><td>${pctBadge(pct(p?.total,c.total))}</td>` : ''}
+      ${hasLY   ? `<td>${fmtILS(l?.total)}</td><td>${pctBadge(pct(l?.total,c.total))}</td>` : ''}
+      <td>${fmtNum(c.tickets)}</td>
+      <td>${fmtILS(avgB)}</td>
+      ${brTarget ? `<td>${fmtILS(brTarget)}</td><td>${pctBadge(brTargetPct?brTargetPct-100:null)}</td>` : ''}
+    </tr>`;
+  });
+
+  if(vb.length>1){
+    const netAvgB = curr.netAvg;
+    tbl += `<tr class="total-row">
+      <td>סה"כ רשת</td>
+      <td>${fmtILS(curr.netTotal)}</td>
+      ${hasPrev ? `<td>${fmtILS(netPrevTotal)}</td><td>${pctBadge(pct(netPrevTotal,curr.netTotal))}</td>` : ''}
+      ${hasLY   ? `<td>${fmtILS(netLYTotal)}</td><td>${pctBadge(pct(netLYTotal,curr.netTotal))}</td>` : ''}
+      <td>${fmtNum(curr.netTickets)}</td>
+      <td>${fmtILS(netAvgB)}</td>
+      ${target ? `<td>${fmtILS(netTargetTotal)}</td><td>${pctBadge(netTargetTotal?(curr.netTotal/netTargetTotal*100)-100:null)}</td>` : ''}
+    </tr>`;
+  }
+  document.getElementById('monthly-table').innerHTML = tbl+'</tbody>';
+
+  // ── Daily breakdown ────────────────────────────────────────────────────────
+  const dailyAll = {};
+  currData.forEach(r=>{
+    if(!dailyAll[r.date]) dailyAll[r.date]={total:0,tickets:0,avg_sum:0,avg_cnt:0};
+    if(r.total) dailyAll[r.date].total+=+r.total;
+    if(r.tickets) dailyAll[r.date].tickets+=+r.tickets;
+    if(r.avg_basket){dailyAll[r.date].avg_sum+=+r.avg_basket;dailyAll[r.date].avg_cnt++;}
+  });
+
+  const sortedDates = Object.keys(dailyAll).sort();
+  let runningTotal=0;
+  let dtbl=`<thead><tr><th>תאריך</th><th>יום</th><th>סכום</th><th>מצטבר</th><th>פתקיות</th><th>סל ממוצע</th></tr></thead><tbody>`;
+  
+  sortedDates.forEach(date=>{
+    const d = dailyAll[date];
+    runningTotal += d.total;
+    const dow = DOW_NAMES[new Date(date).getDay()];
+    const parts = date.split('-');
+    const dateStr = parts[2]+'/'+parts[1];
+    const isShabbat = new Date(date).getDay()===6;
+    const avgB = d.avg_cnt ? d.avg_sum/d.avg_cnt : null;
+    dtbl += `<tr style="${isShabbat?'opacity:0.55':''}">
+      <td><strong>${dateStr}</strong></td>
+      <td style="color:var(--text3);font-size:12px">${dow}</td>
+      <td>${fmtILS(d.total)}</td>
+      <td style="color:var(--text3);font-size:12px">${fmtILS(runningTotal)}</td>
+      <td>${fmtNum(d.tickets)}</td>
+      <td>${fmtILS(avgB)}</td>
+    </tr>`;
+  });
+  
+  dtbl+=`<tr class="total-row">
+    <td colspan="2">סה"כ</td>
+    <td>${fmtILS(curr.netTotal)}</td>
+    <td></td>
+    <td>${fmtNum(curr.netTickets)}</td>
+    <td>${fmtILS(curr.netAvg)}</td>
+  </tr>`;
+  document.getElementById('daily-breakdown-table').innerHTML = dtbl+'</tbody>';
+}
+
+
+
+// ─── PUSH NOTIFICATIONS (Service Worker) ──────────────────────────────────────
+const VAPID_PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa40HECKIbFNFcgFgyCLOFVLiQRuGvWBCLJALIcjbk8sYxh3FxJaUz7csFV_c4';
+
+async function registerPush(){
+  if(!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  try {
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+    
+    const permission = await Notification.requestPermission();
+    if(permission !== 'granted') return;
+    
+    // Subscribe to push
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+    
+    // Save subscription to Supabase
+    await sb.from('push_subscriptions').upsert({
+      user_id: currentUser.id,
+      subscription: JSON.stringify(sub),
+      updated_at: new Date().toISOString()
+    }, {onConflict: 'user_id'});
+    
+    console.log('Push registered!');
+  } catch(e) {
+    console.log('Push registration failed:', e);
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
+async function notifyAllUsers(message, date){
+  // Store notification in Supabase - all users will see it when they check
+  try {
+    await sb.from('notifications').insert({
+      message,
+      date,
+      created_by: currentUser.id,
+      created_at: new Date().toISOString()
+    });
+    
+    // Also show local browser notification if permission granted
+    if(Notification.permission === 'granted'){
+      new Notification('KT Market 📊', {
+        body: message,
+        icon: 'https://thunderous-queijadas-c1f5d5.netlify.app/favicon.ico',
+        tag: 'kt-update-' + date,
+        requireInteraction: false
+      });
+    }
+  } catch(e) {
+    console.log('Notify error:', e);
+  }
+}
+
+
+
+// ─── AUTO LOGIN CHECK ─────────────────────────────────────────────────────────
+(async()=>{
+  const {data:{session}}=await sb.auth.getSession();
+  if(session?.user) await initApp(session.user);
+})();
+
+// Close modals on outside click
+document.querySelectorAll('.modal-overlay').forEach(o=>{ o.addEventListener('click',e=>{ if(e.target===o)o.classList.remove('open'); }); });
+</script>
+</body>
+</html>
