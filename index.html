@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🧪 TEST | KT Market</title>
+<title>KT Market | ניהול מכירות</title>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
@@ -227,10 +227,6 @@ select:focus{outline:none;border-color:var(--blue);}
 
 /* ── RESPONSIVE ── */
 @media(max-width:1024px){
-  #page-monthly .metrics-grid{grid-template-columns:repeat(2,1fr)!important;}
-  #page-monthly table{font-size:11px;}
-  #page-monthly th,#page-monthly td{padding:6px 8px;}
-  #forecast-content > div{grid-template-columns:repeat(2,1fr)!important;}
   .sidebar{display:none !important;}
   .bottom-nav{display:block !important;}
   .mobile-header{display:flex !important;}
@@ -272,7 +268,7 @@ select:focus{outline:none;border-color:var(--blue);}
     <div class="login-logo">
       <div class="logo-icon">📊</div>
       <h1>KT Market</h1>
-      <p>מערכת ניהול מכירות רשת</p><div style="margin-top:10px;background:rgba(245,166,35,.15);border:1px solid rgba(245,166,35,.4);border-radius:8px;padding:6px 12px;font-size:12px;color:#FCD34D;text-align:center">🧪 סביבת טסטים</div>
+      <p>מערכת ניהול מכירות רשת</p>
     </div>
     <div class="fg"><label>אימייל</label><input type="email" id="l-email" placeholder="your@email.com" autocomplete="email"></div>
     <div class="fg"><label>סיסמה</label><input type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password"></div>
@@ -326,14 +322,14 @@ select:focus{outline:none;border-color:var(--blue);}
       <button class="bn-item" onclick="gotoPage('input')" id="bn-input">
         <span class="bn-icon">✏️</span><span class="bn-label">הכנסה</span>
       </button>
+      <button class="bn-item" onclick="gotoPage('monthly')" id="bn-monthly">
+        <span class="bn-icon">📅</span><span class="bn-label">חודשי</span>
+      </button>
       <button class="bn-item" onclick="gotoPage('compare')" id="bn-compare">
         <span class="bn-icon">📈</span><span class="bn-label">השוואה</span>
       </button>
       <button class="bn-item" onclick="gotoPage('charts')" id="bn-charts">
         <span class="bn-icon">📊</span><span class="bn-label">גרפים</span>
-      </button>
-      <button class="bn-item" onclick="gotoPage('monthly')" id="bn-monthly">
-        <span class="bn-icon">📆</span><span class="bn-label">חודשי</span>
       </button>
       <button class="bn-item" onclick="gotoPage('whatsapp')" id="bn-whatsapp" style="display:flex">
         <span class="bn-icon">💬</span><span class="bn-label">וואטסאפ</span>
@@ -353,10 +349,9 @@ select:focus{outline:none;border-color:var(--blue);}
     </div>
     <div class="nav-item active" onclick="gotoPage('dashboard')" id="nav-dashboard"><span class="nav-icon">🏠</span><span>דשבורד</span></div>
     <div class="nav-item" onclick="gotoPage('input')" id="nav-input"><span class="nav-icon">✏️</span><span>הכנסת נתונים</span></div>
+    <div class="nav-item" onclick="gotoPage('monthly')" id="nav-monthly"><span class="nav-icon">📅</span><span>דוח חודשי</span></div>
     <div class="nav-item" onclick="gotoPage('compare')" id="nav-compare"><span class="nav-icon">📈</span><span>השוואות</span></div>
     <div class="nav-item" onclick="gotoPage('charts')" id="nav-charts"><span class="nav-icon">📊</span><span>גרפים</span></div>
-    <div class="nav-item" onclick="gotoPage('monthly')" id="nav-monthly"><span class="nav-icon">📆</span><span>דוח חודשי</span></div>
-    <div class="nav-item" onclick="gotoPage('import')" id="nav-import" style="display:none"><span class="nav-icon">📥</span><span>ייבוא נתונים</span></div>
     <div class="nav-item" onclick="gotoPage('whatsapp')" id="nav-whatsapp"><span class="nav-icon">💬</span><span>שלח בוואטסאפ</span></div>
     <div class="nav-item" onclick="gotoPage('admin')" id="nav-admin" style="display:none"><span class="nav-icon">⚙️</span><span>ניהול משתמשים</span></div>
     <div class="sb-footer">
@@ -419,6 +414,35 @@ select:focus{outline:none;border-color:var(--blue);}
       </div>
     </div>
 
+    <!-- MONTHLY -->
+    <div class="page" id="page-monthly">
+      <div class="ctrl-bar" style="margin-bottom:18px;flex-wrap:wrap;gap:10px">
+        <label>חודש:</label>
+        <select id="month-sel" onchange="buildMonthly()" style="padding:7px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:13px;cursor:pointer"></select>
+        <label>שנה:</label>
+        <select id="year-sel" onchange="buildMonthly()" style="padding:7px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:13px;cursor:pointer">
+          <option value="2026">2026</option>
+          <option value="2025">2025</option>
+        </select>
+      </div>
+      <div class="metrics-grid" id="monthly-metrics" style="margin-bottom:18px"></div>
+      <div class="sc" id="forecast-card" style="margin-bottom:18px">
+        <div class="sc-header"><h3>🔮 תחזית סגירת חודש</h3></div>
+        <div style="padding:16px" id="forecast-content"></div>
+      </div>
+      <div class="sc" style="margin-bottom:18px">
+        <div class="sc-header">
+          <h3 id="monthly-table-title">📊 פירוט לפי סניף</h3>
+          <span id="monthly-table-sub"></span>
+        </div>
+        <div style="overflow-x:auto"><table id="monthly-table"></table></div>
+      </div>
+      <div class="sc">
+        <div class="sc-header"><h3>📅 פירוט יומי</h3></div>
+        <div style="overflow-x:auto"><table id="daily-breakdown-table"></table></div>
+      </div>
+    </div>
+
     <!-- COMPARE -->
     <div class="page" id="page-compare">
       <div class="ctrl-bar">
@@ -470,103 +494,6 @@ select:focus{outline:none;border-color:var(--blue);}
       </div>
     </div>
 
-
-
-
-    <!-- IMPORT -->
-    <div class="page" id="page-import">
-      <div class="sc" style="margin-bottom:20px">
-        <div class="sc-header">
-          <h3>📥 ייבוא קבצי קומקס</h3>
-          <span>גרור קובץ XLS מקומקס — המערכת מזהה אוטומטית</span>
-        </div>
-        <div style="padding:20px">
-          <!-- Drop zone -->
-          <div id="drop-zone" style="border:2px dashed rgba(26,108,242,.4);border-radius:var(--radius);padding:40px;text-align:center;cursor:pointer;transition:all .2s;background:rgba(26,108,242,.03)" 
-               ondragover="event.preventDefault();this.style.borderColor='var(--blue)';this.style.background='rgba(26,108,242,.08)'"
-               ondragleave="this.style.borderColor='rgba(26,108,242,.4)';this.style.background='rgba(26,108,242,.03)'"
-               ondrop="handleDrop(event)"
-               onclick="document.getElementById('file-input').click()">
-            <div style="font-size:40px;margin-bottom:12px">📂</div>
-            <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">גרור קבצי XLS לכאן</div>
-            <div style="font-size:13px;color:var(--text3)">או לחץ לבחירת קבצים — אפשר כמה בבת אחת</div>
-            <input type="file" id="file-input" accept=".xls,.xlsx" multiple style="display:none" onchange="handleFiles(this.files)">
-          </div>
-
-          <!-- Branch selector -->
-          <div style="margin-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-            <label style="font-size:13px;color:var(--text2);font-weight:600">סניף (אם לא מזוהה אוטומטית):</label>
-            <select id="import-branch" style="padding:8px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:13px">
-              <option value="auto">זיהוי אוטומטי</option>
-              <option value="חריש">חריש</option>
-              <option value="אמוראים">אמוראים</option>
-              <option value="רב חנן">רב חנן</option>
-              <option value="ריש לקיש">ריש לקיש</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <!-- Preview -->
-      <div class="sc" id="import-preview-card" style="display:none;margin-bottom:20px">
-        <div class="sc-header">
-          <h3>👀 תצוגה מקדימה — לפני שמירה</h3>
-          <span id="import-preview-count"></span>
-        </div>
-        <div style="overflow-x:auto;max-height:400px;overflow-y:auto">
-          <table id="import-preview-table"></table>
-        </div>
-        <div style="padding:16px;display:flex;gap:12px;align-items:center">
-          <span style="font-size:13px;color:var(--text2);margin-left:auto" id="import-summary"></span>
-          <button class="btn btn-ghost" onclick="clearImport()">🗑 נקה</button>
-          <button class="btn btn-primary" onclick="saveImport()" id="import-save-btn">💾 שמור במסד הנתונים</button>
-        </div>
-      </div>
-
-      <!-- Log -->
-      <div class="sc" id="import-log-card" style="display:none">
-        <div class="sc-header"><h3>📋 יומן ייבוא</h3></div>
-        <div style="padding:16px;font-family:monospace;font-size:12px;color:var(--text2);max-height:200px;overflow-y:auto;line-height:1.8" id="import-log"></div>
-      </div>
-    </div>
-
-    <!-- MONTHLY -->
-    <div class="page" id="page-monthly">
-      <!-- Month selector -->
-      <div class="ctrl-bar" style="margin-bottom:18px;flex-wrap:wrap;gap:10px">
-        <label>חודש:</label>
-        <select id="month-sel" onchange="buildMonthly()" style="padding:7px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:13px;cursor:pointer"></select>
-        <label>שנה:</label>
-        <select id="year-sel" onchange="buildMonthly()" style="padding:7px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:13px;cursor:pointer">
-          <option value="2026">2026</option>
-          <option value="2025">2025</option>
-        </select>
-      </div>
-
-      <!-- Summary cards -->
-      <div class="metrics-grid" id="monthly-metrics" style="margin-bottom:18px"></div>
-
-      <!-- Forecast card -->
-      <div class="sc" id="forecast-card" style="margin-bottom:18px">
-        <div class="sc-header"><h3>🔮 תחזית סגירת חודש</h3></div>
-        <div style="padding:16px" id="forecast-content"></div>
-      </div>
-
-      <!-- Branch breakdown table -->
-      <div class="sc" style="margin-bottom:18px">
-        <div class="sc-header">
-          <h3 id="monthly-table-title">📊 פירוט לפי סניף</h3>
-          <span id="monthly-table-sub"></span>
-        </div>
-        <div style="overflow-x:auto"><table id="monthly-table"></table></div>
-      </div>
-
-      <!-- Daily breakdown -->
-      <div class="sc">
-        <div class="sc-header"><h3>📅 פירוט יומי</h3></div>
-        <div style="overflow-x:auto"><table id="daily-breakdown-table"></table></div>
-      </div>
-    </div>
 
     <!-- CHARTS -->
     <div class="page" id="page-charts">
@@ -662,8 +589,8 @@ select:focus{outline:none;border-color:var(--blue);}
 
 <script>
 // ─── SUPABASE ─────────────────────────────────────────────────────────────────
-const SUPA_URL = 'https://dkpqgyieoidrydxfiwhd.supabase.co';
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRrcHFneWllb2lkcnlkeGZpd2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MzA4NDgsImV4cCI6MjA4OTMwNjg0OH0.cFYdJK7P58pc_VlQxCo4HdLVRPkyiLz_8hMLepoK3Ws';
+const SUPA_URL = 'https://twfwfoulehqnnplzkxsc.supabase.co';
+const SUPA_KEY = 'sb_publishable_6v7Rmv8RHCXnqUuW6Do0QA_TB2iItOU';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
@@ -671,7 +598,7 @@ const BRANCHES = ['חריש','אמוראים','רב חנן','ריש לקיש'];
 const BCOLORS  = ['#1A6CF2','#00C2CB','#F5A623','#22C55E'];
 const ROLES    = { super_admin:'🔴 Super Admin', network_manager:'🟡 מנהל רשת', branch_manager:'🟢 מנהל סניף' };
 const ROLE_CSS = { super_admin:'role-super', network_manager:'role-network', branch_manager:'role-branch' };
-const PAGE_TITLES = { dashboard:'דשבורד', input:'הכנסת נתונים', compare:'השוואות', whatsapp:'שלח בוואטסאפ', admin:'ניהול משתמשים', charts:'גרפים ומגמות', monthly:'דוח חודשי', import:'ייבוא נתונים מקומקס' };
+const PAGE_TITLES = { dashboard:'דשבורד', input:'הכנסת נתונים', monthly:'דוח חודשי', compare:'השוואות', whatsapp:'שלח בוואטסאפ', admin:'ניהול משתמשים', charts:'גרפים ומגמות' };
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -764,7 +691,7 @@ function pctBadge(v){
 }
 function dateMinus(date,days){ const d=new Date(date); d.setDate(d.getDate()-days); return d.toISOString().split('T')[0]; }
 function fmtD(d){ if(!d)return''; const[y,m,dd]=d.split('-'); return`${dd}/${m}`; }
-function lastDate(){ const dates=[...new Set(salesData.map(r=>r.date))].sort((a,b)=>a.localeCompare(b)); return dates[dates.length-1]||new Date().toISOString().split('T')[0]; }
+function lastDate(){ const dates=[...new Set(salesData.map(r=>r.date))].sort(); return dates[dates.length-1]||new Date().toISOString().split('T')[0]; }
 function visibleBranches(){ return currentProfile?.role==='branch_manager'?[currentProfile.branch]:BRANCHES; }
 function canSeeAll(){ return['super_admin','network_manager'].includes(currentProfile?.role); }
 
@@ -829,22 +756,6 @@ async function initApp(user){
   document.getElementById('sb-role').textContent=ROLES[profile.role]||profile.role;
   if(profile.branch) document.getElementById('sb-branch-label').textContent=profile.branch;
 
-  // Request push notification permission
-  if('Notification' in window && Notification.permission === 'default'){
-    setTimeout(()=>{
-      Notification.requestPermission().then(p=>{
-        if(p==='granted') showToast('✅ התראות הופעלו!');
-      });
-    }, 3000);
-  }
-  // Save push subscription to Supabase
-  if('serviceWorker' in navigator && 'PushManager' in window){
-    navigator.serviceWorker.ready.then(reg=>{
-      // Store that this user wants notifications
-      sb.from('profiles').update({notifications_enabled:true}).eq('id',currentUser.id).then(()=>{});
-    });
-  }
-
   // Personalized greeting card
   const greetName = profile.full_name ? profile.full_name.split(' ')[0] : '';
   if(greetName){
@@ -866,7 +777,6 @@ async function initApp(user){
     document.getElementById('nav-admin').style.display='flex';
     const bna=document.getElementById('bn-admin');
     if(bna)bna.style.display='flex';
-    document.getElementById('nav-import').style.display='flex';
   }
 
   // Hide input + WA for non-admins
@@ -888,31 +798,12 @@ async function initApp(user){
   showScreen('s-app');
   gotoPage('dashboard');
   buildDashboard();
-  // Register push notifications
-  setTimeout(registerPush, 2000);
-  // Check for new notifications every 2 minutes
-  checkNotifications();
-  setInterval(checkNotifications, 120000);
   initInputPage();
 }
 
 async function loadSalesData(){
-  // Load in batches to avoid Supabase default 1000 row limit
-  let allData = [];
-  let page = 0;
-  const pageSize = 1000;
-  while(true){
-    const {data, error} = await sb.from('sales')
-      .select('*')
-      .order('date')
-      .range(page * pageSize, (page + 1) * pageSize - 1);
-    if(error || !data || data.length === 0) break;
-    allData = allData.concat(data);
-    if(data.length < pageSize) break;
-    page++;
-  }
-  salesData = allData;
-  console.log('Loaded', salesData.length, 'records, lastDate:', lastDate());
+  const {data}=await sb.from('sales').select('*').order('date');
+  salesData=data||[];
 }
 
 // ─── SETUP ────────────────────────────────────────────────────────────────────
@@ -941,6 +832,7 @@ function gotoPage(name){
   if(name==='admin') loadUsers();
   if(name==='charts') buildCharts();
   if(name==='monthly') initMonthlyPage();
+  if(name==='input') initInputPage();
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
@@ -1037,6 +929,18 @@ function initInputPage(){
 }
 function clearInputs(){ visibleBranches().forEach(b=>['t','a','s'].forEach(f=>{ const el=document.getElementById(`i-${b}-${f}`); if(el)el.value=''; })); }
 
+// ─── DUPLICATE CHECK SKILL ───────────────────────────────────────────────────
+async function checkDuplicatesInDB(rows){
+  if(!rows.length) return { existing: new Set(), newCount: 0, updateCount: 0 };
+  const dates = [...new Set(rows.map(r => r.date))];
+  const branches = [...new Set(rows.map(r => r.branch))];
+  const {data, error} = await sb.from('sales').select('date,branch').in('date', dates).in('branch', branches);
+  if(error) return { existing: new Set(), newCount: rows.length, updateCount: 0 };
+  const existing = new Set((data||[]).map(r => r.date + '_' + r.branch));
+  const updateCount = rows.filter(r => existing.has(r.date + '_' + r.branch)).length;
+  return { existing, newCount: rows.length - updateCount, updateCount };
+}
+
 async function saveData(){
   const date=document.getElementById('inp-date').value;
   if(!date){ showToast('⚠️ בחר תאריך'); return; }
@@ -1049,11 +953,11 @@ async function saveData(){
   });
   if(!rows.length){ showToast('⚠️ לא הוכנסו נתונים'); return; }
 
-  // ── DUPLICATE CHECK for manual entry ──
+  // בדיקת כפילויות לפני שמירה
   const { existing, newCount, updateCount } = await checkDuplicatesInDB(rows);
   if(updateCount > 0){
     const branchNames = rows.filter(r=>existing.has(r.date+'_'+r.branch)).map(r=>r.branch).join(', ');
-    const confirmed = confirm(`⚠️ נמצאו ${updateCount} סניפים שכבר הוזנו לתאריך זה:\n${branchNames}\n\nהמשך ישכתב את הנתונים הקיימים. להמשיך?`);
+    const confirmed = confirm(`⚠️ ${updateCount} סניפים כבר קיימים לתאריך זה:\n${branchNames}\n\nהמשך ישכתב את הנתונים. להמשיך?`);
     if(!confirmed){ showToast('❌ ביטול — לא נשמר'); return; }
   }
 
@@ -1062,13 +966,8 @@ async function saveData(){
   await loadSalesData();
   buildDashboard();
   clearInputs();
-  const dateFormatted = date.split('-').reverse().join('/');
-  const msg = `📊 פדיון ${dateFormatted} עודכן! לחץ לצפייה בדשבורד`;
-  const toastMsg = updateCount > 0 
-    ? `✅ ${newCount} חדשים + ${updateCount} עודכנו!`
-    : `✅ נשמרו ${rows.length} סניפים בהצלחה!`;
-  showToast(toastMsg);
-  await notifyAllUsers(msg, date);
+  const msg = updateCount > 0 ? `✅ ${newCount} חדשים + ${updateCount} עודכנו!` : `✅ נשמרו ${rows.length} סניפים!`;
+  showToast(msg);
 }
 
 // ─── COMPARE ─────────────────────────────────────────────────────────────────
@@ -1401,256 +1300,6 @@ function buildDowChart(){
   });
 }
 
-
-
-
-// ─── IMPORT FROM COMMAX ────────────────────────────────────────────────────────
-let importData = [];
-
-function handleDrop(e){
-  e.preventDefault();
-  document.getElementById('drop-zone').style.borderColor='rgba(26,108,242,.4)';
-  document.getElementById('drop-zone').style.background='rgba(26,108,242,.03)';
-  handleFiles(e.dataTransfer.files);
-}
-
-function handleFiles(files){
-  importData = [];
-  document.getElementById('import-log-card').style.display='block';
-  document.getElementById('import-log').innerHTML = '';
-  
-  Array.from(files).forEach(file => {
-    logImport(`📂 מעבד: ${file.name}...`);
-    const reader = new FileReader();
-    reader.onload = e => {
-      try {
-        const text = new TextDecoder('windows-1255').decode(e.target.result);
-        parseCommaxFile(text, file.name);
-      } catch(err) {
-        logImport(`❌ שגיאה ב-${file.name}: ${err.message}`);
-      }
-    };
-    reader.readAsArrayBuffer(file);
-  });
-}
-
-function parseCommaxFile(html, filename){
-  // Parse HTML table
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  const rows = doc.querySelectorAll('tr');
-  
-  // Auto-detect branch from filename or content
-  let branch = document.getElementById('import-branch').value;
-  if(branch === 'auto'){
-    // Try to detect from content
-    const bodyText = doc.body?.innerText || '';
-    if(bodyText.includes('חריש') || filename.includes('94626') || filename.includes('94327')) branch = 'חריש';
-    else if(bodyText.includes('אמוראים') || filename.includes('94054') || filename.includes('95248')) branch = 'אמוראים';
-    else if(bodyText.includes('רב חנן') || filename.includes('94132') || filename.includes('95121')) branch = 'רב חנן';
-    else if(bodyText.includes('ריש לקיש') || filename.includes('94239') || filename.includes('94957')) branch = 'ריש לקיש';
-    else {
-      logImport(`⚠️ לא זוהה סניף עבור ${filename} — בחר ידנית`);
-      return;
-    }
-  }
-  
-  let count = 0;
-  rows.forEach(row => {
-    const cells = row.querySelectorAll('td');
-    if(!cells.length) return;
-    const firstCell = cells[0]?.textContent?.trim();
-    if(!firstCell) return;
-    
-    // Check if it's DD/MM/YYYY format
-    const parts = firstCell.split('/');
-    if(parts.length !== 3) return;
-    
-    try {
-      const day = parseInt(parts[0]);
-      const month = parseInt(parts[1]);
-      const year = parseInt(parts[2]);
-      if(isNaN(day)||isNaN(month)||isNaN(year)) return;
-      if(day<1||day>31||month<1||month>12||year<2020) return;
-      
-      const parseNum = s => parseFloat((s||'').replace(/,/g,'').replace(/%/g,'').trim()) || null;
-      
-      const tickets    = parseNum(cells[2]?.textContent);
-      const total      = parseNum(cells[8]?.textContent);
-      const avg_basket = parseNum(cells[6]?.textContent);
-      
-      // Skip invalid rows
-      if(!tickets || tickets < 10) return;
-      if(!total || total < 1000) return;
-      
-      const date = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-      importData.push({ date, branch, tickets, avg_basket, total });
-      count++;
-    } catch(e) {}
-  });
-  
-  logImport(`✅ ${branch}: נמצאו ${count} ימים`);
-  
-  if(importData.length > 0){
-    showImportPreview(); // async — runs in background
-  }
-}
-
-async function showImportPreview(){
-  // Sort by date
-  importData.sort((a,b) => a.date.localeCompare(b.date));
-  
-  // Remove duplicates within file (keep last)
-  const seen = {};
-  importData.forEach(r => { seen[r.date + '_' + r.branch] = r; });
-  importData = Object.values(seen).sort((a,b)=>a.date.localeCompare(b.date));
-  
-  document.getElementById('import-preview-card').style.display='block';
-  document.getElementById('import-preview-count').textContent = `${importData.length} רשומות`;
-  
-  const branches = [...new Set(importData.map(r=>r.branch))];
-  const months   = [...new Set(importData.map(r=>r.date.substring(0,7)))].sort();
-  document.getElementById('import-summary').textContent = 
-    `${branches.join(', ')} | ${months[0]} עד ${months[months.length-1]} | ${importData.length} ימים`;
-  
-  // ── CHECK DUPLICATES for preview coloring ──
-  logImport('🔍 בודק כפילויות לתצוגה מקדימה...');
-  const { existing, newCount, updateCount } = await checkDuplicatesInDB(importData);
-  showDuplicateSummary(newCount, updateCount);
-  if(updateCount > 0) logImport(`🟡 ${updateCount} רשומות שכבר קיימות (יסומנו בצהוב)`);
-  if(newCount > 0)    logImport(`🟢 ${newCount} רשומות חדשות`);
-
-  // Show preview table
-  let tbl = `<thead><tr><th>סטטוס</th><th>תאריך</th><th>סניף</th><th>פתקיות</th><th>סל ממוצע</th><th>סכום</th></tr></thead><tbody>`;
-  const preview = importData.slice(0, 30);
-  preview.forEach(r => {
-    const parts = r.date.split('-');
-    const isExisting = existing.has(r.date + '_' + r.branch);
-    const rowStyle = isExisting ? 'background:rgba(245,166,35,0.06)' : '';
-    tbl += `<tr style="${rowStyle}">
-      <td>${isExisting ? '🟡 עדכון' : '🟢 חדש'}</td>
-      <td>${parts[2]}/${parts[1]}/${parts[0]}</td>
-      <td>${r.branch}</td>
-      <td>${r.tickets?.toLocaleString('he-IL')||'—'}</td>
-      <td>₪${r.avg_basket?.toFixed(2)||'—'}</td>
-      <td>₪${Math.round(r.total||0).toLocaleString('he-IL')}</td>
-    </tr>`;
-  });
-  if(importData.length > 30){
-    tbl += `<tr><td colspan="6" style="text-align:center;color:var(--text3)">... ועוד ${importData.length-30} רשומות</td></tr>`;
-  }
-  document.getElementById('import-preview-table').innerHTML = tbl + '</tbody>';
-}
-
-// ─── DUPLICATE CHECK SKILL ────────────────────────────────────────────────────
-// בודק מה כבר קיים ב-DB לפני שמירה — מחזיר { existing: Set<"date_branch">, newCount, updateCount }
-async function checkDuplicatesInDB(rows){
-  if(!rows.length) return { existing: new Set(), newCount: 0, updateCount: 0 };
-  
-  // Get all unique dates in our import
-  const dates = [...new Set(rows.map(r => r.date))];
-  const branches = [...new Set(rows.map(r => r.branch))];
-  
-  // Query DB for those specific dates+branches
-  const {data, error} = await sb.from('sales')
-    .select('date,branch')
-    .in('date', dates)
-    .in('branch', branches);
-  
-  if(error){ logImport(`⚠️ לא הצלחתי לבדוק כפילויות: ${error.message}`); return { existing: new Set(), newCount: rows.length, updateCount: 0 }; }
-  
-  const existing = new Set((data||[]).map(r => r.date + '_' + r.branch));
-  const updateCount = rows.filter(r => existing.has(r.date + '_' + r.branch)).length;
-  const newCount = rows.length - updateCount;
-  
-  return { existing, newCount, updateCount };
-}
-
-function showDuplicateSummary(newCount, updateCount){
-  const el = document.getElementById('import-summary');
-  if(!el) return;
-  const parts = el.textContent.split(' | ').slice(0,3);
-  let badge = '';
-  if(newCount > 0)    badge += `<span style="color:var(--green);font-weight:700">🟢 ${newCount} חדשות</span>  `;
-  if(updateCount > 0) badge += `<span style="color:var(--gold);font-weight:700">🟡 ${updateCount} יעודכנו (קיימות)</span>`;
-  el.innerHTML = parts.join(' | ') + ' — ' + badge;
-}
-
-async function saveImport(){
-  if(!importData.length){ showToast('⚠️ אין נתונים לשמירה'); return; }
-  
-  const btn = document.getElementById('import-save-btn');
-  btn.disabled = true;
-  btn.textContent = '🔍 בודק כפילויות...';
-  logImport('🔍 בודק מה כבר קיים במסד הנתונים...');
-  
-  // ── DUPLICATE CHECK ──
-  const { existing, newCount, updateCount } = await checkDuplicatesInDB(importData);
-  
-  if(updateCount > 0){
-    logImport(`🟡 נמצאו ${updateCount} רשומות שכבר קיימות — יעודכנו (לא יתווספו כפולות)`);
-  }
-  if(newCount > 0){
-    logImport(`🟢 ${newCount} רשומות חדשות שיתווספו`);
-  }
-  logImport('──────────────────────────────');
-  
-  btn.textContent = '⏳ שומר...';
-  
-  // Upsert in batches of 100
-  const batchSize = 100;
-  let saved = 0;
-  let errors = 0;
-  
-  for(let i=0; i<importData.length; i+=batchSize){
-    const batch = importData.slice(i, i+batchSize).map(r=>({
-      date: r.date,
-      branch: r.branch,
-      tickets: r.tickets ? Math.round(r.tickets) : null,
-      avg_basket: r.avg_basket || null,
-      total: r.total ? Math.round(r.total) : null,
-      created_by: currentUser.id
-    }));
-    
-    const {error} = await sb.from('sales').upsert(batch, {onConflict:'date,branch'});
-    if(error){ 
-      errors++;
-      logImport(`❌ שגיאה בשמירת אצווה ${i/batchSize+1}: ${error.message}`);
-    } else {
-      saved += batch.length;
-      logImport(`✅ נשמרו ${saved}/${importData.length} רשומות...`);
-    }
-  }
-  
-  btn.disabled = false;
-  btn.textContent = '💾 שמור במסד הנתונים';
-  
-  if(errors === 0){
-    showToast(`✅ ${newCount} חדשות, ${updateCount} עודכנו — הכל נשמר!`);
-    await loadSalesData();
-    buildDashboard();
-    logImport(`🎉 סיום! ${newCount} חדשות + ${updateCount} עודכנו (ללא כפילויות)`);
-    importData = [];
-    setTimeout(()=>{ document.getElementById('import-preview-card').style.display='none'; }, 2500);
-  } else {
-    showToast(`⚠️ נשמרו ${saved} רשומות, ${errors} שגיאות`);
-  }
-}
-
-function clearImport(){
-  importData = [];
-  document.getElementById('import-preview-card').style.display='none';
-  document.getElementById('import-log-card').style.display='none';
-  document.getElementById('file-input').value='';
-}
-
-function logImport(msg){
-  const log = document.getElementById('import-log');
-  if(!log) return;
-  log.innerHTML += msg + '<br>';
-  log.scrollTop = log.scrollHeight;
-}
-
 // ─── MONTHLY REPORT ────────────────────────────────────────────────────────────
 const MONTH_NAMES = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 const DOW_NAMES = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
@@ -1682,168 +1331,81 @@ function calcMonthStats(data, vb){
   const netTickets = Object.values(branchTotals).reduce((s,b)=>s+b.tickets,0);
   const netAvgSum = Object.values(branchTotals).reduce((s,b)=>s+b.avg_sum,0);
   const netAvgCnt = Object.values(branchTotals).reduce((s,b)=>s+b.avg_cnt,0);
-  return {branchTotals, netTotal, netTickets, netAvg: netAvgCnt?netAvgSum/netAvgCnt:0};
+  return { branchTotals, netTotal, netTickets, netAvg: netAvgCnt ? netAvgSum/netAvgCnt : null };
 }
 
 function buildMonthly(){
-  const month = parseInt(document.getElementById('month-sel').value);
-  const year  = parseInt(document.getElementById('year-sel').value);
+  const month = parseInt(document.getElementById('month-sel')?.value);
+  const year  = parseInt(document.getElementById('year-sel')?.value);
+  if(!month||!year) return;
+
   const vb = visibleBranches();
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const today = new Date();
-  const isCurrentMonth = today.getFullYear()===year && today.getMonth()+1===month;
-  const daysDone = isCurrentMonth ? today.getDate()-1 : daysInMonth;
-  const daysLeft = isCurrentMonth ? daysInMonth - daysDone : 0;
-
-  // Current month data
   const currData = getMonthData(year, month);
+  const prevData = getMonthData(month===1?year-1:year, month===1?12:month-1);
+  const lyData   = getMonthData(year-1, month);
+
   const curr = calcMonthStats(currData, vb);
+  const prev = calcMonthStats(prevData, vb);
+  const ly   = calcMonthStats(lyData, vb);
 
-  // Previous month
-  const prevMonth = month===1 ? 12 : month-1;
-  const prevYear  = month===1 ? year-1 : year;
-  const prevData  = getMonthData(prevYear, prevMonth);
-  const prev      = calcMonthStats(prevData, vb);
-  const hasPrev   = prev.netTotal > 0;
+  const hasPrev = prev.netTotal > 0;
+  const hasLY   = ly.netTotal > 0;
 
-  // Same month last year
-  const lyData = getMonthData(year-1, month);
-  const ly     = calcMonthStats(lyData, vb);
-  const hasLY  = ly.netTotal > 0;
+  // Metrics
+  const now = new Date();
+  const isCurrentMonth = now.getFullYear()===year && now.getMonth()+1===month;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const daysPassed = isCurrentMonth ? now.getDate() : daysInMonth;
 
-  // Growth rate from prev month vs last year prev month
-  const prevLYData = getMonthData(year-1, prevMonth);
-  const prevLY     = calcMonthStats(prevLYData, vb);
-  const growthRate = (prevLY.netTotal > 10000 && prev.netTotal > 10000) ? 
-    (prev.netTotal - prevLY.netTotal) / prevLY.netTotal : null;
-
-  // Target = ly * (1 + growthRate) — only if we have valid last year data
-  const target = (hasLY && ly.netTotal > 10000 && growthRate!==null) ? 
-    ly.netTotal * (1 + growthRate) : null;
-  // targetPct = current vs target — only meaningful mid-month
-  const targetPct = (target && target > 10000 && curr.netTotal > 0) ? 
-    curr.netTotal/target*100 : null;
-
-  // ── Metric cards ──────────────────────────────────────────────────────────
-  const doneLabel = isCurrentMonth ? `${daysDone} ימים` : `${daysInMonth} ימים`;
-  const prevPct = pct(prev.netTotal, curr.netTotal);
-  
   document.getElementById('monthly-metrics').innerHTML = [
-    {label:`סכום ${MONTH_NAMES[month-1]} ${year}`, value:fmtILS(curr.netTotal), color:'blue', 
-     sub: hasPrev ? `${prevPct>=0?'+':''}${prevPct?.toFixed(0)}% מ${MONTH_NAMES[prevMonth-1]}` : doneLabel},
-    {label:'פתקיות', value:fmtNum(curr.netTickets), color:'cyan', sub:doneLabel},
-    {label:'סל ממוצע', value:fmtILS(curr.netAvg), color:'gold', sub:'ממוצע חודשי'},
-    {label: target?'הושג עד היום':'ממוצע יומי', 
-     value: target ? `${targetPct?.toFixed(0)}%` : fmtILS(daysDone?curr.netTotal/daysDone:0), 
-     color: target ? (targetPct>=100?'green':'gold') : 'green', 
-     sub: target ? `מתוך יעד ${fmtILS(target)}` : 'לא כולל שבת'},
-  ].map(m=>`
-    <div class="mc ${m.color}">
-      <div class="mc-label">${m.label}</div>
-      <div class="mc-value">${m.value}</div>
-      <span class="mc-change flat">${m.sub}</span>
-    </div>`).join('');
+    {label:'סה"כ חודשי',value:fmtILS(curr.netTotal),color:'blue'},
+    {label:'פתקיות',value:fmtNum(curr.netTickets),color:'cyan'},
+    {label:'סל ממוצע',value:fmtILS(curr.netAvg),color:'gold'},
+    {label:'ימים מדווחים',value:`${daysPassed}/${daysInMonth}`,color:'green'},
+  ].map(m=>`<div class="mc ${m.color}"><div class="mc-label">${m.label}</div><div class="mc-value">${m.value}</div></div>`).join('');
 
-  // ── Forecast card ──────────────────────────────────────────────────────────
-  if(isCurrentMonth && daysLeft > 0){
-    const dailyTotals = {};
-    currData.forEach(r=>{ if(!dailyTotals[r.date]) dailyTotals[r.date]=0; if(r.total) dailyTotals[r.date]+=+r.total; });
-    const nonShabbat = Object.entries(dailyTotals).filter(([d,v])=>new Date(d).getDay()!==6 && v>50000);
-    const avgWeekday = nonShabbat.length ? nonShabbat.reduce((s,[,v])=>s+v,0)/nonShabbat.length : 0;
-    
-    let projRemaining = 0;
-    for(let d=daysDone+1; d<=daysInMonth; d++){
-      const dow = new Date(year, month-1, d).getDay();
-      if(dow===6) projRemaining += 35000;
-      else if(dow===5) projRemaining += avgWeekday * 0.75;
-      else projRemaining += avgWeekday;
-    }
-    const projected = curr.netTotal + projRemaining;
-    const projVsTarget = target ? (projected/target*100) : null;
-
+  // Forecast
+  if(isCurrentMonth && daysPassed > 0 && curr.netTotal > 0){
+    const dailyAvg = curr.netTotal / daysPassed;
+    const forecast = dailyAvg * daysInMonth;
     document.getElementById('forecast-content').innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(${target?4:3},1fr);gap:12px;margin-bottom:10px">
-        <div style="background:rgba(26,108,242,.08);border:1px solid rgba(26,108,242,.2);border-radius:10px;padding:14px;text-align:center">
-          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">עד היום</div>
-          <div style="font-size:18px;font-weight:800">${fmtILS(curr.netTotal)}</div>
-        </div>
-        <div style="background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.2);border-radius:10px;padding:14px;text-align:center">
-          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">תחזית שארית</div>
-          <div style="font-size:18px;font-weight:800">${fmtILS(projRemaining)}</div>
-        </div>
-        <div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:14px;text-align:center">
-          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">תחזית סגירה</div>
-          <div style="font-size:20px;font-weight:800;color:var(--green)">${fmtILS(projected)}</div>
-        </div>
-        ${target ? `<div style="background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.3);border-radius:10px;padding:14px;text-align:center">
-          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">תחזית לסוף חודש</div>
-          <div style="font-size:20px;font-weight:800;color:${projVsTarget>=100?'var(--green)':'var(--gold)'}">${projVsTarget?.toFixed(0)}%</div>
-          <div style="font-size:10px;color:var(--text3)">${fmtILS(target)}</div>
-        </div>` : ''}
-      </div>
-      <div style="font-size:12px;color:var(--text3);text-align:center">
-        נשארו ${daysLeft} ימים | ממוצע יום רגיל: ${fmtILS(avgWeekday)}
-        ${growthRate!==null ? ` | קצב צמיחה: ${(growthRate*100).toFixed(1)}%` : ''}
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px">
+        <div class="mc blue"><div class="mc-label">ממוצע יומי</div><div class="mc-value" style="font-size:20px">${fmtILS(dailyAvg)}</div></div>
+        <div class="mc cyan"><div class="mc-label">תחזית לסוף חודש</div><div class="mc-value" style="font-size:20px">${fmtILS(forecast)}</div></div>
+        ${hasPrev?`<div class="mc gold"><div class="mc-label">מול חודש קודם</div><div class="mc-value" style="font-size:20px">${pctBadge(pct(prev.netTotal,forecast))}</div></div>`:''}
       </div>`;
-    document.getElementById('forecast-card').style.display='block';
   } else {
-    document.getElementById('forecast-card').style.display='none';
+    document.getElementById('forecast-content').innerHTML = `<div style="color:var(--text3);font-size:13px">תחזית זמינה רק לחודש הנוכחי</div>`;
   }
 
-  // ── Branch comparison table ────────────────────────────────────────────────
-  document.getElementById('monthly-table-title').textContent = 
-    `📊 השוואה חודשית — ${MONTH_NAMES[month-1]} ${year}`;
-  
-  let cols = `<th>סניף</th><th>${MONTH_NAMES[month-1]} ${year}</th>`;
-  if(hasPrev) cols += `<th>${MONTH_NAMES[prevMonth-1]}</th><th>שינוי</th>`;
-  if(hasLY)   cols += `<th>${MONTH_NAMES[month-1]} ${year-1}</th><th>שינוי</th>`;
-  cols += `<th>פתקיות</th><th>סל ממוצע</th>`;
-  if(target)  cols += `<th>יעד</th><th>% ביצוע</th>`;
-
-  let tbl = `<thead><tr>${cols}</tr></thead><tbody>`;
-  
-  let netPrevTotal=0, netLYTotal=0, netTargetTotal=0;
+  // Branch table
+  document.getElementById('monthly-table-title').textContent = `📊 פירוט לפי סניף — ${MONTH_NAMES[month-1]} ${year}`;
+  let tbl = `<thead><tr><th>סניף</th><th>סכום</th>${hasPrev?'<th>חודש קודם</th><th>שינוי</th>':''}${hasLY?'<th>אשתקד</th><th>שינוי</th>':''}<th>פתקיות</th><th>סל ממוצע</th></tr></thead><tbody>`;
 
   vb.forEach(b=>{
-    const c = curr.branchTotals[b];
-    const p = prev.branchTotals[b];
-    const l = ly.branchTotals[b];
-    const plY = prevLY.branchTotals[b];
-    const brGrowth = (plY?.total && p?.total) ? (p.total-plY.total)/plY.total : null;
-    const brTarget = (l?.total && brGrowth!==null) ? l.total*(1+brGrowth) : null;
-    const brTargetPct = brTarget ? c.total/brTarget*100 : null;
-    
-    if(p?.total) netPrevTotal += p.total;
-    if(l?.total) netLYTotal  += l.total;
-    if(brTarget)  netTargetTotal += brTarget;
-
-    const avgB = c.avg_cnt ? c.avg_sum/c.avg_cnt : null;
-    
+    const c = curr.branchTotals[b]||{total:0,tickets:0};
+    const p = prev.branchTotals[b]||{};
+    const l = ly.branchTotals[b]||{};
     tbl += `<tr><td>${b}</td>
       <td>${fmtILS(c.total)}</td>
-      ${hasPrev ? `<td>${fmtILS(p?.total)}</td><td>${pctBadge(pct(p?.total,c.total))}</td>` : ''}
-      ${hasLY   ? `<td>${fmtILS(l?.total)}</td><td>${pctBadge(pct(l?.total,c.total))}</td>` : ''}
+      ${hasPrev?`<td>${fmtILS(p.total)}</td><td>${pctBadge(pct(p.total,c.total))}</td>`:''}
+      ${hasLY?`<td>${fmtILS(l.total)}</td><td>${pctBadge(pct(l.total,c.total))}</td>`:''}
       <td>${fmtNum(c.tickets)}</td>
-      <td>${fmtILS(avgB)}</td>
-      ${brTarget ? `<td>${fmtILS(brTarget)}</td><td>${pctBadge(brTargetPct?brTargetPct-100:null)}</td>` : ''}
+      <td>${fmtILS(c.avg_cnt?c.avg_sum/c.avg_cnt:null)}</td>
     </tr>`;
   });
-
   if(vb.length>1){
-    const netAvgB = curr.netAvg;
-    tbl += `<tr class="total-row">
-      <td>סה"כ רשת</td>
+    tbl += `<tr class="total-row"><td>סה"כ רשת</td>
       <td>${fmtILS(curr.netTotal)}</td>
-      ${hasPrev ? `<td>${fmtILS(netPrevTotal)}</td><td>${pctBadge(pct(netPrevTotal,curr.netTotal))}</td>` : ''}
-      ${hasLY   ? `<td>${fmtILS(netLYTotal)}</td><td>${pctBadge(pct(netLYTotal,curr.netTotal))}</td>` : ''}
+      ${hasPrev?`<td>${fmtILS(prev.netTotal)}</td><td>${pctBadge(pct(prev.netTotal,curr.netTotal))}</td>`:''}
+      ${hasLY?`<td>${fmtILS(ly.netTotal)}</td><td>${pctBadge(pct(ly.netTotal,curr.netTotal))}</td>`:''}
       <td>${fmtNum(curr.netTickets)}</td>
-      <td>${fmtILS(netAvgB)}</td>
-      ${target ? `<td>${fmtILS(netTargetTotal)}</td><td>${pctBadge(netTargetTotal?(curr.netTotal/netTargetTotal*100)-100:null)}</td>` : ''}
+      <td>${fmtILS(curr.netAvg)}</td>
     </tr>`;
   }
   document.getElementById('monthly-table').innerHTML = tbl+'</tbody>';
 
-  // ── Daily breakdown ────────────────────────────────────────────────────────
+  // Daily breakdown
   const dailyAll = {};
   currData.forEach(r=>{
     if(!dailyAll[r.date]) dailyAll[r.date]={total:0,tickets:0,avg_sum:0,avg_cnt:0};
@@ -1851,106 +1413,27 @@ function buildMonthly(){
     if(r.tickets) dailyAll[r.date].tickets+=+r.tickets;
     if(r.avg_basket){dailyAll[r.date].avg_sum+=+r.avg_basket;dailyAll[r.date].avg_cnt++;}
   });
-
   const sortedDates = Object.keys(dailyAll).sort();
   let runningTotal=0;
   let dtbl=`<thead><tr><th>תאריך</th><th>יום</th><th>סכום</th><th>מצטבר</th><th>פתקיות</th><th>סל ממוצע</th></tr></thead><tbody>`;
-  
   sortedDates.forEach(date=>{
     const d = dailyAll[date];
     runningTotal += d.total;
     const dow = DOW_NAMES[new Date(date).getDay()];
     const parts = date.split('-');
-    const dateStr = parts[2]+'/'+parts[1];
     const isShabbat = new Date(date).getDay()===6;
-    const avgB = d.avg_cnt ? d.avg_sum/d.avg_cnt : null;
     dtbl += `<tr style="${isShabbat?'opacity:0.55':''}">
-      <td><strong>${dateStr}</strong></td>
+      <td><strong>${parts[2]}/${parts[1]}</strong></td>
       <td style="color:var(--text3);font-size:12px">${dow}</td>
       <td>${fmtILS(d.total)}</td>
       <td style="color:var(--text3);font-size:12px">${fmtILS(runningTotal)}</td>
       <td>${fmtNum(d.tickets)}</td>
-      <td>${fmtILS(avgB)}</td>
+      <td>${fmtILS(d.avg_cnt?d.avg_sum/d.avg_cnt:null)}</td>
     </tr>`;
   });
-  
-  dtbl+=`<tr class="total-row">
-    <td colspan="2">סה"כ</td>
-    <td>${fmtILS(curr.netTotal)}</td>
-    <td></td>
-    <td>${fmtNum(curr.netTickets)}</td>
-    <td>${fmtILS(curr.netAvg)}</td>
-  </tr>`;
+  dtbl+=`<tr class="total-row"><td colspan="2">סה"כ</td><td>${fmtILS(curr.netTotal)}</td><td></td><td>${fmtNum(curr.netTickets)}</td><td>${fmtILS(curr.netAvg)}</td></tr>`;
   document.getElementById('daily-breakdown-table').innerHTML = dtbl+'</tbody>';
 }
-
-
-
-// ─── PUSH NOTIFICATIONS (Service Worker) ──────────────────────────────────────
-const VAPID_PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa40HECKIbFNFcgFgyCLOFVLiQRuGvWBCLJALIcjbk8sYxh3FxJaUz7csFV_c4';
-
-async function registerPush(){
-  if(!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-  try {
-    const reg = await navigator.serviceWorker.register('/sw.js');
-    await navigator.serviceWorker.ready;
-    
-    const permission = await Notification.requestPermission();
-    if(permission !== 'granted') return;
-    
-    // Subscribe to push
-    const sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-    });
-    
-    // Save subscription to Supabase
-    await sb.from('push_subscriptions').upsert({
-      user_id: currentUser.id,
-      subscription: JSON.stringify(sub),
-      updated_at: new Date().toISOString()
-    }, {onConflict: 'user_id'});
-    
-    console.log('Push registered!');
-  } catch(e) {
-    console.log('Push registration failed:', e);
-  }
-}
-
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
-  return outputArray;
-}
-
-async function notifyAllUsers(message, date){
-  // Store notification in Supabase - all users will see it when they check
-  try {
-    await sb.from('notifications').insert({
-      message,
-      date,
-      created_by: currentUser.id,
-      created_at: new Date().toISOString()
-    });
-    
-    // Also show local browser notification if permission granted
-    if(Notification.permission === 'granted'){
-      new Notification('KT Market 📊', {
-        body: message,
-        icon: 'https://thunderous-queijadas-c1f5d5.netlify.app/favicon.ico',
-        tag: 'kt-update-' + date,
-        requireInteraction: false
-      });
-    }
-  } catch(e) {
-    console.log('Notify error:', e);
-  }
-}
-
-
 
 // ─── AUTO LOGIN CHECK ─────────────────────────────────────────────────────────
 (async()=>{
