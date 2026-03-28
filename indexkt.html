@@ -277,30 +277,8 @@ select:focus{outline:none;border-color:var(--blue);}
   </div>
 </div>
 
-<!-- SETUP INSTRUCTIONS (shown if tables don't exist) -->
-<div id="s-setup" class="screen">
-  <div class="setup-card">
-    <h2>🔧 הגדרה ראשונית — דקה אחת</h2>
-    <p>צריך ליצור את הטבלאות במסד הנתונים. עשה את זה פעם אחת ואז הכל עובד!</p>
-    <div class="step">
-      <div class="step-num">1</div>
-      <p>נכנס ל־ <a href="https://supabase.com/dashboard/project/dkpqgyieoidrydxfiwhd/sql/new" target="_blank">SQL Editor בפרויקט שלך</a></p>
-    </div>
-    <div class="step">
-      <div class="step-num">2</div>
-      <p>העתק את ה־SQL הבא, הדבק ולחץ Run:</p>
-    </div>
-    <div style="position:relative">
-      <div class="sql-block" id="setup-sql"></div>
-      <button class="btn btn-ghost btn-sm" style="position:absolute;top:10px;left:10px" onclick="copySQL()">העתק</button>
-    </div>
-    <div class="step">
-      <div class="step-num">3</div>
-      <p>לאחר הרצה מוצלחת, לחץ כאן:</p>
-    </div>
-    <button class="btn btn-primary" onclick="checkSetup()" style="width:100%">✅ סיימתי — כנס למערכת</button>
-  </div>
-</div>
+
+<div id="s-setup" class="screen" style="display:none!important"></div>
 
 <!-- APP -->
 <div id="s-app" class="screen">
@@ -711,7 +689,7 @@ async function initApp(user){
   const {data:profile}=await sb.from('profiles').select('*').eq('id',user.id).single();
   if(!profile){
     // Profile might not exist yet — try setup
-    showScreen('s-setup'); return;
+    showScreen('s-login'); return;
   }
   currentProfile=profile;
 
