@@ -646,16 +646,16 @@ document.getElementById('l-pass').addEventListener('keydown',e=>{ if(e.key==='En
 
 async function doLogout(){ await sb.auth.signOut(); currentUser=null; currentProfile=null; salesData=[]; showScreen('s-login'); }
 
- // Show/hide admin — רק super_admin
-  const navAdmin=document.getElementById('nav-admin');
-  const bnAdmin=document.getElementById('bn-admin');
-  if(profile.role==='super_admin'){
-    if(navAdmin) navAdmin.style.display='flex';
-    if(bnAdmin) bnAdmin.style.display='flex';
-  } else {
-    if(navAdmin) navAdmin.style.display='none';
-    if(bnAdmin) bnAdmin.style.display='none';
+// ─── INIT APP ─────────────────────────────────────────────────────────────────
+async function initApp(user){
+  currentUser=user;
+  // Load profile
+  const {data:profile}=await sb.from('profiles').select('*').eq('id',user.id).single();
+  if(!profile){
+    // Profile might not exist yet — try setup
+    showScreen('s-login'); return;
   }
+  currentProfile=profile;
 
   // Setup sidebar
   const name=profile.full_name||profile.email||'משתמש';
@@ -681,11 +681,15 @@ async function doLogout(){ await sb.auth.signOut(); currentUser=null; currentPro
     }
   }
 
-  // Show/hide admin
+  // Show/hide admin — רק super_admin
+  const navAdmin=document.getElementById('nav-admin');
+  const bnAdmin=document.getElementById('bn-admin');
   if(profile.role==='super_admin'){
-    document.getElementById('nav-admin').style.display='flex';
-    const bna=document.getElementById('bn-admin');
-    if(bna)bna.style.display='flex';
+    if(navAdmin) navAdmin.style.display='flex';
+    if(bnAdmin) bnAdmin.style.display='flex';
+  } else {
+    if(navAdmin) navAdmin.style.display='none';
+    if(bnAdmin) bnAdmin.style.display='none';
   }
 
   // Hide input + WA for non-admins
