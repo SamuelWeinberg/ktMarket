@@ -325,6 +325,7 @@ select:focus{outline:none;border-color:var(--blue);}
     <div class="nav-item active" onclick="gotoPage('dashboard')" id="nav-dashboard"><span class="nav-icon">🏠</span><span>דשבורד</span></div>
     <div class="nav-item" onclick="gotoPage('input')" id="nav-input"><span class="nav-icon">✏️</span><span>הכנסת נתונים</span></div>
     <div class="nav-item" onclick="gotoPage('compare')" id="nav-compare"><span class="nav-icon">📈</span><span>השוואות</span></div>
+    <div class="nav-item" onclick="gotoPage('monthly')" id="nav-monthly"><span class="nav-icon">📅</span><span>דוח חודשי</span></div>
     <div class="nav-item" onclick="gotoPage('charts')" id="nav-charts"><span class="nav-icon">📊</span><span>גרפים</span></div>
     <div class="nav-item" onclick="gotoPage('whatsapp')" id="nav-whatsapp"><span class="nav-icon">💬</span><span>שלח בוואטסאפ</span></div>
     <div class="nav-item" onclick="gotoPage('admin')" id="nav-admin" style="display:none"><span class="nav-icon">⚙️</span><span>ניהול משתמשים</span></div>
@@ -466,6 +467,36 @@ select:focus{outline:none;border-color:var(--blue);}
     </div>
 
     <!-- ADMIN -->
+    
+    <!-- MONTHLY REPORT PAGE -->
+    <div class="page" id="page-monthly">
+      <!-- Month selector -->
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:20px;flex-wrap:wrap;">
+        <select id="monthly-year" onchange="buildMonthly()" style="padding:8px 12px;background:var(--navy2);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:14px;"></select>
+        <select id="monthly-month" onchange="buildMonthly()" style="padding:8px 12px;background:var(--navy2);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:14px;">
+          <option value="1">ינואר</option><option value="2">פברואר</option><option value="3">מרץ</option>
+          <option value="4">אפריל</option><option value="5">מאי</option><option value="6">יוני</option>
+          <option value="7">יולי</option><option value="8">אוגוסט</option><option value="9">ספטמבר</option>
+          <option value="10">אוקטובר</option><option value="11">נובמבר</option><option value="12">דצמבר</option>
+        </select>
+      </div>
+
+      <!-- KPI cards -->
+      <div id="monthly-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px;"></div>
+
+      <!-- Comparison table -->
+      <div class="sc" style="margin-bottom:24px;">
+        <div class="sc-header"><h3 class="sc-title" id="monthly-cmp-title">השוואה חודשית</h3></div>
+        <div style="overflow-x:auto;"><table class="dt" id="monthly-cmp-table"></table></div>
+      </div>
+
+      <!-- Daily table -->
+      <div class="sc">
+        <div class="sc-header"><h3 class="sc-title">פירוט ימי</h3></div>
+        <div style="overflow-x:auto;"><table class="dt" id="monthly-daily-table"></table></div>
+      </div>
+    </div>
+
     <div class="page" id="page-admin">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
         <div></div>
@@ -543,7 +574,7 @@ const BRANCHES = ['חריש','אמוראים','רב חנן','ריש לקיש'];
 const BCOLORS  = ['#1A6CF2','#00C2CB','#F5A623','#22C55E'];
 const ROLES    = { super_admin:'🔴 Super Admin', network_manager:'🟡 מנהל רשת', branch_manager:'🟢 מנהל סניף' };
 const ROLE_CSS = { super_admin:'role-super', network_manager:'role-network', branch_manager:'role-branch' };
-const PAGE_TITLES = { dashboard:'דשבורד', input:'הכנסת נתונים', compare:'השוואות', whatsapp:'שלח בוואטסאפ', admin:'ניהול משתמשים', charts:'גרפים ומגמות' };
+const PAGE_TITLES = { dashboard:'דשבורד', input:'הכנסת נתונים', compare:'השוואות', whatsapp:'שלח בוואטסאפ', admin:'ניהול משתמשים', charts:'גרפים ומגמות', monthly:'דוח חודשי' };
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -713,6 +744,7 @@ function gotoPage(name){
   if(name==='whatsapp') initWAPage();
   if(name==='admin') loadUsers();
   if(name==='charts') buildCharts();
+  if(name==='monthly'){ initMonthlySelectors(); buildMonthly(); }
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
@@ -1178,6 +1210,135 @@ function buildDowChart(){
       }
     }
   });
+}
+
+// ─── MONTHLY REPORT ──────────────────────────────────────────────────────────
+function initMonthlySelectors(){
+  const dates = [...new Set(salesData.map(r=>r.date))].sort();
+  if(!dates.length) return;
+  const years = [...new Set(dates.map(d=>d.split('-')[0]))].sort();
+  const ySel = document.getElementById('monthly-year');
+  ySel.innerHTML = years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  // Default to latest month
+  const latest = dates[dates.length-1];
+  const [ly, lm] = latest.split('-');
+  ySel.value = ly;
+  document.getElementById('monthly-month').value = parseInt(lm);
+}
+
+function buildMonthly(){
+  const year  = parseInt(document.getElementById('monthly-year')?.value || new Date().getFullYear());
+  const month = parseInt(document.getElementById('monthly-month')?.value || new Date().getMonth()+1);
+
+  const pad = n => String(n).padStart(2,'0');
+  const curPrefix  = `${year}-${pad(month)}`;
+  const prevYear   = month===1 ? year-1 : year;
+  const prevMonth  = month===1 ? 12 : month-1;
+  const prevPrefix = `${prevYear}-${pad(prevMonth)}`;
+
+  // Get days in current month
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const today = new Date().toISOString().split('T')[0];
+  const lastDayWithData = salesData.filter(r=>r.date.startsWith(curPrefix)).map(r=>r.date).sort().pop();
+  const daysPassed = lastDayWithData ? parseInt(lastDayWithData.split('-')[2]) : 0;
+
+  const vb = visibleBranches();
+
+  // Aggregate by month
+  function monthTotals(prefix){
+    const res = {tickets:0, total:0, avg_sum:0, avg_cnt:0};
+    salesData.filter(r=>r.date.startsWith(prefix) && vb.includes(r.branch)).forEach(r=>{
+      if(r.tickets) res.tickets += +r.tickets;
+      if(r.total)   res.total   += +r.total;
+      if(r.avg_basket){ res.avg_sum += +r.avg_basket; res.avg_cnt++; }
+    });
+    res.avg_basket = res.avg_cnt ? res.avg_sum/res.avg_cnt : null;
+    return res;
+  }
+
+  const cur  = monthTotals(curPrefix);
+  const prev = monthTotals(prevPrefix);
+
+  // Forecast: daily rate × remaining days
+  const dailyRate = daysPassed > 0 ? cur.total / daysPassed : 0;
+  const forecast  = Math.round(cur.total + dailyRate * (daysInMonth - daysPassed));
+
+  // KPI cards
+  const kpis = [
+    { label:'סכום חודש נוכחי', value:fmtILS(cur.total), change:pct(prev.total, cur.total), color:'blue' },
+    { label:'פתקיות חודש נוכחי', value:fmtNum(cur.tickets), change:pct(prev.tickets, cur.tickets), color:'cyan' },
+    { label:'סל ממוצע', value:fmtILS(cur.avg_basket), change:pct(prev.avg_basket, cur.avg_basket), color:'gold' },
+    { label:'תחזית סגירה', value:fmtILS(forecast), change:pct(prev.total, forecast), color:'green' },
+  ];
+  document.getElementById('monthly-kpis').innerHTML = kpis.map(m=>`
+    <div class="mc ${m.color}">
+      <div class="mc-label">${m.label}</div>
+      <div class="mc-value">${m.value}</div>
+      ${m.change!==null?`<span class="mc-change ${m.change>=0?'up':'down'}">${m.change>=0?'▲':'▼'} ${Math.abs(m.change).toFixed(0)}%</span>`:''}
+    </div>`).join('');
+
+  // Comparison table by branch
+  document.getElementById('monthly-cmp-title').textContent = `השוואה: ${pad(month)}/${year} מול ${pad(prevMonth)}/${prevYear}`;
+  let html = `<thead><tr>
+    <th>סניף</th>
+    <th>פתקיות ${pad(prevMonth)}/${prevYear}</th><th>פתקיות ${pad(month)}/${year}</th><th>שינוי</th>
+    <th>סל ${pad(prevMonth)}/${prevYear}</th><th>סל ${pad(month)}/${year}</th><th>שינוי</th>
+    <th>סכום ${pad(prevMonth)}/${prevYear}</th><th>סכום ${pad(month)}/${year}</th><th>שינוי</th>
+  </tr></thead><tbody>`;
+
+  let np1=0,np2=0,ns1=0,ns2=0,na1=0,na2=0,nc=0;
+  vb.forEach(b=>{
+    const r1 = {tickets:0,total:0,avg_sum:0,avg_cnt:0};
+    const r2 = {tickets:0,total:0,avg_sum:0,avg_cnt:0};
+    salesData.filter(r=>r.branch===b).forEach(r=>{
+      const target = r.date.startsWith(prevPrefix)?r1:r.date.startsWith(curPrefix)?r2:null;
+      if(!target) return;
+      if(r.tickets) target.tickets += +r.tickets;
+      if(r.total)   target.total   += +r.total;
+      if(r.avg_basket){ target.avg_sum += +r.avg_basket; target.avg_cnt++; }
+    });
+    r1.avg_basket = r1.avg_cnt ? r1.avg_sum/r1.avg_cnt : null;
+    r2.avg_basket = r2.avg_cnt ? r2.avg_sum/r2.avg_cnt : null;
+    html+=`<tr><td>${b}</td>
+      <td>${fmtNum(r1.tickets)}</td><td>${fmtNum(r2.tickets)}</td><td>${pctBadge(pct(r1.tickets||null,r2.tickets||null))}</td>
+      <td>${fmtILS(r1.avg_basket)}</td><td>${fmtILS(r2.avg_basket)}</td><td>${pctBadge(pct(r1.avg_basket,r2.avg_basket))}</td>
+      <td>${fmtILS(r1.total)}</td><td>${fmtILS(r2.total)}</td><td>${pctBadge(pct(r1.total||null,r2.total||null))}</td>
+    </tr>`;
+    np1+=r1.tickets||0; np2+=r2.tickets||0;
+    ns1+=r1.total||0;   ns2+=r2.total||0;
+    if(r1.avg_basket){na1+=r1.avg_basket;nc++;} if(r2.avg_basket)na2+=r2.avg_basket;
+  });
+  if(vb.length>1){
+    const a1=nc?na1/nc:null, a2=nc?na2/nc:null;
+    html+=`<tr class="total-row"><td>סה"כ רשת</td>
+      <td>${fmtNum(np1)}</td><td>${fmtNum(np2)}</td><td>${pctBadge(pct(np1||null,np2||null))}</td>
+      <td>${fmtILS(a1)}</td><td>${fmtILS(a2)}</td><td>${pctBadge(pct(a1,a2))}</td>
+      <td>${fmtILS(ns1)}</td><td>${fmtILS(ns2)}</td><td>${pctBadge(pct(ns1||null,ns2||null))}</td>
+    </tr>`;
+  }
+  document.getElementById('monthly-cmp-table').innerHTML = html+'</tbody>';
+
+  // Daily table
+  const allDays = [...new Set(salesData.filter(r=>r.date.startsWith(curPrefix)).map(r=>r.date))].sort();
+  let cumTotal = 0;
+  let dailyHtml = `<thead><tr><th>תאריך</th>${vb.map(b=>`<th>${b}</th>`).join('')}<th>סה"כ יומי</th><th>הצטברות</th><th>תוספת</th></tr></thead><tbody>`;
+  let prevCum = 0;
+  allDays.forEach(d=>{
+    const dayData = {};
+    salesData.filter(r=>r.date===d && vb.includes(r.branch)).forEach(r=>{ dayData[r.branch]=r; });
+    const dayTotal = vb.reduce((s,b)=>s+(+dayData[b]?.total||0), 0);
+    cumTotal += dayTotal;
+    const addition = cumTotal - prevCum;
+    prevCum = cumTotal;
+    dailyHtml += `<tr>
+      <td>${fmtD(d)}</td>
+      ${vb.map(b=>`<td>${fmtILS(dayData[b]?.total||null)}</td>`).join('')}
+      <td><strong>${fmtILS(dayTotal)}</strong></td>
+      <td>${fmtILS(cumTotal)}</td>
+      <td><span class="pct up">+${fmtILS(addition)}</span></td>
+    </tr>`;
+  });
+  document.getElementById('monthly-daily-table').innerHTML = dailyHtml+'</tbody>';
 }
 
 // ─── AUTO LOGIN CHECK ─────────────────────────────────────────────────────────
