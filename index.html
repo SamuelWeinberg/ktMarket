@@ -572,6 +572,29 @@ const SUPA_URL = 'https://dkpqgyieoidrydxfiwhd.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRrcHFneWllb2lkcnlkeGZpd2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MzA4NDgsImV4cCI6MjA4OTMwNjg0OH0.cFYdJK7P58pc_VlQxCo4HdLVRPkyiLz_8hMLepoK3Ws';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 
+  // ─── NEON DATA API ────────────────────────────────────────────────────────
+const NEON_URL = 'https://ep-square-rice-a2ckvq25.apirest.eu-central-1.aws.neon.tech/neondb/rest/v1';
+
+async function neonQuery(table, params = '') {
+  const res = await fetch(`${NEON_URL}/${table}${params}`, {
+    headers: { 'Content-Type': 'application/json' }
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function neonPost(table, body) {
+  const res = await fetch(`${NEON_URL}/${table}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const BRANCHES = ['חריש','אמוראים','רב חנן','ריש לקיש'];
 const BCOLORS  = ['#1A6CF2','#00C2CB','#F5A623','#22C55E'];
