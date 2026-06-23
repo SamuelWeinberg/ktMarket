@@ -924,8 +924,7 @@ async function saveData(){
     if(!confirmed){ showToast('❌ ביטול — לא נשמר'); return; }
   }
 
-  await neonPost('sales', rows);
-  const error = null;
+  const {error} = await sb.from('sales').upsert(rows, {onConflict:'date,branch'});
   if(error){ showToast('❌ שגיאה: '+error.message); return; }
   await loadSalesData();
   buildDashboard();
