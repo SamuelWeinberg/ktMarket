@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KT Orders | הזמנות</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --navy:#0D1B2A;--navy2:#1B2E42;--navy3:#243B53;
+  --blue:#1A6CF2;--cyan:#00C2CB;--green:#22C55E;
+  --red:#EF4444;--gold:#F5A623;
+  --text:#F0F4F8;--text2:#8FA3B8;--text3:#5A7A96;
+  --border:rgba(255,255,255,0.08);--card:rgba(255,255,255,0.04);
+  --card2:rgba(255,255,255,0.07);--radius:14px;--rsm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min-height:100vh;direction:rtl;}
+.sidebar{position:fixed;top:0;right:0;width:220px;height:100vh;background:var(--navy2);border-left:1px solid var(--border);padding:24px 0;z-index:100;display:flex;flex-direction:column;}
+.sb-logo{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:12px;}
+.sb-logo .icon{width:38px;height:38px;background:linear-gradient(135deg,var(--blue),var(--cyan));border-radius:11px;display:inline-flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:8px;}
+.sb-logo span{display:block;font-size:13px;font-weight:800;}
+.sb-logo small{font-size:11px;color:var(--text3);}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .15s;position:relative;}
+.nav-item:hover{color:var(--text);background:var(--card);}
+.nav-item.active{color:var(--text);background:var(--card2);}
+.nav-item.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blue);border-radius:0 2px 2px 0;}
+.sb-footer{margin-top:auto;padding:16px 20px;border-top:1px solid var(--border);}
+.user-badge{display:flex;align-items:center;gap:10px;}
+.u-av{width:34px;height:34px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;}
+.u-name{font-size:13px;font-weight:600;}
+.u-role{font-size:11px;color:var(--text3);}
+.logout-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;margin-right:auto;}
+.logout-btn:hover{color:var(--red);}
+.main{margin-right:220px;padding:24px;min-height:100vh;}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.topbar h2{font-size:20px;font-weight:800;}
+.page{display:none;}
+.page.active{display:block;animation:fadeIn .3s ease;}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.sc{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;overflow:hidden;}
+.sc-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.sc-header h3{font-size:14px;font-weight:700;}
+.btn{padding:9px 16px;border-radius:var(--rsm);font-family:'Heebo',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;display:inline-flex;align-items:center;gap:6px;}
+.btn-primary{background:linear-gradient(135deg,var(--blue),#2A7FFF);color:#fff;}
+.btn-primary:hover{opacity:.88;}
+.btn-ghost{background:var(--card2);border:1px solid var(--border);color:var(--text2);}
+.btn-ghost:hover{color:var(--text);}
+.btn-success{background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);color:#86EFAC;}
+.supplier-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;transition:border-color .2s;cursor:pointer;}
+.supplier-card:hover{border-color:rgba(26,108,242,.4);}
+.supplier-card.urgent{border-color:rgba(245,166,35,.4);background:rgba(245,166,35,.04);}
+.s-name{font-size:15px;font-weight:700;}
+.s-meta{font-size:12px;color:var(--text3);margin-top:3px;}
+.s-badge{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.badge-today{background:rgba(245,166,35,.15);color:#FCD34D;border:1px solid rgba(245,166,35,.3);}
+.badge-ok{background:rgba(143,163,184,.1);color:var(--text3);}
+.loading{display:flex;align-items:center;justify-content:center;padding:60px;color:var(--text3);font-size:14px;gap:10px;}
+.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--navy2);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:14px;font-weight:600;z-index:9999;transition:transform .3s ease;pointer-events:none;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.order-item-row{display:grid;grid-template-columns:1fr auto auto auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);}
+.order-item-row:last-child{border-bottom:none;}
+.item-name{font-size:13px;font-weight:600;}
+.item-meta{font-size:11px;color:var(--text3);}
+.qty-input{width:70px;padding:7px 8px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:14px;font-weight:700;text-align:center;}
+.qty-input:focus{outline:none;border-color:var(--blue);}
+.suggested{font-size:11px;color:var(--text3);text-align:center;}
+.promo-badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;background:rgba(245,166,35,.18);color:#FCD34D;border:1px solid rgba(245,166,35,.35);margin-right:6px;vertical-align:middle;}
+.promo-row{background:rgba(245,166,35,.03);border-bottom:1px solid rgba(245,166,35,.15) !important;}
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="sb-logo">
+    <div class="icon">🛒</div>
+    <span>KT Orders</span>
+    <small id="sb-branch">מערכת הזמנות</small>
+  </div>
+  <div class="nav-item active" onclick="gotoPage('suppliers')" id="nav-suppliers"><span style="font-size:16px;width:22px;text-align:center;">🚚</span><span>ספקים</span></div>
+  <div class="nav-item" onclick="gotoPage('history')" id="nav-history"><span style="font-size:16px;width:22px;text-align:center;">📋</span><span>היסטוריה</span></div>
+  <div class="sb-footer">
+    <div class="user-badge">
+      <div class="u-av" id="av">?</div>
+      <div><div class="u-name" id="uname">—</div><div class="u-role" id="urole">מנהל סניף</div></div>
+      <button class="logout-btn" onclick="doLogout()" title="התנתק">↪</button>
+    </div>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="topbar">
+    <h2 id="page-title">ספקים</h2>
+  </div>
+
+  <!-- SUPPLIERS LIST -->
+  <div class="page active" id="page-suppliers">
+    <div class="sc" style="margin-bottom:16px;background:rgba(26,108,242,.06);border-color:rgba(26,108,242,.2);">
+      <div style="padding:14px 18px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:20px;">📅</span>
+        <div>
+          <div style="font-size:14px;font-weight:700;" id="today-label">היום</div>
+          <div style="font-size:12px;color:var(--text3);" id="today-urgent">טוען...</div>
+        </div>
+      </div>
+    </div>
+    <div id="suppliers-list"><div class="loading"><div class="spinner"></div> טוען...</div></div>
+  </div>
+
+  <!-- ORDER FORM -->
+  <div class="page" id="page-order">
+    <div class="sc">
+      <div class="sc-header">
+        <h3 id="order-supplier-name">הזמנה</h3>
+        <button class="btn btn-ghost" onclick="gotoPage('suppliers')">← חזרה</button>
+      </div>
+      <div style="padding:16px;" id="order-items-wrap">
+        <div class="loading"><div class="spinner"></div> טוען מוצרים...</div>
+      </div>
+      <div style="padding:16px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;" id="order-actions" style="display:none;">
+        <button class="btn btn-ghost" onclick="gotoPage('suppliers')">ביטול</button>
+        <button class="btn btn-primary" onclick="saveOrder('draft')">💾 שמור טיוטה</button>
+        <button class="btn btn-success" onclick="saveOrder('sent')">📱 שלח לסוכן (WhatsApp)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="page" id="page-history">
+    <!-- אישורי קבלה -->
+    <div id="pending-confirmations-hist" style="display:none;margin-bottom:16px;"></div>
+    <!-- הזמנות -->
+    <div class="sc">
+      <div class="sc-header">
+        <h3>📋 היסטוריית הזמנות</h3>
+      </div>
+      <div id="history-list"><div class="loading"><div class="spinner"></div> טוען...</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
+import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, deleteDoc, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+
+window.addEventListener('unhandledrejection', e => {
+  const msg = e.reason?.message || String(e.reason);
+  console.error('Unhandled rejection:', e.reason);
+  const t = document.getElementById('toast');
+  if(t){ t.textContent = '❌ שגיאה: ' + msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 4000); }
+});
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAkDN3aDsaHAScm8vymAJFhvT6aaY1pWsw",
+  authDomain: "ktmarket.firebaseapp.com",
+  projectId: "ktmarket",
+  storageBucket: "ktmarket.firebasestorage.app",
+  messagingSenderId: "293459990906",
+  appId: "1:293459990906:web:468b68227cc17e55389ec3"
+};
+const db = getFirestore(initializeApp(firebaseConfig));
+
+const SUPA_URL = 'https://dkpqgyieoidrydxfiwhd.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRrcHFneWllb2lkcnlkeGZpd2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MzA4NDgsImV4cCI6MjA4OTMwNjg0OH0.cFYdJK7P58pc_VlQxCo4HdLVRPkyiLz_8hMLepoK3Ws';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+const FREQ_LABELS = { daily:'יומי', weekly:'שבועי', biweekly:'פעם בשבועיים', monthly:'חודשי' };
+const STATUS_LABELS = { draft:'📝 טיוטה', sent:'📤 נשלחה', received:'✅ התקבלה' };
+
+let currentProfile = null;
+let currentSupplier = null;
+let currentOrderItems = [];
+let editingOrderId = null;
+const today = new Date().toISOString().split('T')[0];
+
+// ── auth ──────────────────────────────────────────────────────────────────────
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ location.href = 'index.html'; return; }
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+  if(!profile){ location.href = 'index.html'; return; }
+  currentProfile = profile;
+  const name = profile.full_name || profile.email || '';
+  document.getElementById('av').textContent    = name[0]?.toUpperCase() || '?';
+  document.getElementById('uname').textContent = name;
+  document.getElementById('urole').textContent = profile.branch || 'מנהל סניף';
+  if(profile.branch) document.getElementById('sb-branch').textContent = profile.branch;
+
+  const d = new Date();
+  const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+  document.getElementById('today-label').textContent = `היום — יום ${days[d.getDay()]}, ${d.toLocaleDateString('he-IL')}`;
+  await loadSuppliers();
+})();
+
+async function doLogout(){ await sb.auth.signOut(); location.href = 'index.html'; }
+window.doLogout = doLogout;
+
+// ── nav ───────────────────────────────────────────────────────────────────────
+const PAGE_TITLES = { suppliers:'ספקים', order:'הזמנה חדשה', history:'היסטוריה' };
+function gotoPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  const navEl = document.getElementById('nav-'+name);
+  if(navEl) navEl.classList.add('active');
+  document.getElementById('page-title').textContent = PAGE_TITLES[name] || name;
+  if(name==='history') loadHistory();
+}
+window.gotoPage = gotoPage;
+
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
+
+// ── pending delivery confirmations ────────────────────────────────────────────
+async function loadPendingConfirmations(suppliers){
+  const myBranch = currentProfile?.branch || '';
+  const supplierMap = Object.fromEntries(suppliers.map(s=>[s.id,s]));
+
+  let allOrders = [];
+  try {
+    const snap = await getDocs(collection(db,'orders'));
+    allOrders = snap.docs.map(d=>({...d.data(), id:d.id})).filter(o=>o.branch===myBranch);
+  } catch(e){ return; }
+
+  const pendingOrders = allOrders
+    .filter(o => o.status === 'sent')
+    .sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+
+  const wrap = document.getElementById('pending-confirmations-hist');
+  if(!pendingOrders.length){ wrap.style.display='none'; return; }
+
+  wrap.style.display = 'block';
+  wrap.innerHTML = `
+    <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.25);border-radius:var(--radius);overflow:hidden;margin-bottom:4px;">
+      <div style="padding:12px 18px;border-bottom:1px solid rgba(34,197,94,.15);display:flex;align-items:center;gap:10px;">
+        <span style="font-size:18px;">📬</span>
+        <div style="font-size:14px;font-weight:700;color:#86EFAC;">ממתינים לאישור קבלה — ${pendingOrders.length}</div>
+      </div>
+      ${pendingOrders.map(o=>{
+        const s = supplierMap[o.supplierId];
+        const ediTag = s?.hasEDI ? '<span style="font-size:10px;color:#22C55E;background:rgba(34,197,94,.12);padding:2px 6px;border-radius:8px;margin-right:6px;">EDI</span>' : '';
+        return `
+        <div style="padding:12px 18px;border-bottom:1px solid rgba(34,197,94,.08);display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <div style="font-weight:700;font-size:14px;">${o.supplierName||'—'}${ediTag}</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px;">הוזמן ב-${o.date} · ${o.items?.length||0} פריטים</div>
+          </div>
+          <button class="btn btn-success" style="font-size:12px;padding:7px 14px;white-space:nowrap;" onclick="confirmDelivery('${o.id}')">✅ אשר קבלה</button>
+        </div>`;}).join('')}
+    </div>`;
+}
+
+async function confirmDelivery(orderId){
+  try {
+    const snap = await getDocs(collection(db,'orders'));
+    const order = snap.docs.map(d=>({id:d.id,...d.data()})).find(o=>o.id===orderId);
+    if(!order){ toast('הזמנה לא נמצאה'); return; }
+    mgr_confirmOrder = order;
+    mgr_confirmIdx = -1;
+    const time = order.createdAt ? new Date(order.createdAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
+    document.getElementById('mgr-confirm-info').innerHTML =
+      '<strong>' + (order.supplierName||'-') + '</strong>' +
+      ' &nbsp;·&nbsp; סניף: ' + (order.branch||'-') +
+      ' &nbsp;·&nbsp; ' + (order.date||'-') + (time ? ' ' + time : '') +
+      (order.agentName ? ' &nbsp;·&nbsp; סוכן: ' + order.agentName : '');
+    document.getElementById('mgr-confirm-items').innerHTML =
+      '<div style="display:grid;grid-template-columns:1fr 80px 90px 32px;gap:8px;font-size:11px;color:var(--text3);font-weight:700;padding:8px 0;border-bottom:1px solid var(--border);">' +
+      '<div>מוצר</div><div style="text-align:center;">הוזמן</div><div style="text-align:center;">התקבל</div><div></div></div>' +
+      (order.items||[]).map((item,i) =>
+        '<div style="display:grid;grid-template-columns:1fr 80px 90px 32px;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.04);">' +
+        '<div style="font-size:13px;">' + (item.productName||'-') + '</div>' +
+        '<div style="text-align:center;font-size:12px;color:var(--text3);">' + (item.orderedQty||0) + ' ' + (item.conversionUnit||'') + '</div>' +
+        '<input type="number" id="mgr-recv-qty-' + i + '" value="' + (item.orderedQty||0) + '" min="0" step="0.01" style="padding:5px 8px;background:var(--navy3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:Heebo,sans-serif;font-size:13px;text-align:center;width:100%;">' +
+        '<input type="checkbox" id="mgr-recv-chk-' + i + '" checked style="width:18px;height:18px;cursor:pointer;accent-color:#22C55E;">' +
+        '</div>'
+      ).join('');
+    document.getElementById('mgr-confirm-modal').style.display = 'flex';
+  } catch(e){ toast('❌ שגיאה: '+e.message); }
+}
+window.confirmDelivery = confirmDelivery;
+
+// ── suppliers ─────────────────────────────────────────────────────────────────
+function shouldOrderToday(s){
+  const day = new Date(today).getDay();
+  if(s.frequency==='daily') return true;
+  const orderDays = s.orderDays?.length ? s.orderDays : (s.orderDay!==undefined ? [parseInt(s.orderDay)] : [0]);
+  if(s.frequency==='weekly') return orderDays.includes(day);
+  if(s.frequency==='biweekly'){ const w=Math.floor(new Date(today).getTime()/(7*24*60*60*1000)); return orderDays.includes(day)&&w%2===0; }
+  if(s.frequency==='monthly') return new Date(today).getDate()===1;
+  return false;
+}
+
+async function loadSuppliers(){
+  document.getElementById('suppliers-list').innerHTML = '<div class="loading"><div class="spinner"></div> טוען...</div>';
+  const snap = await getDocs(collection(db,'suppliers'));
+  const myBranch = currentProfile?.branch || '';
+  const suppliers = snap.docs.map(d=>({id:d.id,...d.data()}))
+    .filter(s => !s.branches?.length || s.branches.includes(myBranch))
+    .sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  loadPendingConfirmations(suppliers);
+  const urgent = suppliers.filter(s=>shouldOrderToday(s));
+  document.getElementById('today-urgent').textContent = urgent.length
+    ? `${urgent.length} ספקים לסידור היום`
+    : 'אין ספקים מיוחדים היום';
+
+  if(!suppliers.length){
+    document.getElementById('suppliers-list').innerHTML='<div style="padding:40px;text-align:center;color:var(--text3);">אין ספקים במערכת עדיין</div>';
+    return;
+  }
+  document.getElementById('suppliers-list').innerHTML = suppliers.map(s=>`
+    <div class="supplier-card ${shouldOrderToday(s)?'urgent':''}" onclick="openOrder('${s.id}')">
+      <div>
+        <div class="s-name">${s.name}</div>
+        <div class="s-meta">${FREQ_LABELS[s.frequency]||s.frequency}${s.hasMinimum?' · מינימום ₪'+s.minimumAmount:''}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        ${shouldOrderToday(s)?'<span class="s-badge badge-today">להזמין היום</span>':'<span class="s-badge badge-ok">לא דחוף</span>'}
+        <span style="color:var(--text3);font-size:18px;">←</span>
+      </div>
+    </div>`).join('');
+}
+
+// ── order form ────────────────────────────────────────────────────────────────
+async function openOrder(supplierId){
+  const snap = await getDocs(collection(db,'suppliers'));
+  currentSupplier = snap.docs.map(d=>({id:d.id,...d.data()})).find(s=>s.id===supplierId);
+  if(!currentSupplier) return;
+  document.getElementById('order-supplier-name').textContent = '📦 הזמנה — ' + currentSupplier.name;
+  document.getElementById('order-items-wrap').innerHTML = '<div class="loading"><div class="spinner"></div> טוען מוצרים...</div>';
+  document.getElementById('order-actions').style.display = 'none';
+  gotoPage('order');
+
+  // load products for this supplier (skip blocked)
+  const prodSnap = await getDocs(query(collection(db,'products'), where('supplierCode','==', currentSupplier.code||currentSupplier.id)));
+  const products = prodSnap.docs.map(d=>({id:d.id,...d.data()})).filter(p => p.blocked !== true);
+
+  // load last order for suggested quantities
+  const lastOrderSnap = await getDocs(query(
+    collection(db,'orders')
+  ));
+  const lastOrders = lastOrderSnap.docs.map(d=>d.data())
+    .filter(o => (o.supplierCode===currentSupplier.code||o.supplierId===currentSupplier.id) && o.branch===(currentProfile?.branch||'') && o.status==='received')
+    .sort((a,b)=>(b.date||'').localeCompare(a.date||''))
+    .slice(0,3);
+
+  // calculate suggested qty per product
+  const suggestions = {};
+  lastOrders.forEach(o=>{
+    (o.items||[]).forEach(item=>{
+      if(!suggestions[item.productId]) suggestions[item.productId] = [];
+      suggestions[item.productId].push(item.receivedQty || item.orderedQty || 0);
+    });
+  });
+  const avgSuggestion = (id) => {
+    const arr = suggestions[id];
+    if(!arr || !arr.length) return 0;
+    return Math.round(arr.reduce((a,b)=>a+b,0)/arr.length);
+  };
+
+  currentOrderItems = products.map(p=>({
+    productId: p.barcode || p.id,
+    barcode: p.barcode || p.id,
+    productName: p.name,
+    supplierCode: p.supplierCode,
+    conversionUnit: p.conversionUnit,
+    purchasePrice: p.purchasePrice || 0,
+    suggestedQty: avgSuggestion(p.barcode||p.id),
+    orderedQty: avgSuggestion(p.barcode||p.id),
+    receivedQty: 0
+  }));
+
+  if(!products.length){
+    document.getElementById('order-items-wrap').innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">לא נמצאו מוצרים לספק זה</div>';
+    document.getElementById('order-actions').style.display = 'flex';
+    return;
+  }
+
+  const myBranch = currentProfile?.branch||'';
+  const isPromo = p => { const pb=p.promoBranches||[]; return pb.includes('*')||pb.includes(myBranch)||(!pb.length&&p.isPromo); };
+  const promoCount = products.filter(isPromo).length;
+  document.getElementById('order-items-wrap').innerHTML = `
+    ${promoCount > 0 ? `<div style="background:rgba(245,166,35,.07);border:1px solid rgba(245,166,35,.25);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#FCD34D;font-weight:600;">
+      🏷️ ${promoCount} מוצרים במבצע — דאג להזמין כמות גדולה יותר!
+    </div>` : ''}
+    <div style="display:grid;grid-template-columns:1fr 80px 80px;gap:8px;padding-bottom:8px;border-bottom:2px solid var(--border);margin-bottom:4px;">
+      <div style="font-size:11px;color:var(--text3);font-weight:700;">מוצר</div>
+      <div style="font-size:11px;color:var(--text3);font-weight:700;text-align:center;">הצעה</div>
+      <div style="font-size:11px;color:var(--text3);font-weight:700;text-align:center;">כמות</div>
+    </div>
+    ${products.map((p,i)=>{
+      const sug = avgSuggestion(p.barcode||p.id);
+      const pIsPromo = isPromo(p);
+      return `<div class="${pIsPromo?'promo-row':''}" style="display:grid;grid-template-columns:1fr 80px 80px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);${pIsPromo?'border-color:rgba(245,166,35,.15);':''}">
+        <div>
+          <div class="item-name">
+            ${pIsPromo?'<span class="promo-badge">🏷️ מבצע</span>':''}${p.name||'—'}
+          </div>
+          <div class="item-meta">${p.barcode||''} · ${p.conversionUnit||''}</div>
+        </div>
+        <div class="suggested">${sug > 0 ? sug : '—'}</div>
+        <input class="qty-input" type="number" min="0" value="${sug||''}" id="qty-${i}"
+          oninput="updateQty(${i}, this.value)" placeholder="0"
+          style="${pIsPromo?'border-color:rgba(245,166,35,.4);':''}">
+      </div>`;
+    }).join('')}`;
+  document.getElementById('order-actions').style.display = 'flex';
+}
+window.openOrder = openOrder;
+
+function updateQty(index, val){
+  const qty = parseFloat(val)||0;
+  if(currentOrderItems[index]) currentOrderItems[index].orderedQty = qty;
+  const inp = document.getElementById('qty-'+index);
+  if(inp){
+    if(qty > 400){
+      inp.style.borderColor = '#EF4444';
+      inp.title = 'כמות חריגה — עברת 400!';
+      toast('⚠️ ' + (currentOrderItems[index]?.productName||'מוצר') + ': כמות ' + qty + ' עוברת 400!');
+    } else {
+      inp.style.borderColor = '';
+      inp.title = '';
+    }
+  }
+}
+window.updateQty = updateQty;
+
+function buildWAMessage(supplier, branch, items){
+  const date = new Date().toLocaleDateString('he-IL');
+  let msg = `📦 הזמנה — ${supplier.name}\n`;
+  msg += `📅 תאריך: ${date}\n`;
+  msg += `🏪 סניף: ${branch}\n`;
+  if(supplier.agentName) msg += `👤 סוכן: ${supplier.agentName}\n`;
+  msg += `\n`;
+  items.forEach(item => {
+    msg += `• ${item.productName}: ${item.orderedQty}`;
+    if(item.conversionUnit) msg += ` ${item.conversionUnit}`;
+    msg += `\n`;
+  });
+  msg += `\nסה״כ: ${items.length} פריטים`;
+  return encodeURIComponent(msg);
+}
+
+function openWhatsApp(phone, message){
+  const clean = String(phone).replace(/[^\d]/g,'').replace(/^0/,'972');
+  if(!clean){ toast('⚠️ אין מספר סוכן לספק זה'); return; }
+  window.open(`https://wa.me/${clean}?text=${message}`, '_blank');
+}
+
+async function saveOrder(status){
+  const items = currentOrderItems.map((item,i)=>({
+    ...item,
+    orderedQty: parseFloat(document.getElementById('qty-'+i)?.value)||0
+  })).filter(item => item.orderedQty > 0);
+
+  if(!items.length){ toast('⚠️ הכנס כמויות לפחות למוצר אחד'); return; }
+
+  if(status === 'sent'){
+    const over400 = items.filter(i => i.orderedQty > 400);
+    if(over400.length){
+      toast('🚫 לא ניתן לשלוח — ' + over400.map(i=>i.productName+' ('+i.orderedQty+')').join(', ') + ' עוברים 400');
+      return;
+    }
+    const minAmt = parseFloat(currentSupplier.minimumAmount) || 0;
+    if(minAmt > 0){
+      const total = items.reduce((sum,i) => sum + ((i.orderedQty||0) * (i.purchasePrice||0)), 0);
+      if(total < minAmt){
+        if(total === 0){
+          toast('🚫 לא ניתן לשלוח — מינימום הזמנה ₪' + minAmt + ' ומחירי עלות לא מוגדרים');
+        } else {
+          toast('🚫 סך ההזמנה ₪' + total.toFixed(0) + ' נמוך ממינימום ₪' + minAmt);
+        }
+        return;
+      }
+    }
+  }
+
+  const orderId = editingOrderId || `${currentProfile?.branch||'all'}_${currentSupplier.id}_${today}_${Date.now()}`;
+  await setDoc(doc(db,'orders', orderId), {
+    supplierId: currentSupplier.id,
+    supplierName: currentSupplier.name,
+    supplierCode: currentSupplier.code || '',
+    agentNumber: currentSupplier.agentNumber || '',
+    agentName: currentSupplier.agentName || '',
+    branch: currentProfile?.branch || '',
+    createdBy: currentProfile?.id || '',
+    date: today,
+    createdAt: new Date().toISOString(),
+    status,
+    items
+  });
+
+  if(status === 'sent'){
+    toast('✅ הזמנה נשמרה — פותח WhatsApp...');
+    const msg = buildWAMessage(currentSupplier, currentProfile?.branch||'', items);
+    openWhatsApp(currentSupplier.agentNumber, msg);
+  } else {
+    toast('💾 טיוטה נשמרה!');
+  }
+  editingOrderId = null;
+  gotoPage('suppliers');
+}
+window.saveOrder = saveOrder;
+
+async function editOrderFromHistory(idx){
+  const order = historyOrders[idx];
+  if(!order) return;
+  const sSnap = await getDocs(collection(db,'suppliers'));
+  currentSupplier = sSnap.docs.map(d=>({id:d.id,...d.data()})).find(s=>s.id===order.supplierId);
+  if(!currentSupplier){ toast('ספק לא נמצא'); return; }
+  editingOrderId = order.id;
+  document.getElementById('order-supplier-name').textContent = '✏️ עריכה — ' + currentSupplier.name;
+  document.getElementById('order-items-wrap').innerHTML = '<div class="loading"><div class="spinner"></div> טוען...</div>';
+  document.getElementById('order-actions').style.display = 'none';
+  gotoPage('order');
+  const prodSnap = await getDocs(query(collection(db,'products'), where('supplierCode','==', currentSupplier.code||currentSupplier.id)));
+  const products = prodSnap.docs.map(d=>({id:d.id,...d.data()})).filter(p => p.blocked !== true);
+  const qtyMap = {};
+  (order.items||[]).forEach(i => { qtyMap[i.productId||i.barcode] = i.orderedQty||0; });
+  currentOrderItems = products.map(p=>({
+    productId: p.barcode||p.id, barcode: p.barcode||p.id,
+    productName: p.name, supplierCode: p.supplierCode,
+    conversionUnit: p.conversionUnit, purchasePrice: p.purchasePrice||0,
+    orderedQty: 0, receivedQty: 0
+  }));
+  if(!products.length){ document.getElementById('order-items-wrap').innerHTML='<div style="padding:24px;text-align:center;color:var(--text3);">לא נמצאו מוצרים</div>'; return; }
+  document.getElementById('order-items-wrap').innerHTML =
+    '<div style="display:grid;grid-template-columns:1fr 80px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:11px;color:var(--text3);font-weight:700;"><div>מוצר</div><div style="text-align:center;">כמות</div></div>' +
+    products.map((p,i)=>{
+      const existing = qtyMap[p.barcode||p.id] || 0;
+      return '<div style="display:grid;grid-template-columns:1fr 80px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">' +
+        '<div><div class="item-name">' + (p.name||'—') + '</div><div class="item-meta">' + (p.barcode||'') + ' · ' + (p.conversionUnit||'') + '</div></div>' +
+        '<input class="qty-input" type="number" min="0" value="' + (existing||'') + '" id="qty-' + i + '" oninput="updateQty(' + i + ',this.value)" placeholder="0">' +
+        '</div>';
+    }).join('');
+  document.getElementById('order-actions').style.display = 'flex';
+}
+window.editOrderFromHistory = editOrderFromHistory;
+
+// ── history ───────────────────────────────────────────────────────────────────
+let historyOrders = [];
+
+async function loadHistory(){
+  document.getElementById('history-list').innerHTML='<div class="loading"><div class="spinner"></div> טוען...</div>';
+  const myBranch = currentProfile?.branch||'';
+  const isAdmin = currentProfile?.role === 'super_admin';
+  const snap = await getDocs(collection(db,'orders'));
+  historyOrders = snap.docs
+    .map(d=>({id:d.id,...d.data()}))
+    .filter(o => isAdmin || o.branch===myBranch)
+    .sort((a,b)=>(b.date||'').localeCompare(a.date||''))
+    .slice(0,60);
+
+  const sSnap = await getDocs(collection(db,'suppliers'));
+  loadPendingConfirmations(sSnap.docs.map(d=>({id:d.id,...d.data()})));
+
+  renderHistory();
+}
+
+function renderHistory(){
+  if(!historyOrders.length){
+    document.getElementById('history-list').innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">אין הזמנות עדיין</div>';
+    return;
+  }
+  document.getElementById('history-list').innerHTML = historyOrders.map((o,idx)=>`
+    <div id="order-row-${idx}" style="border-bottom:1px solid var(--border);">
+      <div style="display:grid;grid-template-columns:1fr auto auto auto auto auto auto auto auto;gap:8px;align-items:center;padding:13px 16px;">
+        <div onclick="toggleOrderDetails(${idx})" style="font-weight:600;cursor:pointer;">${o.supplierName||'—'}</div>
+        <div style="font-size:12px;color:var(--text3);">${o.date||'—'}</div>
+        <div style="font-size:12px;">${STATUS_LABELS[o.status]||o.status}</div>
+        <div style="font-size:12px;color:var(--text3);">${o.items?.length||0} פריטים</div>
+        <div onclick="toggleOrderDetails(${idx})" style="font-size:16px;color:var(--text3);transition:transform .2s;cursor:pointer;" id="arrow-${idx}">▼</div>
+        ${o.status!=='received'?`<button onclick="editOrderFromHistory(${idx})" style="background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.25);color:#FCD34D;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:Heebo,sans-serif;" title="ערוך הזמנה">✏️</button>`:'<div></div>'}
+        <button onclick="exportSingleOrderExcel(${idx})" style="background:rgba(34,197,94,.10);border:1px solid rgba(34,197,94,.25);color:#86EFAC;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:Heebo,sans-serif;" title="Excel">📊</button>
+        <button onclick="printSingleOrder(${idx})" style="background:rgba(26,108,242,.12);border:1px solid rgba(26,108,242,.25);color:#93C5FD;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:Heebo,sans-serif;" title="PDF">🖨️</button>
+        <button onclick="deleteOrder('${o.id}',${idx})" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.25);color:#FCA5A5;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:Heebo,sans-serif;">🗑️</button>
+      </div>
+      <div id="order-details-${idx}" style="display:none;padding:0 16px 14px;border-top:1px solid var(--border);background:rgba(0,0,0,.15);">
+        <div style="padding:10px 0;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+          ${o.agentName ? `<span style="font-size:12px;color:var(--text2);">👤 ${o.agentName}${o.agentNumber?' · '+o.agentNumber:''}</span>` : '<span></span>'}
+          <div style="display:flex;gap:8px;">
+            ${o.status==='sent' ? `<button class="btn btn-success" style="font-size:12px;padding:6px 12px;" onclick="confirmDeliveryFromHistory('${o.id}',${idx})">✅ אשר קבלה</button>` : ''}
+            ${o.agentNumber ? `<button class="btn btn-success" style="font-size:12px;padding:6px 12px;" onclick="resendWhatsApp(${idx})">📱 שלח שוב לסוכן</button>` : ''}
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 80px;gap:6px;font-size:11px;color:var(--text3);padding-bottom:6px;border-bottom:1px solid var(--border);font-weight:700;">
+          <div>מוצר</div><div style="text-align:center;">כמות</div>
+        </div>
+        ${(o.items||[]).map(item=>`
+          <div style="display:grid;grid-template-columns:1fr 80px;gap:6px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:13px;">
+            <div>${item.productName||'—'}</div>
+            <div style="text-align:center;font-weight:700;">${item.orderedQty} ${item.conversionUnit||''}</div>
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function toggleOrderDetails(idx){
+  const det = document.getElementById('order-details-'+idx);
+  const arr = document.getElementById('arrow-'+idx);
+  const open = det.style.display === 'block';
+  det.style.display = open ? 'none' : 'block';
+  arr.style.transform = open ? '' : 'rotate(180deg)';
+}
+window.toggleOrderDetails = toggleOrderDetails;
+
+function resendWhatsApp(idx){
+  const o = historyOrders[idx];
+  if(!o) return;
+  const fakeSupplier = { name: o.supplierName, agentName: o.agentName, agentNumber: o.agentNumber };
+  const msg = buildWAMessage(fakeSupplier, o.branch, o.items||[]);
+  openWhatsApp(o.agentNumber, msg);
+}
+window.resendWhatsApp = resendWhatsApp;
+
+async function deleteOrder(orderId, idx){
+  if(!confirm('למחוק את ההזמנה?')) return;
+  try {
+    await deleteDoc(doc(db,'orders', orderId));
+    historyOrders.splice(idx, 1);
+    renderHistory();
+    toast('🗑️ ההזמנה נמחקה');
+  } catch(e){ toast('❌ שגיאה: '+e.message); }
+}
+window.deleteOrder = deleteOrder;
+
+let mgr_confirmOrder = null;
+let mgr_confirmIdx = -1;
+
+function confirmDeliveryFromHistory(orderId, idx){
+  const order = historyOrders[idx];
+  if(!order){ toast('הזמנה לא נמצאה'); return; }
+  mgr_confirmOrder = order;
+  mgr_confirmIdx = idx;
+  const time = order.createdAt ? new Date(order.createdAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
+  document.getElementById('mgr-confirm-info').innerHTML =
+    '<strong>' + (order.supplierName||'-') + '</strong>' +
+    ' &nbsp;·&nbsp; סניף: ' + (order.branch||'-') +
+    ' &nbsp;·&nbsp; ' + (order.date||'-') + (time ? ' ' + time : '') +
+    (order.agentName ? ' &nbsp;·&nbsp; סוכן: ' + order.agentName : '');
+  document.getElementById('mgr-confirm-items').innerHTML =
+    '<div style="display:grid;grid-template-columns:1fr 80px 90px 32px;gap:8px;font-size:11px;color:var(--text3);font-weight:700;padding:8px 0;border-bottom:1px solid var(--border);">' +
+    '<div>מוצר</div><div style="text-align:center;">הוזמן</div><div style="text-align:center;">התקבל</div><div></div></div>' +
+    (order.items||[]).map((item,i) =>
+      '<div style="display:grid;grid-template-columns:1fr 80px 90px 32px;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.04);">' +
+      '<div style="font-size:13px;">' + (item.productName||'-') + '</div>' +
+      '<div style="text-align:center;font-size:12px;color:var(--text3);">' + (item.orderedQty||0) + ' ' + (item.conversionUnit||'') + '</div>' +
+      '<input type="number" id="mgr-recv-qty-' + i + '" value="' + (item.orderedQty||0) + '" min="0" step="0.01" style="padding:5px 8px;background:var(--navy3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:Heebo,sans-serif;font-size:13px;text-align:center;width:100%;">' +
+      '<input type="checkbox" id="mgr-recv-chk-' + i + '" checked style="width:18px;height:18px;cursor:pointer;accent-color:#22C55E;">' +
+      '</div>'
+    ).join('');
+  document.getElementById('mgr-confirm-modal').style.display = 'flex';
+}
+window.confirmDeliveryFromHistory = confirmDeliveryFromHistory;
+
+function closeMgrConfirmModal(){
+  document.getElementById('mgr-confirm-modal').style.display = 'none';
+  mgr_confirmOrder = null; mgr_confirmIdx = -1;
+}
+window.closeMgrConfirmModal = closeMgrConfirmModal;
+
+async function submitMgrConfirmDelivery(){
+  if(!mgr_confirmOrder) return;
+  const updatedItems = (mgr_confirmOrder.items||[]).map((item,i) => ({
+    ...item,
+    receivedQty: parseFloat(document.getElementById('mgr-recv-qty-'+i)?.value)||0,
+    received: document.getElementById('mgr-recv-chk-'+i)?.checked || false
+  }));
+  try {
+    const receivedAt = new Date().toISOString();
+    await updateDoc(doc(db,'orders',mgr_confirmOrder.id),{
+      status:'received', receivedAt, items: updatedItems
+    });
+    const orderForPDF = {...mgr_confirmOrder, status:'received', receivedAt, items: updatedItems};
+    closeMgrConfirmModal();
+    if(mgr_confirmIdx >= 0){
+      historyOrders[mgr_confirmIdx].status = 'received';
+      historyOrders[mgr_confirmIdx].items = updatedItems;
+      renderHistory();
+    }
+    const sSnap = await getDocs(collection(db,'suppliers'));
+    loadPendingConfirmations(sSnap.docs.map(d=>({id:d.id,...d.data()})));
+    toast('✅ קבלה אושרה!');
+    const blob = new Blob([_buildMgrOrderPDF(orderForPDF)], {type:'text/html;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    window.open(url,'_blank');
+    setTimeout(()=>URL.revokeObjectURL(url), 30000);
+  } catch(e){ toast('❌ שגיאה: '+e.message); }
+}
+window.submitMgrConfirmDelivery = submitMgrConfirmDelivery;
+
+// ── export ────────────────────────────────────────────────────────────────────
+function exportOrdersExcel(){
+  if(!historyOrders.length){ toast('אין הזמנות לייצוא'); return; }
+  const rows = [];
+  historyOrders.forEach(o => {
+    (o.items||[]).forEach(item => {
+      rows.push({
+        'תאריך': o.date||'',
+        'ספק': o.supplierName||'',
+        'סניף': o.branch||'',
+        'מוצר': item.productName||'',
+        'ברקוד': item.barcode||'',
+        'כמות': item.orderedQty||0,
+        'יחידה': item.conversionUnit||'',
+        'סטטוס': STATUS_LABELS[o.status]||o.status,
+        'סוכן': o.agentName||''
+      });
+    });
+  });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'הזמנות');
+  XLSX.writeFile(wb, `הזמנות_${today}.xlsx`);
+}
+window.exportOrdersExcel = exportOrdersExcel;
+
+function exportOrdersPDF(){
+  if(!historyOrders.length){ toast('אין הזמנות לייצוא'); return; }
+  const parts = [
+    '<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8">',
+    '<style>',
+    'body{font-family:Arial,sans-serif;font-size:12px;direction:rtl;margin:24px}',
+    'h1{font-size:16px;margin-bottom:4px}',
+    '.order-block{border:1px solid #ddd;border-radius:8px;margin-bottom:20px;overflow:hidden;page-break-inside:avoid}',
+    '.order-head{background:#1a6cf2;color:#fff;padding:10px 14px}',
+    '.order-meta{background:#f5f5f5;padding:8px 14px;font-size:11px;color:#555;display:flex;gap:20px;flex-wrap:wrap}',
+    'table{width:100%;border-collapse:collapse}',
+    'th{background:#e8f0fe;padding:6px 10px;text-align:right;font-size:11px;color:#1a6cf2}',
+    'td{padding:6px 10px;border-bottom:1px solid #eee;font-size:12px}',
+    'td.recv{color:#16a34a;font-weight:700}',
+    '</s' + 'tyle></h' + 'ead><b' + 'ody>',
+    '<h1>הזמנות — ' + (currentProfile?.branch||'') + ' — ' + today + '</h1>',
+    '<p style="color:#888;margin-bottom:20px;font-size:11px;">' + historyOrders.length + ' הזמנות</p>'
+  ];
+  historyOrders.forEach(o => {
+    const time = o.createdAt ? new Date(o.createdAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
+    const statusLabel = STATUS_LABELS[o.status] || o.status;
+    parts.push('<div class="order-block">');
+    parts.push('<div class="order-head"><strong>' + (o.supplierName||'-') + '</strong> &nbsp; ' + statusLabel + '</div>');
+    parts.push('<div class="order-meta">');
+    parts.push('<span>סניף: <strong>' + (o.branch||'-') + '</strong></span>');
+    parts.push('<span>תאריך: ' + (o.date||'-') + (time ? ' &nbsp; שעה: ' + time : '') + '</span>');
+    if(o.agentName) parts.push('<span>סוכן: ' + o.agentName + (o.agentNumber ? ' (' + o.agentNumber + ')' : '') + '</span>');
+    parts.push('</div>');
+    parts.push('<table><tr><th>מוצר</th><th>ברקוד</th><th>הוזמן</th>' + (o.status==='received'?'<th>התקבל</th>':'') + '</tr>');
+    (o.items||[]).forEach(item => {
+      const bcode = item.barcode || item.productId || '-';
+      const recvCol = o.status==='received' ? '<td class="recv">' + (item.received===false?'לא ':'' ) + (item.receivedQty!==undefined?item.receivedQty:item.orderedQty||0) + ' ' + (item.conversionUnit||'') + '</td>' : '';
+      parts.push('<tr><td>' + (item.productName||'-') + '</td><td style="direction:ltr;text-align:center;">' + bcode + '</td><td>' + (item.orderedQty||0) + ' ' + (item.conversionUnit||'') + '</td>' + recvCol + '</tr>');
+    });
+    parts.push('</t' + 'able></div>');
+  });
+  parts.push('</b' + 'ody></h' + 'tml>');
+  const blob = new Blob([parts.join('')], {type: 'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+window.exportOrdersPDF = exportOrdersPDF;
+
+function exportSingleOrderExcel(idx){
+  const o = historyOrders[idx];
+  if(!o) return;
+  const rows = (o.items||[]).map(item => ({
+    'ספק': o.supplierName||'',
+    'סניף': o.branch||'',
+    'תאריך': o.date||'',
+    'סוכן': o.agentName||'',
+    'סטטוס': STATUS_LABELS[o.status]||o.status,
+    'מוצר': item.productName||'',
+    'ברקוד': item.barcode || item.productId || '',
+    'כמות הוזמנה': item.orderedQty||0,
+    'יחידה': item.conversionUnit||'',
+    'כמות התקבלה': item.receivedQty!==undefined ? item.receivedQty : '',
+    'התקבל': item.received===false ? 'לא' : item.received===true ? 'כן' : ''
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'הזמנה');
+  XLSX.writeFile(wb, (o.supplierName||'הזמנה') + '_' + (o.date||'') + '.xlsx');
+}
+window.exportSingleOrderExcel = exportSingleOrderExcel;
+
+function _buildMgrOrderPDF(o){
+  const time = o.createdAt ? new Date(o.createdAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
+  const statusLabel = STATUS_LABELS[o.status] || o.status;
+  const parts = [
+    '<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8">',
+    '<style>body{font-family:Arial,sans-serif;font-size:12px;direction:rtl;margin:24px}',
+    '.order-head{background:#1a6cf2;color:#fff;padding:10px 14px;border-radius:8px 8px 0 0}',
+    '.order-meta{background:#f5f5f5;padding:8px 14px;font-size:11px;color:#555;display:flex;gap:20px;flex-wrap:wrap}',
+    'table{width:100%;border-collapse:collapse}',
+    'th{background:#e8f0fe;padding:6px 10px;text-align:right;font-size:11px;color:#1a6cf2}',
+    'td{padding:6px 10px;border-bottom:1px solid #eee;font-size:12px}',
+    'td.recv{color:#16a34a;font-weight:700}',
+    '</s'+'tyle></h'+'ead><b'+'ody>',
+    '<div class="order-head"><strong>'+(o.supplierName||'-')+'</strong> &nbsp; '+statusLabel+'</div>',
+    '<div class="order-meta">',
+    '<span>סניף: <strong>'+(o.branch||'-')+'</strong></span>',
+    '<span>תאריך: '+(o.date||'-')+(time?' &nbsp; שעה: '+time:'')+'</span>'
+  ];
+  if(o.agentName) parts.push('<span>סוכן: '+o.agentName+(o.agentNumber?' ('+o.agentNumber+')':'')+'</span>');
+  if(o.receivedAt){
+    const rt = new Date(o.receivedAt).toLocaleString('he-IL');
+    parts.push('<span>אושר קבלה: '+rt+'</span>');
+  }
+  parts.push('</div>');
+  parts.push('<table><tr><th>מוצר</th><th>ברקוד</th><th>הוזמן</th>'+(o.status==='received'?'<th>התקבל</th>':'')+'</tr>');
+  (o.items||[]).forEach(item => {
+    const bcode = item.barcode||item.productId||'-';
+    const recvCol = o.status==='received'
+      ? '<td class="recv">'+(item.received===false?'❌ לא התקבל':'')+(item.received!==false?(item.receivedQty!==undefined?item.receivedQty:item.orderedQty||0)+' '+(item.conversionUnit||''):'')+'</td>'
+      : '';
+    parts.push('<tr><td>'+(item.productName||'-')+'</td><td style="direction:ltr;text-align:center;">'+bcode+'</td><td>'+(item.orderedQty||0)+' '+(item.conversionUnit||'')+'</td>'+recvCol+'</tr>');
+  });
+  parts.push('</t'+'able></b'+'ody></h'+'tml>');
+  return parts.join('');
+}
+
+function printSingleOrder(idx){
+  const o = historyOrders[idx];
+  if(!o) return;
+  const blob = new Blob([_buildMgrOrderPDF(o)], {type:'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  window.open(url,'_blank');
+  setTimeout(()=>URL.revokeObjectURL(url), 30000);
+}
+window.printSingleOrder = printSingleOrder;
+</script>
+
+<div id="mgr-confirm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+  <div style="background:var(--navy2);border:1px solid var(--border);border-radius:20px;padding:28px;width:520px;max-width:95vw;max-height:88vh;overflow-y:auto;position:relative;">
+    <button onclick="closeMgrConfirmModal()" style="position:absolute;top:14px;left:16px;background:none;border:none;color:var(--text3);font-size:24px;cursor:pointer;">×</button>
+    <h3 style="font-size:17px;font-weight:700;margin-bottom:6px;">אישור קבלת סחורה</h3>
+    <div id="mgr-confirm-info" style="font-size:12px;color:var(--text2);margin-bottom:18px;line-height:1.7;"></div>
+    <div id="mgr-confirm-items"></div>
+    <div style="display:flex;gap:12px;margin-top:20px;">
+      <button onclick="closeMgrConfirmModal()" style="flex:1;padding:11px;background:var(--navy3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:Heebo,sans-serif;font-size:14px;cursor:pointer;">ביטול</button>
+      <button onclick="submitMgrConfirmDelivery()" style="flex:2;padding:11px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);border-radius:8px;color:#86EFAC;font-family:Heebo,sans-serif;font-size:14px;font-weight:700;cursor:pointer;">✅ אשר קבלה</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
