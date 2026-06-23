@@ -596,16 +596,9 @@ const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
   // ─── NEON DATA API ────────────────────────────────────────────────────────
 const NEON_URL = 'https://ep-square-rice-a2ckvq25.apirest.eu-central-1.aws.neon.tech/neondb/rest/v1';
 
-async function getNeonHeaders(extra = {}) {
-  const { data: { session } } = await sb.auth.getSession();
-  const headers = { 'Content-Type': 'application/json', ...extra };
-  if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
-  return headers;
-}
-
 async function neonQuery(table, params = '') {
   const res = await fetch(`${NEON_URL}/${table}${params}`, {
-    headers: await getNeonHeaders()
+    headers: { 'Content-Type': 'application/json' }
   });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
@@ -614,7 +607,10 @@ async function neonQuery(table, params = '') {
 async function neonPost(table, body) {
   const res = await fetch(`${NEON_URL}/${table}`, {
     method: 'POST',
-    headers: await getNeonHeaders({ 'Prefer': 'return=representation' }),
+    headers: {
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    },
     body: JSON.stringify(body)
   });
   if (!res.ok) throw new Error(await res.text());
