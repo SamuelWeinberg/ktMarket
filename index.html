@@ -7,6 +7,27 @@
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
+  import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAkDN3aDsaHAScm8vymAJFhvT6aaY1pWsw",
+    authDomain: "ktmarket.firebaseapp.com",
+    projectId: "ktmarket",
+    storageBucket: "ktmarket.firebasestorage.app",
+    messagingSenderId: "293459990906",
+    appId: "1:293459990906:web:468b68227cc17e55389ec3",
+    measurementId: "G-B4NVHJW67V"
+  };
+
+  const firebaseApp = initializeApp(firebaseConfig);
+  const db = getFirestore(firebaseApp);
+
+  // expose globally so non-module scripts can use it
+  window.firebaseDB = db;
+  window.firebaseLib = { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy };
+</script>
 <style>
 :root {
   --navy:   #0D1B2A;

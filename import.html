@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KT Market | ייבוא מוצרים</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --navy:   #0D1B2A;
+  --navy2:  #1B2E42;
+  --navy3:  #243B53;
+  --blue:   #1A6CF2;
+  --cyan:   #00C2CB;
+  --green:  #22C55E;
+  --red:    #EF4444;
+  --gold:   #F5A623;
+  --text:   #F0F4F8;
+  --text2:  #8FA3B8;
+  --text3:  #5A7A96;
+  --border: rgba(255,255,255,0.08);
+  --card:   rgba(255,255,255,0.04);
+  --radius: 14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;direction:rtl;}
+.card{background:var(--navy2);border:1px solid var(--border);border-radius:20px;padding:40px;width:640px;max-width:100%;}
+h1{font-size:22px;font-weight:800;margin-bottom:4px;}
+.sub{font-size:13px;color:var(--text3);margin-bottom:28px;}
+
+.warn{background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.3);border-radius:var(--radius);padding:14px 18px;margin-bottom:24px;}
+.warn-title{font-size:13px;font-weight:700;color:var(--gold);margin-bottom:6px;}
+.warn p{font-size:12px;color:#FCD34D;line-height:1.8;}
+.warn code{background:rgba(0,0,0,.3);padding:2px 6px;border-radius:4px;font-family:monospace;font-size:11px;}
+
+.upload-area{border:2px dashed var(--border);border-radius:var(--radius);padding:44px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:20px;}
+.upload-area:hover,.upload-area.drag{border-color:var(--blue);background:rgba(26,108,242,.05);}
+.upload-icon{font-size:44px;margin-bottom:12px;}
+.upload-area p{font-size:14px;color:var(--text2);margin-top:4px;}
+.upload-area strong{color:var(--text);}
+input[type=file]{display:none;}
+
+.preview{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:20px;display:none;}
+.preview h3{font-size:11px;font-weight:700;color:var(--text3);margin-bottom:14px;text-transform:uppercase;letter-spacing:.5px;}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.stat{text-align:center;}
+.stat-value{font-size:26px;font-weight:800;color:var(--blue);}
+.stat-label{font-size:11px;color:var(--text3);margin-top:2px;}
+
+.btn-import{width:100%;padding:15px;background:linear-gradient(135deg,var(--blue),var(--cyan));border:none;border-radius:10px;color:#fff;font-family:'Heebo',sans-serif;font-size:16px;font-weight:800;cursor:pointer;margin-bottom:18px;display:none;transition:opacity .2s;}
+.btn-import:hover{opacity:.9;}
+.btn-import:disabled{opacity:.5;cursor:not-allowed;}
+
+.progress-wrap{display:none;margin-bottom:18px;}
+.progress-header{display:flex;justify-content:space-between;font-size:13px;color:var(--text2);margin-bottom:8px;}
+.progress-bar{height:10px;background:var(--navy3);border-radius:5px;overflow:hidden;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--cyan));border-radius:5px;transition:width .4s;width:0%;}
+
+.log{background:var(--navy);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-size:12px;font-family:monospace;color:var(--text2);max-height:240px;overflow-y:auto;display:none;line-height:1.9;}
+.log .ok{color:var(--green);}
+.log .err{color:var(--red);}
+.log .done{color:var(--cyan);font-weight:700;}
+
+.back{display:inline-block;font-size:13px;color:var(--text3);text-decoration:none;margin-top:20px;}
+.back:hover{color:var(--text);}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>📦 ייבוא מוצרים</h1>
+  <p class="sub">כלי חד-פעמי — מייבא את קטלוג המוצרים מ-Excel ל-Firestore</p>
+
+  <div class="warn">
+    <div class="warn-title">⚠️ לפני הייבוא — שנה כללי Firestore</div>
+    <p>
+      Firebase Console ← Firestore ← <strong>Rules</strong><br>
+      שנה את השורה ל: <code>allow read, write: if true;</code> ← לחץ Publish<br>
+      אחרי הייבוא — החזר ל: <code>allow read, write: if false;</code>
+    </p>
+  </div>
+
+  <div class="upload-area" id="drop-zone">
+    <div class="upload-icon">📊</div>
+    <p><strong>לחץ לבחירת קובץ Excel</strong></p>
+    <p>גרור לכאן קובץ .xlsx</p>
+    <input type="file" id="file-input" accept=".xlsx,.xls">
+  </div>
+
+  <div class="preview" id="preview">
+    <h3>סיכום הקובץ</h3>
+    <div class="stats">
+      <div class="stat"><div class="stat-value" id="stat-rows">0</div><div class="stat-label">פריטים</div></div>
+      <div class="stat"><div class="stat-value" id="stat-suppliers">0</div><div class="stat-label">ספקים</div></div>
+      <div class="stat"><div class="stat-value" id="stat-depts">0</div><div class="stat-label">מחלקות</div></div>
+      <div class="stat"><div class="stat-value" id="stat-batches">0</div><div class="stat-label">אצוות</div></div>
+    </div>
+  </div>
+
+  <button class="btn-import" id="import-btn">🚀 התחל ייבוא</button>
+
+  <div class="progress-wrap" id="progress-wrap">
+    <div class="progress-header">
+      <span id="progress-text">מכין...</span>
+      <span id="progress-pct">0%</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+  </div>
+
+  <div class="log" id="log"></div>
+
+  <a href="index.html" class="back">← חזרה</a>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
+import { getFirestore, writeBatch, doc } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAkDN3aDsaHAScm8vymAJFhvT6aaY1pWsw",
+  authDomain: "ktmarket.firebaseapp.com",
+  projectId: "ktmarket",
+  storageBucket: "ktmarket.firebasestorage.app",
+  messagingSenderId: "293459990906",
+  appId: "1:293459990906:web:468b68227cc17e55389ec3"
+};
+
+const db = getFirestore(initializeApp(firebaseConfig));
+const BATCH_SIZE = 499;
+
+const COL_MAP = {
+  'פריט':               'barcode',
+  'שם פריט':            'name',
+  'מחלקה':              'departmentCode',
+  'שם מחלקה':           'departmentName',
+  'קבוצה':              'groupCode',
+  'שם קבוצה':           'groupName',
+  'ספק':                'supplierCode',
+  'שם ספק':             'supplierName',
+  'כמות המרה':          'conversionQty',
+  'מידת המרה':          'conversionUnit',
+  'מחיר מכירה':         'salePrice',
+  'מחיר עלות לפי ספק': 'purchasePrice'
+};
+const NUM_FIELDS = new Set(['conversionQty','salePrice','purchasePrice']);
+let parsedData = [];
+
+function logLine(msg, cls=''){
+  const el = document.getElementById('log');
+  el.style.display = 'block';
+  el.innerHTML += `<div class="${cls}">${msg}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+function setProgress(done, total){
+  const pct = Math.round(done/total*100);
+  document.getElementById('progress-fill').style.width = pct+'%';
+  document.getElementById('progress-pct').textContent = pct+'%';
+  document.getElementById('progress-text').textContent =
+    `${done.toLocaleString('he-IL')} / ${total.toLocaleString('he-IL')} פריטים`;
+}
+
+function parseExcel(file){
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wb = window.XLSX.read(e.target.result, {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = window.XLSX.utils.sheet_to_json(ws, {defval:''});
+
+    if(!rows.length){ logLine('❌ הקובץ ריק או שאין שורות', 'err'); return; }
+
+    // הצג עמודות שנמצאו בקובץ
+    const foundCols = Object.keys(rows[0]);
+    const expectedCols = Object.keys(COL_MAP);
+    const missingCols = expectedCols.filter(c => !foundCols.includes(c));
+
+    logLine(`📋 עמודות שנמצאו בקובץ (${foundCols.length}): ${foundCols.join(' | ')}`);
+    if(missingCols.length){
+      logLine(`⚠️ עמודות חסרות: ${missingCols.join(' | ')}`, 'err');
+    }
+
+    parsedData = rows.map(row => {
+      const p = {};
+      for(const [heb, eng] of Object.entries(COL_MAP)){
+        const raw = row[heb];
+        p[eng] = NUM_FIELDS.has(eng) ? (parseFloat(raw)||0) : String(raw||'').trim();
+      }
+      return p;
+    }).filter(p => p.barcode !== '');
+
+    const suppliers = new Set(parsedData.map(p => p.supplierCode)).size;
+    const depts     = new Set(parsedData.map(p => p.departmentCode)).size;
+    const batches   = Math.ceil(parsedData.length / BATCH_SIZE);
+
+    document.getElementById('stat-rows').textContent      = parsedData.length.toLocaleString('he-IL');
+    document.getElementById('stat-suppliers').textContent = suppliers;
+    document.getElementById('stat-depts').textContent     = depts;
+    document.getElementById('stat-batches').textContent   = batches;
+    document.getElementById('preview').style.display      = 'block';
+
+    if(parsedData.length > 0){
+      document.getElementById('import-btn').style.display = 'block';
+      logLine(`✅ קובץ נטען — ${parsedData.length.toLocaleString('he-IL')} פריטים | ${suppliers} ספקים | ${depts} מחלקות`, 'ok');
+    } else {
+      logLine(`❌ 0 פריטים נמצאו — העמודה "פריט" (ברקוד) לא נמצאה או ריקה. השווה את שמות העמודות למעלה.`, 'err');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function startImport(){
+  if(!parsedData.length) return;
+  const btn = document.getElementById('import-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ מייבא...';
+  document.getElementById('progress-wrap').style.display = 'block';
+
+  const total = parsedData.length;
+  let done = 0, errors = 0;
+
+  for(let i = 0; i < total; i += BATCH_SIZE){
+    const chunk = parsedData.slice(i, i + BATCH_SIZE);
+    const batch = writeBatch(db);
+    for(const p of chunk) batch.set(doc(db, 'products', p.barcode), p);
+    try{
+      await batch.commit();
+      done += chunk.length;
+      setProgress(done, total);
+      logLine(`✅ אצווה ${Math.ceil(done/BATCH_SIZE)} — ${done.toLocaleString('he-IL')} פריטים`, 'ok');
+    } catch(err){
+      errors++;
+      logLine(`❌ שגיאה: ${err.message}`, 'err');
+    }
+  }
+
+  if(errors === 0){
+    logLine(`🎉 הושלם! ${total.toLocaleString('he-IL')} פריטים נשמרו ב-Firestore`, 'done');
+    btn.textContent = '✅ הייבוא הושלם';
+  } else {
+    logLine(`⚠️ הסתיים עם ${errors} שגיאות — בדוק כללי Firestore`, 'err');
+    btn.textContent = '⚠️ הסתיים עם שגיאות';
+  }
+}
+
+document.getElementById('file-input').addEventListener('change', e => {
+  if(e.target.files[0]) parseExcel(e.target.files[0]);
+});
+document.getElementById('drop-zone').addEventListener('click', () => {
+  document.getElementById('file-input').click();
+});
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', ()  => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag');
+  if(e.dataTransfer.files[0]) parseExcel(e.dataTransfer.files[0]);
+});
+document.getElementById('import-btn').addEventListener('click', startImport);
+</script>
+</body>
+</html>

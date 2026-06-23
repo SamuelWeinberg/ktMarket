@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KT Orders | כניסה</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --navy:#0D1B2A;--navy2:#1B2E42;--navy3:#243B53;
+  --blue:#1A6CF2;--blue2:#2A7FFF;--cyan:#00C2CB;
+  --text:#F0F4F8;--text2:#8FA3B8;--text3:#5A7A96;
+  --border:rgba(255,255,255,0.08);--red:#EF4444;--rsm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;direction:rtl;}
+body::before{content:'';position:absolute;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(26,108,242,.1) 0%,transparent 70%);top:-250px;left:-150px;pointer-events:none;}
+body::after{content:'';position:absolute;width:500px;height:500px;border-radius:50%;background:radial-gradient(circle,rgba(0,194,203,.07) 0%,transparent 70%);bottom:-150px;right:-100px;pointer-events:none;}
+.card{background:var(--navy2);border:1px solid var(--border);border-radius:20px;padding:48px 44px;width:400px;max-width:92vw;position:relative;z-index:1;animation:fadeUp .5s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.logo{text-align:center;margin-bottom:36px;}
+.logo-icon{width:64px;height:64px;background:linear-gradient(135deg,var(--blue),var(--cyan));border-radius:20px;display:inline-flex;align-items:center;justify-content:center;font-size:30px;margin-bottom:14px;}
+.logo h1{font-size:22px;font-weight:800;}
+.logo p{font-size:13px;color:var(--text3);margin-top:4px;}
+.fg{margin-bottom:16px;}
+.fg label{display:block;font-size:12px;color:var(--text2);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;}
+.fg input{width:100%;padding:12px 14px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:'Heebo',sans-serif;font-size:14px;transition:border-color .2s;direction:ltr;text-align:right;}
+.fg input:focus{outline:none;border-color:var(--blue);}
+.btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--blue),var(--blue2));border:none;border-radius:var(--rsm);color:#fff;font-family:'Heebo',sans-serif;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px;transition:opacity .2s,transform .1s;}
+.btn:hover{opacity:.9;transform:translateY(-1px);}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#FCA5A5;padding:10px 14px;border-radius:var(--rsm);font-size:13px;margin-top:12px;display:none;text-align:center;}
+.spinner{display:none;width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto;}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">🛒</div>
+    <h1>KT Orders</h1>
+    <p>מערכת הזמנות</p>
+  </div>
+  <div class="fg">
+    <label>אימייל</label>
+    <input type="email" id="email" placeholder="your@email.com" autocomplete="email">
+  </div>
+  <div class="fg">
+    <label>סיסמה</label>
+    <input type="password" id="pass" placeholder="••••••••" autocomplete="current-password">
+  </div>
+  <button class="btn" id="btn" onclick="doLogin()">כניסה</button>
+  <div class="err" id="err"></div>
+  <div style="text-align:center;margin-top:14px;">
+    <a href="#" onclick="doResetPassword()" style="font-size:13px;color:var(--text3);text-decoration:none;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text3)'">שכחתי סיסמה</a>
+  </div>
+</div>
+
+<script>
+const SUPA_URL = 'https://dkpqgyieoidrydxfiwhd.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRrcHFneWllb2lkcnlkeGZpd2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MzA4NDgsImV4cCI6MjA4OTMwNjg0OH0.cFYdJK7P58pc_VlQxCo4HdLVRPkyiLz_8hMLepoK3Ws';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+document.getElementById('pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+async function doLogin(){
+  const email = document.getElementById('email').value.trim();
+  const pass  = document.getElementById('pass').value;
+  const btn   = document.getElementById('btn');
+  const err   = document.getElementById('err');
+  err.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'מתחבר...';
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if(error){
+    err.textContent = 'אימייל או סיסמה שגויים';
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'כניסה';
+    return;
+  }
+
+  const { data: profile } = await sb.from('profiles').select('role').eq('id', data.user.id).single();
+  const role = profile?.role || 'branch_manager';
+
+  if(role === 'super_admin'){
+    location.href = 'admin.html';
+  } else {
+    location.href = 'manager.html';
+  }
+}
+
+async function doResetPassword(){
+  const email = document.getElementById('email').value.trim();
+  const err = document.getElementById('err');
+  if(!email){ err.textContent = 'הכנס אימייל קודם'; err.style.display='block'; return; }
+  err.style.display = 'none';
+  const { error } = await sb.auth.resetPasswordForEmail(email);
+  if(error){ err.textContent = 'שגיאה: ' + error.message; err.style.display='block'; return; }
+  err.style.cssText = 'display:block;background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.3);color:#86EFAC;';
+  err.textContent = '✅ מייל איפוס נשלח — בדוק את תיבת הדואר';
+}
+
+// auto-login if already logged in
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session) return;
+  const { data: profile } = await sb.from('profiles').select('role').eq('id', session.user.id).single();
+  const role = profile?.role || 'branch_manager';
+  location.href = role === 'super_admin' ? 'admin.html' : 'manager.html';
+})();
+</script>
+</body>
+</html>
