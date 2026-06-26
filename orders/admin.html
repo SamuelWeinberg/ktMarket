@@ -61,11 +61,31 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
 .toast.show{transform:translateX(-50%) translateY(0);}
 .day-tog{flex:1;padding:9px 2px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text3);font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;text-align:center;}
 .day-tog.active{background:rgba(26,108,242,.25);border-color:var(--blue);color:var(--text);}
+/* mobile */
+.mob-header{display:none;position:fixed;top:0;left:0;right:0;height:56px;background:var(--navy2);border-bottom:1px solid var(--border);z-index:200;align-items:center;padding:0 16px;gap:12px;}
+.mob-header h2{flex:1;font-size:16px;font-weight:700;text-align:center;}
+.hamburger{background:none;border:none;color:var(--text);font-size:24px;cursor:pointer;padding:4px 8px;line-height:1;}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:150;}
+.sidebar-overlay.show{display:block;}
+@media(max-width:768px){
+  .mob-header{display:flex;}
+  .sidebar{transform:translateX(110%);transition:transform .25s ease;z-index:160;}
+  .sidebar.open{transform:translateX(0);}
+  .main{margin-right:0;padding:16px;padding-top:72px;}
+  .topbar{display:none;}
+  .stats-grid{grid-template-columns:1fr 1fr;}
+}
 </style>
 </head>
 <body>
 
-<nav class="sidebar">
+<div class="mob-header">
+  <button class="hamburger" onclick="toggleSidebar()">☰</button>
+  <h2 id="mob-title">סקירה כללית</h2>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
   <div class="sb-logo">
     <div class="icon">🛒</div>
     <span>KT Orders</span>
@@ -483,6 +503,9 @@ function gotoPage(name){
   document.getElementById('page-'+name).classList.add('active');
   document.getElementById('nav-'+name).classList.add('active');
   document.getElementById('page-title').textContent = PAGE_TITLES[name];
+  const mob = document.getElementById('mob-title');
+  if(mob) mob.textContent = PAGE_TITLES[name];
+  closeSidebar();
   if(name === 'suppliers') loadSuppliers();
   if(name === 'products')  loadProducts();
   if(name === 'orders')    loadOrders();
@@ -490,6 +513,19 @@ function gotoPage(name){
   if(name === 'neworder')  initNewOrder();
 }
 window.gotoPage = gotoPage;
+
+function toggleSidebar(){
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  sb.classList.toggle('open');
+  ov.classList.toggle('show');
+}
+function closeSidebar(){
+  document.getElementById('sidebar')?.classList.remove('open');
+  document.getElementById('sidebar-overlay')?.classList.remove('show');
+}
+window.toggleSidebar = toggleSidebar;
+window.closeSidebar = closeSidebar;
 
 // ── toast ─────────────────────────────────────────────────────────────────────
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
