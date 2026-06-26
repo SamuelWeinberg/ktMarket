@@ -91,6 +91,14 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
   .order-row-meta{display:block;grid-column:1/-1;grid-row:2;}
   .order-actions{grid-column:1/-1;grid-row:3;margin-top:4px;}
   .dash-panels{grid-template-columns:1fr;}
+  /* products table → cards */
+  .prod-table thead{display:none;}
+  .prod-table tbody tr{display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto auto;gap:4px 8px;padding:10px 14px;border-bottom:1px solid var(--border);}
+  .prod-table .col-name{grid-column:1;grid-row:1;padding:0;font-weight:600;}
+  .prod-table .col-meta{display:block!important;grid-column:1;grid-row:2;padding:0;font-size:11px;color:var(--text3);}
+  .prod-table .col-status{grid-column:2;grid-row:1/span 2;padding:0;display:flex;align-items:center;}
+  .prod-table .col-promo{grid-column:1/-1;grid-row:3;padding:0;}
+  .prod-table .col-barcode,.prod-table .col-supplier,.prod-table .col-dept,.prod-table .col-price{display:none;}
 }
 </style>
 </head>
@@ -751,15 +759,15 @@ window.loadProducts = loadProducts;
 function renderProducts(list){
   if(!list.length){ document.getElementById('products-list').innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">לא נמצאו מוצרים</div>'; return; }
   document.getElementById('products-list').innerHTML=`
-    <table style="width:100%;border-collapse:collapse;">
+    <table class="prod-table" style="width:100%;border-collapse:collapse;">
       <thead><tr>
-        <th style="padding:10px 16px;font-size:11px;color:var(--text3);text-align:right;border-bottom:1px solid var(--border);">שם מוצר</th>
-        <th style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">ברקוד</th>
-        <th style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">ספק</th>
-        <th style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">מחלקה</th>
-        <th style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">מחיר מכירה</th>
-        <th style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">זמינות</th>
-        <th style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">מבצע</th>
+        <th class="col-name" style="padding:10px 16px;font-size:11px;color:var(--text3);text-align:right;border-bottom:1px solid var(--border);">שם מוצר</th>
+        <th class="col-barcode" style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">ברקוד</th>
+        <th class="col-supplier" style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">ספק</th>
+        <th class="col-dept" style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">מחלקה</th>
+        <th class="col-price" style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">מחיר</th>
+        <th class="col-status" style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">זמינות</th>
+        <th class="col-promo" style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">מבצע</th>
       </tr></thead>
       <tbody>${list.map(p=>{
         const pb = p.promoBranches||[];
@@ -769,20 +777,21 @@ function renderProducts(list){
         const pid = p.id;
         return `
         <tr style="border-bottom:1px solid var(--border);${blocked?'opacity:.55;':''}${hasPromo&&!blocked?'background:rgba(245,166,35,.04);':''}">
-          <td style="padding:11px 16px;font-weight:600;">
+          <td class="col-name" style="padding:11px 16px;font-weight:600;">
             ${hasPromo?'<span style="color:#F5A623;font-size:13px;margin-left:6px;">🏷️</span>':''}${p.name||'—'}
           </td>
-          <td style="padding:11px 16px;text-align:center;font-size:12px;color:var(--text2);">${p.barcode||'—'}</td>
-          <td style="padding:11px 16px;text-align:center;font-size:12px;">${p.supplierName||'—'}</td>
-          <td style="padding:11px 16px;text-align:center;font-size:12px;">${p.departmentName||'—'}</td>
-          <td style="padding:11px 16px;text-align:center;font-size:13px;font-weight:600;">₪${p.salePrice||0}</td>
-          <td style="padding:11px 16px;text-align:center;">
+          <td class="col-barcode" style="padding:11px 16px;text-align:center;font-size:12px;color:var(--text2);">${p.barcode||'—'}</td>
+          <td class="col-supplier" style="padding:11px 16px;text-align:center;font-size:12px;">${p.supplierName||'—'}</td>
+          <td class="col-dept" style="padding:11px 16px;text-align:center;font-size:12px;">${p.departmentName||'—'}</td>
+          <td class="col-price" style="padding:11px 16px;text-align:center;font-size:13px;font-weight:600;">₪${p.salePrice||0}</td>
+          <td class="col-meta" style="display:none;font-size:11px;color:var(--text3);">${p.supplierName||'—'} · ₪${p.salePrice||0}</td>
+          <td class="col-status" style="padding:11px 16px;text-align:center;">
             <button onclick="toggleProductBlocked('${pid}',${blocked})"
               style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid ${blocked?'rgba(239,68,68,.4)':'rgba(34,197,94,.4)'};background:${blocked?'rgba(239,68,68,.12)':'rgba(34,197,94,.12)'};color:${blocked?'#FCA5A5':'#86EFAC'};">
               ${blocked?'✗ חסום':'✓ פעיל'}
             </button>
           </td>
-          <td style="padding:11px 16px;text-align:center;">
+          <td class="col-promo" style="padding:11px 16px;text-align:center;">
             ${hasPromo
               ? `<div style="font-size:11px;color:#FCD34D;">🏷️ ${promoLabel}</div>
                  <button onclick="clearPromo('${p.barcode||p.id}')" style="margin-top:4px;padding:2px 8px;border-radius:10px;font-size:10px;background:rgba(239,68,68,.15);color:#FCA5A5;border:1px solid rgba(239,68,68,.3);cursor:pointer;">הסר</button>`
