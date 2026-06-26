@@ -386,6 +386,12 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
         <span style="font-size:12px;color:var(--text3);">טוען סניפים...</span>
       </div>
     </div>
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:12px;color:var(--red);margin-bottom:8px;font-weight:600;">🔒 חסום לסניפים <span style="font-weight:400;color:var(--text3);">(הסניף לא יראה ספק זה)</span></label>
+      <div id="s-blocked-branches-wrap" style="display:flex;flex-wrap:wrap;gap:8px;min-height:32px;">
+        <span style="font-size:12px;color:var(--text3);">טוען סניפים...</span>
+      </div>
+    </div>
     <div style="margin-bottom:14px;display:flex;gap:20px;align-items:center;">
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);cursor:pointer;">
         <input type="checkbox" id="s-hasedi" style="width:16px;height:16px;accent-color:var(--blue);">
@@ -509,9 +515,33 @@ function renderBranchCheckboxes(selectedBranches=[]){
     </label>`).join('');
 }
 
+function renderBlockedBranchCheckboxes(blockedBranches=[]){
+  const wrap = document.getElementById('s-blocked-branches-wrap');
+  if(!allBranches.length){ wrap.innerHTML='<span style="font-size:12px;color:var(--text3);">אין סניפים מוגדרים</span>'; return; }
+  wrap.innerHTML = allBranches.map(b=>`
+    <label style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--navy3);border:1px solid ${blockedBranches.includes(b)?'rgba(239,68,68,.4)':'var(--border)'};border-radius:20px;cursor:pointer;font-size:13px;transition:all .15s;">
+      <input type="checkbox" name="s-blocked-branch" value="${b}" ${blockedBranches.includes(b)?'checked':''} style="accent-color:#EF4444;">
+      ${b}
+    </label>`).join('');
+}
+
 function getSelectedBranches(){
   return [...document.querySelectorAll('input[name="s-branch"]:checked')].map(c=>c.value);
 }
+
+function getBlockedBranches(){
+  return [...document.querySelectorAll('input[name="s-blocked-branch"]:checked')].map(c=>c.value);
+}
+
+async function toggleSupplierBlocked(id, currentlyBlocked){
+  const newBlocked = !currentlyBlocked;
+  await setDoc(doc(db,'suppliers',id), { blocked: newBlocked }, { merge: true });
+  const s = allSuppliers.find(x=>x.id===id);
+  if(s) s.blocked = newBlocked;
+  toast(newBlocked ? '🔒 ספק נחסם לכולם' : '✅ ספק הופעל');
+  loadSuppliers();
+}
+window.toggleSupplierBlocked = toggleSupplierBlocked;
 
 // ── auth check ────────────────────────────────────────────────────────────────
 (async () => {
@@ -672,9 +702,13 @@ async function loadSuppliers(){
           <td class="col-edi" style="padding:13px 16px;text-align:center;font-size:13px;">${s.hasEDI?'<span style="color:#22C55E;font-weight:700;">✓ EDI</span>':'<span style="color:var(--text3);">—</span>'}</td>
           <td class="col-min" style="padding:13px 16px;text-align:center;font-size:13px;">${s.hasMinimum?'₪'+s.minimumAmount:'—'}</td>
           <td class="col-branches" style="padding:13px 16px;font-size:12px;max-width:160px;">${s.branches?.length ? s.branches.map(b=>`<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:rgba(26,108,242,.15);border:1px solid rgba(26,108,242,.3);color:#93C5FD;margin:2px;">${b}</span>`).join('') : '<span style="color:var(--text3);">כולם</span>'}</td>
-          <td class="col-actions" style="padding:13px 16px;display:flex;gap:6px;justify-content:center;">
+          <td class="col-actions" style="padding:13px 16px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
             <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;" onclick="editSupplier('${s.id}')">✏️ ערוך</button>
             <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;" onclick="gotoProductsBySupplier('${(s.code||s.id).replace(/'/g,'')}')">📦 מוצרים</button>
+            <button onclick="toggleSupplierBlocked('${s.id}',${!!s.blocked})"
+              style="padding:5px 10px;border-radius:var(--rsm);font-size:12px;font-weight:700;cursor:pointer;border:1px solid ${s.blocked?'rgba(239,68,68,.4)':'rgba(34,197,94,.4)'};background:${s.blocked?'rgba(239,68,68,.12)':'rgba(34,197,94,.12)'};color:${s.blocked?'#FCA5A5':'#86EFAC'};">
+              ${s.blocked?'✗ חסום':'✓ פעיל'}
+            </button>
           </td>
         </tr>`).join('')}
       </tbody>
@@ -699,6 +733,7 @@ async function openAddSupplier(){
   allBranches = [];
   await loadBranches();
   renderBranchCheckboxes([]);
+  renderBlockedBranchCheckboxes([]);
 }
 window.openAddSupplier = openAddSupplier;
 
@@ -722,6 +757,7 @@ async function editSupplier(id){
   allBranches = [];
   await loadBranches();
   renderBranchCheckboxes(s.branches || []);
+  renderBlockedBranchCheckboxes(s.blockedBranches || []);
 }
 window.editSupplier = editSupplier;
 
@@ -747,7 +783,8 @@ async function saveSupplier(){
   btn.disabled = true; btn.textContent = 'שומר...';
   const id = editingSupplierId || (code || name.replace(/\s+/g,'-').toLowerCase() + '-' + Date.now());
   const branches = getSelectedBranches();
-  const data = { name, code, agentNumber, agentName, frequency, orderDays, arrivalDays, hasEDI, hasMinimum, minimumAmount, branches };
+  const blockedBranches = getBlockedBranches();
+  const data = { name, code, agentNumber, agentName, frequency, orderDays, arrivalDays, hasEDI, hasMinimum, minimumAmount, branches, blockedBranches };
   await setDoc(doc(db,'suppliers',id), data);
   btn.disabled = false; btn.textContent = 'שמור';
   closeSupplierModal();

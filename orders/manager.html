@@ -300,6 +300,8 @@ async function loadSuppliers(){
   const snap = await getDocs(collection(db,'suppliers'));
   const myBranch = currentProfile?.branch || '';
   const suppliers = snap.docs.map(d=>({id:d.id,...d.data()}))
+    .filter(s => s.blocked !== true)
+    .filter(s => !s.blockedBranches?.includes(myBranch))
     .filter(s => !s.branches?.length || s.branches.includes(myBranch))
     .sort((a,b)=>(a.name||'').localeCompare(b.name||''));
   loadPendingConfirmations(suppliers);
