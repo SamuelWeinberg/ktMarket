@@ -94,6 +94,14 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
   .order-row-meta{display:block;grid-column:1/-1;grid-row:2;}
   .order-actions{grid-column:1/-1;grid-row:3;margin-top:4px;}
   .dash-panels{grid-template-columns:1fr;}
+  /* suppliers table → cards */
+  .supp-table thead{display:none;}
+  .supp-table tbody tr{display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;gap:4px 8px;padding:10px 14px;border-bottom:1px solid var(--border);}
+  .supp-table .col-name{grid-column:1;grid-row:1;padding:0;font-weight:600;}
+  .supp-table .col-meta{display:block!important;}
+  .supp-table .col-actions{grid-column:2;grid-row:1/span 2;padding:0;display:flex;flex-direction:column;gap:4px;justify-content:center;}
+  .supp-table .col-branches{grid-column:1;grid-row:2;padding:0;}
+  .supp-table .col-code,.supp-table .col-agent-num,.supp-table .col-agent-name,.supp-table .col-freq,.supp-table .col-order-days,.supp-table .col-arrival-days,.supp-table .col-edi,.supp-table .col-min{display:none;}
   /* products table → cards */
   .prod-table thead{display:none;}
   .prod-table tbody tr{display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto auto;gap:4px 8px;padding:10px 14px;border-bottom:1px solid var(--border);}
@@ -636,33 +644,35 @@ async function loadSuppliers(){
     return;
   }
   document.getElementById('suppliers-list').innerHTML = `
-    <table style="width:100%;border-collapse:collapse;">
+    <table class="supp-table" style="width:100%;border-collapse:collapse;">
       <thead><tr>
-        <th style="padding:10px 16px;font-size:11px;color:var(--text3);text-align:right;border-bottom:1px solid var(--border);">שם ספק</th>
-        <th style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">קוד</th>
-        <th style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">מס׳ סוכן</th>
-        <th style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">שם סוכן</th>
-        <th style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">תדירות</th>
-        <th style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">יום הזמנה</th>
-        <th style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">יום הגעה</th>
-        <th style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">EDI</th>
-        <th style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">מינימום</th>
-        <th style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">סניפים</th>
-        <th style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);"></th>
+        <th class="col-name" style="padding:10px 16px;font-size:11px;color:var(--text3);text-align:right;border-bottom:1px solid var(--border);">שם ספק</th>
+        <th class="col-code" style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">קוד</th>
+        <th class="col-agent-num" style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">מס׳ סוכן</th>
+        <th class="col-agent-name" style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">שם סוכן</th>
+        <th class="col-freq" style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">תדירות</th>
+        <th class="col-order-days" style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">יום הזמנה</th>
+        <th class="col-arrival-days" style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">יום הגעה</th>
+        <th class="col-edi" style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">EDI</th>
+        <th class="col-min" style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">מינימום</th>
+        <th class="col-branches" style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);">סניפים</th>
+        <th class="col-actions" style="padding:10px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);"></th>
       </tr></thead>
       <tbody>${allSuppliers.map(s=>`
         <tr style="border-bottom:1px solid var(--border);">
-          <td style="padding:13px 16px;font-weight:600;">${s.name}</td>
-          <td style="padding:13px 16px;text-align:center;color:var(--text2);font-size:13px;">${s.code||'—'}</td>
-          <td style="padding:13px 16px;text-align:center;font-size:13px;">${s.agentNumber||'—'}</td>
-          <td style="padding:13px 16px;text-align:center;font-size:13px;">${s.agentName||'—'}</td>
-          <td style="padding:13px 16px;text-align:center;font-size:13px;">${FREQ_LABELS[s.frequency]||s.frequency}</td>
-          <td style="padding:13px 16px;text-align:center;font-size:13px;">${fmtDays(s.orderDays?.length?s.orderDays:(s.orderDay!==undefined?[s.orderDay]:null))}</td>
-          <td style="padding:13px 16px;text-align:center;font-size:13px;">${fmtDays(s.arrivalDays?.length?s.arrivalDays:(s.arrivalDay!==undefined?[s.arrivalDay]:null))}</td>
-          <td style="padding:13px 16px;text-align:center;font-size:13px;">${s.hasEDI?'<span style="color:#22C55E;font-weight:700;">✓ EDI</span>':'<span style="color:var(--text3);">—</span>'}</td>
-          <td style="padding:13px 16px;text-align:center;font-size:13px;">${s.hasMinimum?'₪'+s.minimumAmount:'—'}</td>
-          <td style="padding:13px 16px;font-size:12px;max-width:160px;">${s.branches?.length ? s.branches.map(b=>`<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:rgba(26,108,242,.15);border:1px solid rgba(26,108,242,.3);color:#93C5FD;margin:2px;">${b}</span>`).join('') : '<span style="color:var(--text3);">כולם</span>'}</td>
-          <td style="padding:13px 16px;text-align:center;display:flex;gap:6px;justify-content:center;">
+          <td class="col-name" style="padding:13px 16px;font-weight:600;">${s.name}
+            <div class="col-meta" style="display:none;font-size:11px;color:var(--text3);font-weight:400;margin-top:3px;">${FREQ_LABELS[s.frequency]||''} · ${fmtDays(s.orderDays?.length?s.orderDays:(s.orderDay!==undefined?[s.orderDay]:null))}${s.agentName?' · '+s.agentName:''}${s.hasMinimum?' · ₪'+s.minimumAmount:''}</div>
+          </td>
+          <td class="col-code" style="padding:13px 16px;text-align:center;color:var(--text2);font-size:13px;">${s.code||'—'}</td>
+          <td class="col-agent-num" style="padding:13px 16px;text-align:center;font-size:13px;">${s.agentNumber||'—'}</td>
+          <td class="col-agent-name" style="padding:13px 16px;text-align:center;font-size:13px;">${s.agentName||'—'}</td>
+          <td class="col-freq" style="padding:13px 16px;text-align:center;font-size:13px;">${FREQ_LABELS[s.frequency]||s.frequency}</td>
+          <td class="col-order-days" style="padding:13px 16px;text-align:center;font-size:13px;">${fmtDays(s.orderDays?.length?s.orderDays:(s.orderDay!==undefined?[s.orderDay]:null))}</td>
+          <td class="col-arrival-days" style="padding:13px 16px;text-align:center;font-size:13px;">${fmtDays(s.arrivalDays?.length?s.arrivalDays:(s.arrivalDay!==undefined?[s.arrivalDay]:null))}</td>
+          <td class="col-edi" style="padding:13px 16px;text-align:center;font-size:13px;">${s.hasEDI?'<span style="color:#22C55E;font-weight:700;">✓ EDI</span>':'<span style="color:var(--text3);">—</span>'}</td>
+          <td class="col-min" style="padding:13px 16px;text-align:center;font-size:13px;">${s.hasMinimum?'₪'+s.minimumAmount:'—'}</td>
+          <td class="col-branches" style="padding:13px 16px;font-size:12px;max-width:160px;">${s.branches?.length ? s.branches.map(b=>`<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:rgba(26,108,242,.15);border:1px solid rgba(26,108,242,.3);color:#93C5FD;margin:2px;">${b}</span>`).join('') : '<span style="color:var(--text3);">כולם</span>'}</td>
+          <td class="col-actions" style="padding:13px 16px;display:flex;gap:6px;justify-content:center;">
             <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;" onclick="editSupplier('${s.id}')">✏️ ערוך</button>
             <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;" onclick="gotoProductsBySupplier('${(s.code||s.id).replace(/'/g,'')}')">📦 מוצרים</button>
           </td>
