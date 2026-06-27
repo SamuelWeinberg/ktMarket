@@ -108,6 +108,7 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
         </div>
       </div>
     </div>
+    <div id="arriving-today-wrap" style="display:none;margin-bottom:16px;"></div>
     <div id="suppliers-list"><div class="loading"><div class="spinner"></div> טוען...</div></div>
   </div>
 
@@ -121,6 +122,7 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
       <div style="padding:16px;" id="order-items-wrap">
         <div class="loading"><div class="spinner"></div> טוען מוצרים...</div>
       </div>
+      <div id="min-order-bar" style="display:none;padding:10px 16px;background:rgba(0,0,0,.2);border-top:1px solid var(--border);"></div>
       <div style="padding:16px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;" id="order-actions" style="display:none;">
         <button class="btn btn-ghost" onclick="gotoPage('suppliers')">ביטול</button>
         <button class="btn btn-primary" onclick="saveOrder('draft')">💾 שמור טיוטה</button>
@@ -137,6 +139,13 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
     <div class="sc">
       <div class="sc-header">
         <h3>📋 היסטוריית הזמנות</h3>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="date" id="hist-from" onchange="filterHistory()" style="padding:5px 10px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:12px;">
+          <span style="color:var(--text3);font-size:12px;">עד</span>
+          <input type="date" id="hist-to" onchange="filterHistory()" style="padding:5px 10px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:12px;">
+          <button onclick="setHistoryToday()" style="padding:5px 12px;border-radius:var(--rsm);background:rgba(26,108,242,.15);border:1px solid rgba(26,108,242,.3);color:#93C5FD;font-size:12px;cursor:pointer;font-family:Heebo,sans-serif;">היום</button>
+          <button onclick="clearHistoryFilter()" style="padding:5px 12px;border-radius:var(--rsm);background:var(--card2);border:1px solid var(--border);color:var(--text3);font-size:12px;cursor:pointer;font-family:Heebo,sans-serif;">הכל</button>
+        </div>
       </div>
       <div id="history-list"><div class="loading"><div class="spinner"></div> טוען...</div></div>
     </div>
@@ -310,6 +319,31 @@ async function loadSuppliers(){
     ? `${urgent.length} ספקים לסידור היום`
     : 'אין ספקים מיוחדים היום';
 
+  // arriving today — suppliers whose arrivalDays includes today
+  const todayDay = new Date(today).getDay();
+  const arrivingToday = suppliers.filter(s => {
+    const days = s.arrivalDays?.length ? s.arrivalDays : (s.arrivalDay !== undefined ? [parseInt(s.arrivalDay)] : []);
+    return days.includes(todayDay);
+  });
+  const arrWrap = document.getElementById('arriving-today-wrap');
+  if(arrivingToday.length){
+    arrWrap.style.display = 'block';
+    arrWrap.innerHTML = `
+      <div style="background:rgba(0,194,203,.06);border:1px solid rgba(0,194,203,.25);border-radius:var(--radius);overflow:hidden;">
+        <div style="padding:12px 18px;border-bottom:1px solid rgba(0,194,203,.15);display:flex;align-items:center;gap:10px;">
+          <span style="font-size:18px;">🚚</span>
+          <div style="font-size:14px;font-weight:700;color:#67E8F9;">מגיעים היום — ${arrivingToday.length} ספקים</div>
+        </div>
+        ${arrivingToday.map(s=>`
+          <div style="padding:10px 18px;border-bottom:1px solid rgba(0,194,203,.08);display:flex;align-items:center;justify-content:space-between;">
+            <div style="font-size:13px;font-weight:600;">${s.name}</div>
+            <span style="font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(0,194,203,.12);border:1px solid rgba(0,194,203,.3);color:#67E8F9;">מגיע היום</span>
+          </div>`).join('')}
+      </div>`;
+  } else {
+    arrWrap.style.display = 'none';
+  }
+
   if(!suppliers.length){
     document.getElementById('suppliers-list').innerHTML='<div style="padding:40px;text-align:center;color:var(--text3);">אין ספקים במערכת עדיין</div>';
     return;
@@ -339,7 +373,11 @@ async function openOrder(supplierId){
 
   // load products for this supplier (skip blocked)
   const prodSnap = await getDocs(query(collection(db,'products'), where('supplierCode','==', currentSupplier.code||currentSupplier.id)));
-  const products = prodSnap.docs.map(d=>({id:d.id,...d.data()})).filter(p => p.blocked !== true);
+  const myBranchForSort = currentProfile?.branch||'';
+  const isPromoForSort = p => { const pb=p.promoBranches||[]; return pb.includes('*')||pb.includes(myBranchForSort)||(!pb.length&&p.isPromo); };
+  const products = prodSnap.docs.map(d=>({id:d.id,...d.data()}))
+    .filter(p => p.blocked !== true)
+    .sort((a,b) => (isPromoForSort(b)?1:0) - (isPromoForSort(a)?1:0));
 
   // load last order for suggested quantities
   const lastOrderSnap = await getDocs(query(
@@ -411,6 +449,7 @@ async function openOrder(supplierId){
       </div>`;
     }).join('')}`;
   document.getElementById('order-actions').style.display = 'flex';
+  updateMinBar();
 }
 window.openOrder = openOrder;
 
@@ -428,8 +467,35 @@ function updateQty(index, val){
       inp.title = '';
     }
   }
+  updateMinBar();
 }
 window.updateQty = updateQty;
+
+function updateMinBar(){
+  const s = currentSupplier;
+  const bar = document.getElementById('min-order-bar');
+  if(!bar) return;
+  if(!s?.hasMinimum){ bar.style.display='none'; return; }
+  const minAmt = parseFloat(s.minimumAmount)||0;
+  if(!minAmt){ bar.style.display='none'; return; }
+  const total = currentOrderItems.reduce((sum,item,i) => {
+    const qty = parseFloat(document.getElementById('qty-'+i)?.value)||0;
+    return sum + qty*(item.purchasePrice||0);
+  }, 0);
+  const ok = total >= minAmt;
+  const pct = Math.min(100, minAmt>0 ? (total/minAmt)*100 : 0);
+  const hasPrices = currentOrderItems.some(i=>i.purchasePrice>0);
+  bar.style.display = 'block';
+  bar.innerHTML = hasPrices
+    ? `<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;">
+        <span>סה"כ: <strong style="color:${ok?'#86EFAC':'#FCA5A5'}">₪${total.toFixed(0)}</strong></span>
+        <span style="color:var(--text3);">מינימום הזמנה: ₪${minAmt}</span>
+      </div>
+      <div style="background:var(--navy3);border-radius:4px;height:6px;overflow:hidden;">
+        <div style="width:${pct}%;height:100%;background:${ok?'#22C55E':'#EF4444'};border-radius:4px;transition:width .3s;"></div>
+      </div>`
+    : `<div style="font-size:12px;color:var(--text3);">מינימום הזמנה: ₪${minAmt} · (מחירי עלות לא מוגדרים)</div>`;
+}
 
 function buildWAMessage(supplier, branch, items){
   const date = new Date().toLocaleDateString('he-IL');
@@ -554,8 +620,7 @@ async function loadHistory(){
   historyOrders = snap.docs
     .map(d=>({id:d.id,...d.data()}))
     .filter(o => isAdmin || o.branch===myBranch)
-    .sort((a,b)=>(b.date||'').localeCompare(a.date||''))
-    .slice(0,60);
+    .sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 
   const sSnap = await getDocs(collection(db,'suppliers'));
   loadPendingConfirmations(sSnap.docs.map(d=>({id:d.id,...d.data()})));
@@ -563,12 +628,43 @@ async function loadHistory(){
   renderHistory();
 }
 
-function renderHistory(){
-  if(!historyOrders.length){
-    document.getElementById('history-list').innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">אין הזמנות עדיין</div>';
+function filterHistory(){
+  const from = document.getElementById('hist-from')?.value || '';
+  const to   = document.getElementById('hist-to')?.value   || '';
+  if(!from && !to){ renderHistory(); return; }
+  const filtered = historyOrders.filter(o => {
+    const d = o.date||'';
+    if(from && d < from) return false;
+    if(to   && d > to)   return false;
+    return true;
+  });
+  renderHistoryList(filtered);
+}
+window.filterHistory = filterHistory;
+
+function setHistoryToday(){
+  const t = new Date().toISOString().split('T')[0];
+  document.getElementById('hist-from').value = t;
+  document.getElementById('hist-to').value   = t;
+  filterHistory();
+}
+window.setHistoryToday = setHistoryToday;
+
+function clearHistoryFilter(){
+  document.getElementById('hist-from').value = '';
+  document.getElementById('hist-to').value   = '';
+  renderHistory();
+}
+window.clearHistoryFilter = clearHistoryFilter;
+
+function renderHistory(){ renderHistoryList(historyOrders); }
+
+function renderHistoryList(orders){
+  if(!orders.length){
+    document.getElementById('history-list').innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">אין הזמנות</div>';
     return;
   }
-  document.getElementById('history-list').innerHTML = historyOrders.map((o,idx)=>`
+  document.getElementById('history-list').innerHTML = orders.map((o,idx)=>`
     <div id="order-row-${idx}" style="border-bottom:1px solid var(--border);">
       <div style="display:grid;grid-template-columns:1fr auto auto auto auto auto auto auto auto;gap:8px;align-items:center;padding:13px 16px;">
         <div onclick="toggleOrderDetails(${idx})" style="font-weight:600;cursor:pointer;">${o.supplierName||'—'}</div>

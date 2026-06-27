@@ -240,9 +240,14 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
   <div class="page" id="page-orders">
     <div id="admin-pending-conf" style="display:none;margin-bottom:16px;"></div>
     <div class="sc">
-      <div class="sc-header">
+      <div class="sc-header" style="flex-wrap:wrap;gap:10px;">
         <h3>📋 כל ההזמנות</h3>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="date" id="admin-orders-from" onchange="filterAdminOrders()" style="padding:5px 10px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:12px;">
+          <span style="color:var(--text3);font-size:12px;">עד</span>
+          <input type="date" id="admin-orders-to" onchange="filterAdminOrders()" style="padding:5px 10px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:12px;">
+          <button onclick="setAdminOrdersToday()" style="padding:5px 12px;border-radius:var(--rsm);background:rgba(26,108,242,.15);border:1px solid rgba(26,108,242,.3);color:#93C5FD;font-size:12px;cursor:pointer;font-family:Heebo,sans-serif;">היום</button>
+          <button onclick="clearAdminOrdersFilter()" style="padding:5px 12px;border-radius:var(--rsm);background:var(--card2);border:1px solid var(--border);color:var(--text3);font-size:12px;cursor:pointer;font-family:Heebo,sans-serif;">הכל</button>
           <button class="btn btn-ghost" style="font-size:12px;" onclick="exportAdminExcel()">📊 Excel</button>
           <button class="btn btn-ghost" style="font-size:12px;" onclick="exportAdminPDF()">🖨️ PDF</button>
         </div>
@@ -1411,12 +1416,49 @@ function adminConfirmDelivery(orderId){
 }
 window.adminConfirmDelivery = adminConfirmDelivery;
 
-function renderAdminOrders(){
-  if(!adminOrders.length){
-    document.getElementById('orders-list').innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">אין הזמנות עדיין</div>';
+function toggleAdminOrder(idx){
+  const d=document.getElementById('aord-det-'+idx);
+  d.style.display = d.style.display==='block'?'none':'block';
+}
+window.toggleAdminOrder = toggleAdminOrder;
+
+function filterAdminOrders(){
+  const from = document.getElementById('admin-orders-from')?.value || '';
+  const to   = document.getElementById('admin-orders-to')?.value   || '';
+  if(!from && !to){ renderAdminOrders(); return; }
+  const filtered = adminOrders.filter(o => {
+    const d = o.date||'';
+    if(from && d < from) return false;
+    if(to   && d > to)   return false;
+    return true;
+  });
+  renderAdminOrdersList(filtered);
+}
+window.filterAdminOrders = filterAdminOrders;
+
+function setAdminOrdersToday(){
+  const t = new Date().toISOString().split('T')[0];
+  document.getElementById('admin-orders-from').value = t;
+  document.getElementById('admin-orders-to').value   = t;
+  filterAdminOrders();
+}
+window.setAdminOrdersToday = setAdminOrdersToday;
+
+function clearAdminOrdersFilter(){
+  document.getElementById('admin-orders-from').value = '';
+  document.getElementById('admin-orders-to').value   = '';
+  renderAdminOrders();
+}
+window.clearAdminOrdersFilter = clearAdminOrdersFilter;
+
+function renderAdminOrders(){ renderAdminOrdersList(adminOrders); }
+
+function renderAdminOrdersList(orders){
+  if(!orders.length){
+    document.getElementById('orders-list').innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">אין הזמנות</div>';
     return;
   }
-  document.getElementById('orders-list').innerHTML = adminOrders.map((o,idx)=>`
+  document.getElementById('orders-list').innerHTML = orders.map((o,idx)=>`
     <div id="aord-${idx}" style="border-bottom:1px solid var(--border);">
       <div class="order-row">
         <div class="order-row-name" onclick="toggleAdminOrder(${idx})">${o.supplierName||'—'}<div class="order-row-meta">${o.branch||'—'} · ${o.date||'—'} · ${o.items?.length||0} פריטים</div></div>
@@ -1441,12 +1483,6 @@ function renderAdminOrders(){
       </div>
     </div>`).join('');
 }
-
-function toggleAdminOrder(idx){
-  const d=document.getElementById('aord-det-'+idx);
-  d.style.display = d.style.display==='block'?'none':'block';
-}
-window.toggleAdminOrder = toggleAdminOrder;
 
 async function adminDeleteOrder(orderId, idx){
   if(!confirm('למחוק הזמנה זו?')) return;
