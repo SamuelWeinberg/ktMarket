@@ -533,15 +533,13 @@ async function saveOrder(status){
       toast('🚫 לא ניתן לשלוח — ' + over400.map(i=>i.productName+' ('+i.orderedQty+')').join(', ') + ' עוברים 400');
       return;
     }
-    const minAmt = parseFloat(currentSupplier.minimumAmount) || 0;
-    if(minAmt > 0){
+    const minAmt = currentSupplier.hasMinimum ? (parseFloat(currentSupplier.minimumAmount) || 0) : 0;
+    if(currentSupplier.hasMinimum && minAmt > 0){
       const total = items.reduce((sum,i) => sum + ((i.orderedQty||0) * (i.purchasePrice||0)), 0);
-      if(total < minAmt){
-        if(total === 0){
-          toast('🚫 לא ניתן לשלוח — מינימום הזמנה ₪' + minAmt + ' ומחירי עלות לא מוגדרים');
-        } else {
-          toast('🚫 סך ההזמנה ₪' + total.toFixed(0) + ' נמוך ממינימום ₪' + minAmt);
-        }
+      if(total === 0){
+        toast('⚠️ שים לב: מינימום הזמנה ₪' + minAmt + ' — מחירי עלות לא מוגדרים, לא ניתן לאמת');
+      } else if(total < minAmt){
+        toast('🚫 סך ההזמנה ₪' + total.toFixed(0) + ' נמוך ממינימום ₪' + minAmt + ' — לא ניתן לשלוח');
         return;
       }
     }

@@ -577,6 +577,7 @@ function gotoPage(name){
   const mob = document.getElementById('mob-title');
   if(mob) mob.textContent = PAGE_TITLES[name];
   closeSidebar();
+  if(name === 'dashboard') loadDashboard();
   if(name === 'suppliers') loadSuppliers();
   if(name === 'products')  loadProducts();
   if(name === 'orders')    loadOrders();
