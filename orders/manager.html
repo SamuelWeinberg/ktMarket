@@ -179,6 +179,19 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
         </div>
       </div>
     </div>
+
+    <!-- filter tabs -->
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <button id="filter-tab-today" onclick="setSuppFilter('today')"
+        style="flex:1;padding:9px;border-radius:var(--rsm);font-family:Heebo,sans-serif;font-size:13px;font-weight:700;cursor:pointer;border:1px solid rgba(245,166,35,.4);background:rgba(245,166,35,.15);color:#FCD34D;">
+        📅 להזמין היום
+      </button>
+      <button id="filter-tab-all" onclick="setSuppFilter('all')"
+        style="flex:1;padding:9px;border-radius:var(--rsm);font-family:Heebo,sans-serif;font-size:13px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text2);">
+        📋 כל הספקים
+      </button>
+    </div>
+
     <div id="arriving-today-wrap" style="display:none;margin-bottom:16px;"></div>
     <div id="suppliers-list"><div class="loading"><div class="spinner"></div> טוען...</div></div>
   </div>
@@ -475,6 +488,8 @@ function shouldOrderToday(s){
 }
 
 async function loadSuppliers(){
+  currentSuppFilter = 'today';
+  setSuppFilter('today');
   document.getElementById('suppliers-list').innerHTML = '<div class="loading"><div class="spinner"></div> טוען...</div>';
   const snap = await getDocs(collection(db,'suppliers'));
   const myBranch = currentProfile?.branch || '';
@@ -515,11 +530,34 @@ async function loadSuppliers(){
     arrWrap.style.display = 'none';
   }
 
-  if(!suppliers.length){
-    document.getElementById('suppliers-list').innerHTML='<div style="padding:40px;text-align:center;color:var(--text3);">אין ספקים במערכת עדיין</div>';
+  renderSuppliersList(suppliers, currentSuppFilter);
+}
+
+let currentSuppFilter = 'today';
+function setSuppFilter(f){
+  currentSuppFilter = f;
+  const tabToday = document.getElementById('filter-tab-today');
+  const tabAll   = document.getElementById('filter-tab-all');
+  if(f==='today'){
+    tabToday.style.cssText='flex:1;padding:9px;border-radius:var(--rsm);font-family:Heebo,sans-serif;font-size:13px;font-weight:700;cursor:pointer;border:1px solid rgba(245,166,35,.4);background:rgba(245,166,35,.15);color:#FCD34D;';
+    tabAll.style.cssText  ='flex:1;padding:9px;border-radius:var(--rsm);font-family:Heebo,sans-serif;font-size:13px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text2);';
+  } else {
+    tabAll.style.cssText  ='flex:1;padding:9px;border-radius:var(--rsm);font-family:Heebo,sans-serif;font-size:13px;font-weight:700;cursor:pointer;border:1px solid rgba(26,108,242,.4);background:rgba(26,108,242,.15);color:#93C5FD;';
+    tabToday.style.cssText='flex:1;padding:9px;border-radius:var(--rsm);font-family:Heebo,sans-serif;font-size:13px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text2);';
+  }
+  renderSuppliersList(allSuppliersCache, f);
+}
+window.setSuppFilter = setSuppFilter;
+
+function renderSuppliersList(suppliers, filter){
+  const list = filter==='today' ? suppliers.filter(s=>shouldOrderToday(s)) : suppliers;
+  if(!list.length){
+    document.getElementById('suppliers-list').innerHTML = filter==='today'
+      ? '<div style="padding:40px;text-align:center;color:var(--text3);font-size:14px;">✅ אין ספקים לסידור היום</div>'
+      : '<div style="padding:40px;text-align:center;color:var(--text3);">אין ספקים במערכת עדיין</div>';
     return;
   }
-  document.getElementById('suppliers-list').innerHTML = suppliers.map(s=>{
+  document.getElementById('suppliers-list').innerHTML = list.map(s=>{
     const orderD = fmtDays(s.orderDays?.length?s.orderDays:(s.orderDay!==undefined?[s.orderDay]:null));
     const arrD   = fmtDays(s.arrivalDays?.length?s.arrivalDays:(s.arrivalDay!==undefined?[s.arrivalDay]:null));
     const freqLabel = {weekly:'שבועי',biweekly:'דו-שבועי',monthly:'חודשי',daily:'יומי'}[s.frequency]||'שבועי';
