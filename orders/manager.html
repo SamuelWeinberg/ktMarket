@@ -573,6 +573,10 @@ function toggleSupplierSearch(){
 function clearSupplierSearch(){
   const el = document.getElementById('supplier-search');
   if(el) el.value = '';
+  const wrap = document.getElementById('supplier-search-wrap');
+  if(wrap) wrap.style.display = 'none';
+  const btn = document.getElementById('search-toggle-btn');
+  if(btn){ btn.style.borderColor='var(--border)'; btn.style.color='var(--text2)'; }
   renderSuppliersList(allSuppliersCache, currentSuppFilter);
 }
 function filterSuppliersBySearch(){
