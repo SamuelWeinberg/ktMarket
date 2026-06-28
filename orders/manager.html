@@ -160,8 +160,12 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
 </div>
 
 <div class="main">
-  <div class="topbar">
-    <h2 id="page-title">ספקים</h2>
+  <div class="topbar" style="flex-direction:column;align-items:flex-start;gap:2px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+      <h2 id="page-title">ספקים</h2>
+      <span style="font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;background:rgba(0,194,203,.12);border:1px solid rgba(0,194,203,.25);color:#67E8F9;" id="topbar-branch" style="display:none;"></span>
+    </div>
+    <div id="greeting-line" style="font-size:13px;color:var(--text2);display:none;"></div>
   </div>
 
   <!-- SUPPLIERS LIST -->
@@ -328,6 +332,23 @@ async function initApp(profile){
   const d = new Date();
   const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
   document.getElementById('today-label').textContent = `היום — יום ${days[d.getDay()]}, ${d.toLocaleDateString('he-IL')}`;
+
+  // greeting
+  const firstName = (profile.full_name || '').split(' ')[0] || '';
+  const h = d.getHours();
+  const timeGreet = h < 12 ? 'בוקר טוב' : h < 17 ? 'צהריים טובים' : 'ערב טוב';
+  const greetEl = document.getElementById('greeting-line');
+  if(greetEl){
+    greetEl.textContent = `${timeGreet}${firstName ? ', '+firstName : ''}! כמה טוב לראות אותך 😊`;
+    greetEl.style.display = 'block';
+  }
+
+  // branch badge in topbar
+  if(profile.branch){
+    const bb = document.getElementById('topbar-branch');
+    if(bb){ bb.textContent = '🏪 ' + profile.branch; bb.style.display = 'inline'; }
+  }
+
   await loadSuppliers();
 }
 
