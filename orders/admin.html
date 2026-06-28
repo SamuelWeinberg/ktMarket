@@ -850,7 +850,11 @@ function renderProducts(list){
           <td class="col-promo" style="padding:11px 16px;text-align:center;">
             ${hasPromo
               ? `<div style="font-size:11px;color:#FCD34D;">🏷️ ${promoLabel}</div>
-                 <button onclick="clearPromo('${p.barcode||p.id}')" style="margin-top:4px;padding:2px 8px;border-radius:10px;font-size:10px;background:rgba(239,68,68,.15);color:#FCA5A5;border:1px solid rgba(239,68,68,.3);cursor:pointer;">הסר</button>`
+                 ${p.promoFrom?`<div style="font-size:10px;color:var(--text3);margin-top:2px;">${p.promoFrom} → ${p.promoTo||'?'}</div>`:''}
+                 <div style="display:flex;gap:4px;margin-top:4px;justify-content:center;">
+                   <button onclick="togglePromoAll('${p.barcode||p.id}')" style="padding:2px 8px;border-radius:10px;font-size:10px;background:rgba(245,166,35,.15);color:#FCD34D;border:1px solid rgba(245,166,35,.3);cursor:pointer;">✏️ ערוך</button>
+                   <button onclick="clearPromo('${p.barcode||p.id}')" style="padding:2px 8px;border-radius:10px;font-size:10px;background:rgba(239,68,68,.15);color:#FCA5A5;border:1px solid rgba(239,68,68,.3);cursor:pointer;">הסר</button>
+                 </div>`
               : `<button onclick="togglePromoAll('${p.barcode||p.id}')" style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;background:var(--card2);color:var(--text3);border:1px solid var(--border);cursor:pointer;">＋ מבצע</button>`
             }
           </td>
@@ -859,23 +863,44 @@ function renderProducts(list){
     </table>`;
 }
 
-async function togglePromoAll(barcode){
-  try {
-    await updateDoc(doc(db,'products', barcode), { isPromo: true, promoBranches: ['*'] });
-    const p = allProducts.find(x=>(x.barcode||x.id)===barcode);
-    if(p){ p.isPromo=true; p.promoBranches=['*']; }
-    const q = document.getElementById('product-search').value.trim().toLowerCase();
-    renderProducts(q ? allProducts.filter(p=>(p.name||'').toLowerCase().includes(q)||(p.barcode||'').includes(q)||(p.supplierName||'').toLowerCase().includes(q)) : allProducts);
-    toast('🏷️ סומן כמבצע לכל הסניפים!');
-  } catch(e){ toast('❌ שגיאה: '+e.message); }
+let _promoDateBarcode = null;
+function togglePromoAll(barcode){
+  _promoDateBarcode = barcode;
+  const p = allProducts.find(x=>(x.barcode||x.id)===barcode);
+  document.getElementById('promo-date-pname').textContent = p?.name || barcode;
+  const td = new Date().toISOString().split('T')[0];
+  document.getElementById('promo-date-from').value = p?.promoFrom || td;
+  document.getElementById('promo-date-to').value   = p?.promoTo   || '';
+  document.getElementById('promo-date-modal').style.display = 'flex';
 }
 window.togglePromoAll = togglePromoAll;
 
+function closePromoDateModal(){ document.getElementById('promo-date-modal').style.display='none'; _promoDateBarcode=null; }
+window.closePromoDateModal = closePromoDateModal;
+
+async function confirmPromoDate(){
+  if(!_promoDateBarcode) return;
+  const from = document.getElementById('promo-date-from').value;
+  const to   = document.getElementById('promo-date-to').value;
+  if(!from||!to){ toast('⚠️ בחר תאריך התחלה וסיום'); return; }
+  if(from>to){ toast('⚠️ תאריך ההתחלה חייב להיות לפני הסיום'); return; }
+  try {
+    await updateDoc(doc(db,'products',_promoDateBarcode),{ isPromo:true, promoBranches:['*'], promoFrom:from, promoTo:to });
+    const p = allProducts.find(x=>(x.barcode||x.id)===_promoDateBarcode);
+    if(p){ p.isPromo=true; p.promoBranches=['*']; p.promoFrom=from; p.promoTo=to; }
+    toast('🏷️ מבצע הוגדר!');
+    closePromoDateModal();
+    const q = document.getElementById('product-search').value.trim().toLowerCase();
+    renderProducts(q?allProducts.filter(p=>(p.name||'').toLowerCase().includes(q)||(p.barcode||'').includes(q)||(p.supplierName||'').toLowerCase().includes(q)):allProducts);
+  } catch(e){ toast('❌ שגיאה: '+e.message); }
+}
+window.confirmPromoDate = confirmPromoDate;
+
 async function clearPromo(barcode){
   try {
-    await updateDoc(doc(db,'products', barcode), { isPromo: false, promoBranches: [] });
+    await updateDoc(doc(db,'products', barcode), { isPromo: false, promoBranches: [], promoFrom: null, promoTo: null });
     const p = allProducts.find(x=>(x.barcode||x.id)===barcode);
-    if(p){ p.isPromo=false; p.promoBranches=[]; }
+    if(p){ p.isPromo=false; p.promoBranches=[]; p.promoFrom=null; p.promoTo=null; }
     const q = document.getElementById('product-search').value.trim().toLowerCase();
     renderProducts(q ? allProducts.filter(p=>(p.name||'').toLowerCase().includes(q)||(p.barcode||'').includes(q)||(p.supplierName||'').toLowerCase().includes(q)) : allProducts);
     toast('✅ הוסר ממבצע');
@@ -1697,6 +1722,29 @@ window.submitAdminConfirmDelivery = submitAdminConfirmDelivery;
     <div style="display:flex;gap:12px;margin-top:20px;">
       <button onclick="closeAdminConfirmModal()" style="flex:1;padding:11px;background:var(--navy3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:Heebo,sans-serif;font-size:14px;cursor:pointer;">ביטול</button>
       <button onclick="submitAdminConfirmDelivery()" style="flex:2;padding:11px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);border-radius:8px;color:#86EFAC;font-family:Heebo,sans-serif;font-size:14px;font-weight:700;cursor:pointer;">✅ אשר קבלה</button>
+    </div>
+  </div>
+</div>
+
+<!-- Promo date modal -->
+<div id="promo-date-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1001;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+  <div style="background:var(--navy2);border:1px solid var(--border);border-radius:18px;padding:26px;width:360px;max-width:94vw;position:relative;">
+    <button onclick="closePromoDateModal()" style="position:absolute;top:12px;left:14px;background:none;border:none;color:var(--text3);font-size:22px;cursor:pointer;">×</button>
+    <h3 style="font-size:16px;font-weight:700;margin-bottom:4px;">🏷️ תאריכי מבצע</h3>
+    <p id="promo-date-pname" style="font-size:12px;color:var(--text2);margin-bottom:18px;"></p>
+    <div style="display:flex;gap:12px;margin-bottom:18px;">
+      <div style="flex:1;">
+        <label style="display:block;font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:600;">מתאריך</label>
+        <input type="date" id="promo-date-from" style="width:100%;padding:9px 10px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:13px;">
+      </div>
+      <div style="flex:1;">
+        <label style="display:block;font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:600;">עד תאריך</label>
+        <input type="date" id="promo-date-to" style="width:100%;padding:9px 10px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:13px;">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="closePromoDateModal()" style="flex:1;padding:10px;background:var(--navy3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:Heebo,sans-serif;font-size:13px;cursor:pointer;">ביטול</button>
+      <button onclick="confirmPromoDate()" style="flex:2;padding:10px;background:rgba(245,166,35,.15);border:1px solid rgba(245,166,35,.3);border-radius:8px;color:#FCD34D;font-family:Heebo,sans-serif;font-size:13px;font-weight:700;cursor:pointer;">✅ שמור מבצע</button>
     </div>
   </div>
 </div>

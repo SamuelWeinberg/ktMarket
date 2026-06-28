@@ -697,7 +697,14 @@ async function openOrder(supplierId){
   // load products for this supplier (skip blocked)
   const prodSnap = await getDocs(query(collection(db,'products'), where('supplierCode','==', currentSupplier.code||currentSupplier.id)));
   const myBranchForSort = currentProfile?.branch||'';
-  const isPromoForSort = p => { const pb=p.promoBranches||[]; return pb.includes('*')||pb.includes(myBranchForSort)||(!pb.length&&p.isPromo); };
+  const isPromoForSort = p => {
+    const pb = p.promoBranches||[];
+    const base = pb.includes('*')||pb.includes(myBranchForSort)||(!pb.length&&p.isPromo);
+    if(!base) return false;
+    if(p.promoFrom && today < p.promoFrom) return false;
+    if(p.promoTo   && today > p.promoTo)   return false;
+    return true;
+  };
   const products = prodSnap.docs.map(d=>({id:d.id,...d.data()}))
     .filter(p => p.blocked !== true)
     .sort((a,b) => {
