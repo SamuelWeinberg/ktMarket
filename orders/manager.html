@@ -71,6 +71,8 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
 .suggested{font-size:11px;color:var(--text3);text-align:center;}
 .promo-badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;background:rgba(245,166,35,.18);color:#FCD34D;border:1px solid rgba(245,166,35,.35);margin-right:6px;vertical-align:middle;}
 .promo-row{background:rgba(245,166,35,.03);border-bottom:1px solid rgba(245,166,35,.15) !important;}
+.day-tog{flex:1;padding:8px 2px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text3);font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;text-align:center;}
+.day-tog.active{background:rgba(26,108,242,.25);border-color:var(--blue);color:var(--text);}
 </style>
 </head>
 <body>
@@ -181,6 +183,18 @@ const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 
 const FREQ_LABELS = { daily:'יומי', weekly:'שבועי', biweekly:'פעם בשבועיים', monthly:'חודשי' };
 const STATUS_LABELS = { draft:'📝 טיוטה', sent:'📤 נשלחה', received:'✅ התקבלה' };
+const DAY_LABELS = {0:'א׳',1:'ב׳',2:'ג׳',3:'ד׳',4:'ה׳',5:'ו׳',6:'ש׳'};
+function fmtDays(days){ return days?.length ? days.map(d=>DAY_LABELS[d]).join(' ') : '—'; }
+function toggleMgrDay(btn){ btn.classList.toggle('active'); }
+function setMgrDays(group, days=[]){
+  document.querySelectorAll(`.day-tog[data-group="${group}"]`).forEach(b=>{
+    b.classList.toggle('active', days.map(Number).includes(parseInt(b.dataset.day)));
+  });
+}
+function getMgrDays(group){
+  return [...document.querySelectorAll(`.day-tog[data-group="${group}"].active`)].map(b=>parseInt(b.dataset.day));
+}
+window.toggleMgrDay = toggleMgrDay;
 
 let currentProfile = null;
 let currentSupplier = null;
@@ -313,6 +327,7 @@ async function loadSuppliers(){
     .filter(s => !s.blockedBranches?.includes(myBranch))
     .filter(s => !s.branches?.length || s.branches.includes(myBranch))
     .sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  allSuppliersCache = suppliers;
   loadPendingConfirmations(suppliers);
   const urgent = suppliers.filter(s=>shouldOrderToday(s));
   document.getElementById('today-urgent').textContent = urgent.length
@@ -348,18 +363,68 @@ async function loadSuppliers(){
     document.getElementById('suppliers-list').innerHTML='<div style="padding:40px;text-align:center;color:var(--text3);">אין ספקים במערכת עדיין</div>';
     return;
   }
-  document.getElementById('suppliers-list').innerHTML = suppliers.map(s=>`
-    <div class="supplier-card ${shouldOrderToday(s)?'urgent':''}" onclick="openOrder('${s.id}')">
-      <div>
+  document.getElementById('suppliers-list').innerHTML = suppliers.map(s=>{
+    const orderD = fmtDays(s.orderDays?.length?s.orderDays:(s.orderDay!==undefined?[s.orderDay]:null));
+    const arrD   = fmtDays(s.arrivalDays?.length?s.arrivalDays:(s.arrivalDay!==undefined?[s.arrivalDay]:null));
+    return `
+    <div class="supplier-card ${shouldOrderToday(s)?'urgent':''}" style="cursor:default;">
+      <div onclick="openOrder('${s.id}')" style="flex:1;cursor:pointer;min-width:0;">
         <div class="s-name">${s.name}</div>
-        <div class="s-meta">${FREQ_LABELS[s.frequency]||s.frequency}${s.hasMinimum?' · מינימום ₪'+s.minimumAmount:''}</div>
+        <div class="s-meta">
+          📅 ${orderD} &nbsp;·&nbsp; 🚚 ${arrD}
+          ${s.agentName?'&nbsp;·&nbsp; 👤 '+s.agentName:''}
+          ${s.agentNumber?'&nbsp;·&nbsp; <a href="tel:'+s.agentNumber+'" onclick="event.stopPropagation()" style="color:var(--cyan);text-decoration:none;">📞 '+s.agentNumber+'</a>':''}
+        </div>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;">
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
         ${shouldOrderToday(s)?'<span class="s-badge badge-today">להזמין היום</span>':'<span class="s-badge badge-ok">לא דחוף</span>'}
-        <span style="color:var(--text3);font-size:18px;">←</span>
+        <button onclick="editSupplierMgr('${s.id}')" style="background:var(--navy3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px;cursor:pointer;color:var(--text2);" title="ערוך פרטי ספק">✏️</button>
+        <span onclick="openOrder('${s.id}')" style="color:var(--text3);font-size:18px;cursor:pointer;">←</span>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
+
+// ── supplier limited edit (manager) ──────────────────────────────────────────
+let mgrEditSupplierId = null;
+let allSuppliersCache = [];
+
+function editSupplierMgr(supplierId){
+  const suppliers = allSuppliersCache;
+  const s = suppliers.find(x=>x.id===supplierId);
+  if(!s) return;
+  mgrEditSupplierId = supplierId;
+  document.getElementById('mgr-supp-modal-title').textContent = '✏️ ' + s.name;
+  document.getElementById('mgr-supp-agent-name').value   = s.agentName   || '';
+  document.getElementById('mgr-supp-agent-num').value    = s.agentNumber || '';
+  setMgrDays('mgr-order',   s.orderDays?.length   ? s.orderDays   : (s.orderDay   !== undefined ? [s.orderDay]   : []));
+  setMgrDays('mgr-arrival', s.arrivalDays?.length ? s.arrivalDays : (s.arrivalDay !== undefined ? [s.arrivalDay] : []));
+  document.getElementById('mgr-supp-modal').style.display = 'flex';
+}
+window.editSupplierMgr = editSupplierMgr;
+
+function closeMgrSuppModal(){ document.getElementById('mgr-supp-modal').style.display='none'; mgrEditSupplierId=null; }
+window.closeMgrSuppModal = closeMgrSuppModal;
+
+async function saveMgrSupplier(){
+  if(!mgrEditSupplierId) return;
+  const btn = document.getElementById('mgr-supp-save-btn');
+  btn.disabled = true; btn.textContent = 'שומר...';
+  try {
+    const orderDays   = getMgrDays('mgr-order');
+    const arrivalDays = getMgrDays('mgr-arrival');
+    const agentName   = document.getElementById('mgr-supp-agent-name').value.trim();
+    const agentNumber = document.getElementById('mgr-supp-agent-num').value.trim();
+    await setDoc(doc(db,'suppliers', mgrEditSupplierId), { orderDays, arrivalDays, agentName, agentNumber }, { merge: true });
+    const s = allSuppliersCache.find(x=>x.id===mgrEditSupplierId);
+    if(s){ s.orderDays=orderDays; s.arrivalDays=arrivalDays; s.agentName=agentName; s.agentNumber=agentNumber; }
+    toast('✅ ספק עודכן!');
+    closeMgrSuppModal();
+    loadSuppliers();
+  } catch(e){ toast('❌ שגיאה: '+e.message); }
+  btn.disabled = false; btn.textContent = 'שמור';
+}
+window.saveMgrSupplier = saveMgrSupplier;
 
 // ── order form ────────────────────────────────────────────────────────────────
 async function openOrder(supplierId){
@@ -667,32 +732,33 @@ function renderHistoryList(orders){
   }
   document.getElementById('history-list').innerHTML = orders.map((o,idx)=>`
     <div id="order-row-${idx}" style="border-bottom:1px solid var(--border);">
-      <div style="display:grid;grid-template-columns:1fr auto auto auto auto auto auto auto auto;gap:8px;align-items:center;padding:13px 16px;">
-        <div onclick="toggleOrderDetails(${idx})" style="font-weight:600;cursor:pointer;">${o.supplierName||'—'}</div>
-        <div style="font-size:12px;color:var(--text3);">${o.date||'—'}</div>
-        <div style="font-size:12px;">${STATUS_LABELS[o.status]||o.status}</div>
-        <div style="font-size:12px;color:var(--text3);">${o.items?.length||0} פריטים</div>
-        <div onclick="toggleOrderDetails(${idx})" style="font-size:16px;color:var(--text3);transition:transform .2s;cursor:pointer;" id="arrow-${idx}">▼</div>
-        ${o.status!=='received'?`<button onclick="editOrderFromHistory(${idx})" style="background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.25);color:#FCD34D;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:Heebo,sans-serif;" title="ערוך הזמנה">✏️</button>`:'<div></div>'}
-        <button onclick="exportSingleOrderExcel(${idx})" style="background:rgba(34,197,94,.10);border:1px solid rgba(34,197,94,.25);color:#86EFAC;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:Heebo,sans-serif;" title="Excel">📊</button>
-        <button onclick="printSingleOrder(${idx})" style="background:rgba(26,108,242,.12);border:1px solid rgba(26,108,242,.25);color:#93C5FD;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:Heebo,sans-serif;" title="PDF">🖨️</button>
-        <button onclick="deleteOrder('${o.id}',${idx})" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.25);color:#FCA5A5;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:Heebo,sans-serif;">🗑️</button>
+      <div style="padding:12px 16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <div onclick="toggleOrderDetails(${idx})" style="font-weight:600;cursor:pointer;flex:1;min-width:120px;">
+          ${o.supplierName||'—'}
+          <div style="font-size:11px;color:var(--text3);font-weight:400;margin-top:2px;">${o.date||'—'} · ${o.items?.length||0} פריטים</div>
+        </div>
+        <span style="font-size:12px;padding:3px 10px;border-radius:20px;white-space:nowrap;${o.status==='sent'?'background:rgba(34,197,94,.15);color:#86EFAC;border:1px solid rgba(34,197,94,.3);':o.status==='draft'?'background:rgba(143,163,184,.1);color:var(--text3);border:1px solid var(--border);':'background:rgba(26,108,242,.15);color:#93C5FD;border:1px solid rgba(26,108,242,.3);'}">
+          ${STATUS_LABELS[o.status]||o.status}
+        </span>
+        ${o.status==='sent'?`<button onclick="confirmDeliveryFromHistory('${o.id}',${idx})" style="background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);color:#86EFAC;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;white-space:nowrap;">✅ אשר קבלה</button>`:''}
+        <button onclick="printSingleOrder(${idx})" style="background:rgba(26,108,242,.12);border:1px solid rgba(26,108,242,.25);color:#93C5FD;border-radius:6px;padding:5px 10px;font-size:13px;cursor:pointer;" title="הדפס">🖨️</button>
+        ${o.status!=='received'?`<button onclick="editOrderFromHistory(${idx})" style="background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.25);color:#FCD34D;border-radius:6px;padding:5px 10px;font-size:13px;cursor:pointer;" title="ערוך">✏️</button>`:''}
+        <button onclick="deleteOrder('${o.id}',${idx})" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.25);color:#FCA5A5;border-radius:6px;padding:5px 10px;font-size:13px;cursor:pointer;">🗑️</button>
+        <div onclick="toggleOrderDetails(${idx})" style="font-size:16px;color:var(--text3);cursor:pointer;transition:transform .2s;" id="arrow-${idx}">▼</div>
       </div>
       <div id="order-details-${idx}" style="display:none;padding:0 16px 14px;border-top:1px solid var(--border);background:rgba(0,0,0,.15);">
-        <div style="padding:10px 0;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-          ${o.agentName ? `<span style="font-size:12px;color:var(--text2);">👤 ${o.agentName}${o.agentNumber?' · '+o.agentNumber:''}</span>` : '<span></span>'}
-          <div style="display:flex;gap:8px;">
-            ${o.status==='sent' ? `<button class="btn btn-success" style="font-size:12px;padding:6px 12px;" onclick="confirmDeliveryFromHistory('${o.id}',${idx})">✅ אשר קבלה</button>` : ''}
-            ${o.agentNumber ? `<button class="btn btn-success" style="font-size:12px;padding:6px 12px;" onclick="resendWhatsApp(${idx})">📱 שלח שוב לסוכן</button>` : ''}
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 80px;gap:6px;font-size:11px;color:var(--text3);padding-bottom:6px;border-bottom:1px solid var(--border);font-weight:700;">
-          <div>מוצר</div><div style="text-align:center;">כמות</div>
+        ${o.agentName||o.agentNumber?`<div style="padding:8px 0;font-size:12px;color:var(--text2);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+          <span>👤 ${o.agentName||''}${o.agentNumber?' · <a href="tel:'+o.agentNumber+'" style="color:var(--cyan);text-decoration:none;">📞 '+o.agentNumber+'</a>':''}</span>
+          ${o.agentNumber?`<button onclick="resendWhatsApp(${idx})" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);color:#86EFAC;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;font-family:Heebo,sans-serif;">📱 שלח שוב לסוכן</button>`:''}
+        </div>`:''}
+        <div style="display:grid;grid-template-columns:1fr 80px${o.status==='received'?' 80px':''};gap:6px;font-size:11px;color:var(--text3);padding-bottom:6px;border-bottom:1px solid var(--border);font-weight:700;">
+          <div>מוצר</div><div style="text-align:center;">הוזמן</div>${o.status==='received'?'<div style="text-align:center;color:#86EFAC;">התקבל</div>':''}
         </div>
         ${(o.items||[]).map(item=>`
-          <div style="display:grid;grid-template-columns:1fr 80px;gap:6px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:13px;">
+          <div style="display:grid;grid-template-columns:1fr 80px${o.status==='received'?' 80px':''};gap:6px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:13px;">
             <div>${item.productName||'—'}</div>
-            <div style="text-align:center;font-weight:700;">${item.orderedQty} ${item.conversionUnit||''}</div>
+            <div style="text-align:center;font-weight:700;">${item.orderedQty||0} ${item.conversionUnit||''}</div>
+            ${o.status==='received'?`<div style="text-align:center;font-weight:700;color:${item.received===false?'#FCA5A5':'#86EFAC'};">${item.receivedQty!==undefined?item.receivedQty:item.orderedQty||0} ${item.conversionUnit||''}</div>`:''}
           </div>`).join('')}
       </div>
     </div>`).join('');
@@ -941,6 +1007,57 @@ window.printSingleOrder = printSingleOrder;
     <div style="display:flex;gap:12px;margin-top:20px;">
       <button onclick="closeMgrConfirmModal()" style="flex:1;padding:11px;background:var(--navy3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:Heebo,sans-serif;font-size:14px;cursor:pointer;">ביטול</button>
       <button onclick="submitMgrConfirmDelivery()" style="flex:2;padding:11px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);border-radius:8px;color:#86EFAC;font-family:Heebo,sans-serif;font-size:14px;font-weight:700;cursor:pointer;">✅ אשר קבלה</button>
+    </div>
+  </div>
+</div>
+
+<!-- Limited supplier edit modal for managers -->
+<div id="mgr-supp-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1001;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+  <div style="background:var(--navy2);border:1px solid var(--border);border-radius:20px;padding:28px;width:440px;max-width:95vw;position:relative;">
+    <button onclick="closeMgrSuppModal()" style="position:absolute;top:14px;left:16px;background:none;border:none;color:var(--text3);font-size:24px;cursor:pointer;">×</button>
+    <h3 id="mgr-supp-modal-title" style="font-size:17px;font-weight:700;margin-bottom:20px;">✏️ עריכת ספק</h3>
+
+    <div style="margin-bottom:18px;">
+      <label style="display:block;font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:600;">ימי הזמנה</label>
+      <div style="display:flex;gap:5px;">
+        <button type="button" class="day-tog" data-group="mgr-order" data-day="0" onclick="toggleMgrDay(this)">א׳</button>
+        <button type="button" class="day-tog" data-group="mgr-order" data-day="1" onclick="toggleMgrDay(this)">ב׳</button>
+        <button type="button" class="day-tog" data-group="mgr-order" data-day="2" onclick="toggleMgrDay(this)">ג׳</button>
+        <button type="button" class="day-tog" data-group="mgr-order" data-day="3" onclick="toggleMgrDay(this)">ד׳</button>
+        <button type="button" class="day-tog" data-group="mgr-order" data-day="4" onclick="toggleMgrDay(this)">ה׳</button>
+        <button type="button" class="day-tog" data-group="mgr-order" data-day="5" onclick="toggleMgrDay(this)">ו׳</button>
+        <button type="button" class="day-tog" data-group="mgr-order" data-day="6" onclick="toggleMgrDay(this)">ש׳</button>
+      </div>
+    </div>
+
+    <div style="margin-bottom:18px;">
+      <label style="display:block;font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:600;">ימי הגעה</label>
+      <div style="display:flex;gap:5px;">
+        <button type="button" class="day-tog" data-group="mgr-arrival" data-day="0" onclick="toggleMgrDay(this)">א׳</button>
+        <button type="button" class="day-tog" data-group="mgr-arrival" data-day="1" onclick="toggleMgrDay(this)">ב׳</button>
+        <button type="button" class="day-tog" data-group="mgr-arrival" data-day="2" onclick="toggleMgrDay(this)">ג׳</button>
+        <button type="button" class="day-tog" data-group="mgr-arrival" data-day="3" onclick="toggleMgrDay(this)">ד׳</button>
+        <button type="button" class="day-tog" data-group="mgr-arrival" data-day="4" onclick="toggleMgrDay(this)">ה׳</button>
+        <button type="button" class="day-tog" data-group="mgr-arrival" data-day="5" onclick="toggleMgrDay(this)">ו׳</button>
+        <button type="button" class="day-tog" data-group="mgr-arrival" data-day="6" onclick="toggleMgrDay(this)">ש׳</button>
+      </div>
+    </div>
+
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:600;">שם סוכן</label>
+      <input type="text" id="mgr-supp-agent-name" placeholder="שם הסוכן"
+        style="width:100%;padding:10px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:14px;">
+    </div>
+
+    <div style="margin-bottom:22px;">
+      <label style="display:block;font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:600;">מספר טלפון סוכן</label>
+      <input type="tel" id="mgr-supp-agent-num" placeholder="05X-XXXXXXX"
+        style="width:100%;padding:10px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:14px;direction:ltr;text-align:right;">
+    </div>
+
+    <div style="display:flex;gap:10px;">
+      <button onclick="closeMgrSuppModal()" style="flex:1;padding:11px;background:var(--navy3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:Heebo,sans-serif;font-size:14px;cursor:pointer;">ביטול</button>
+      <button id="mgr-supp-save-btn" onclick="saveMgrSupplier()" style="flex:2;padding:11px;background:rgba(26,108,242,.2);border:1px solid rgba(26,108,242,.4);border-radius:8px;color:#93C5FD;font-family:Heebo,sans-serif;font-size:14px;font-weight:700;cursor:pointer;">שמור</button>
     </div>
   </div>
 </div>
