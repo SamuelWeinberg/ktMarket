@@ -700,7 +700,11 @@ async function openOrder(supplierId){
   const isPromoForSort = p => { const pb=p.promoBranches||[]; return pb.includes('*')||pb.includes(myBranchForSort)||(!pb.length&&p.isPromo); };
   const products = prodSnap.docs.map(d=>({id:d.id,...d.data()}))
     .filter(p => p.blocked !== true)
-    .sort((a,b) => (isPromoForSort(b)?1:0) - (isPromoForSort(a)?1:0));
+    .sort((a,b) => {
+      const ap = isPromoForSort(a)?1:0, bp = isPromoForSort(b)?1:0;
+      if(bp !== ap) return bp - ap;
+      return (a.name||'').localeCompare(b.name||'', 'he');
+    });
 
   // load last order for suggested quantities
   const lastOrderSnap = await getDocs(query(
