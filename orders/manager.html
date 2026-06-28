@@ -448,13 +448,29 @@ async function confirmDelivery(orderId){
 window.confirmDelivery = confirmDelivery;
 
 // ── suppliers ─────────────────────────────────────────────────────────────────
+function getISOWeek(date){
+  const d = new Date(date); d.setHours(0,0,0,0);
+  d.setDate(d.getDate()+3-(d.getDay()+6)%7);
+  const w = new Date(d.getFullYear(),0,4);
+  return 1+Math.round(((d-w)/86400000-3+(w.getDay()+6)%7)/7);
+}
 function shouldOrderToday(s){
-  const day = new Date(today).getDay();
+  const todayDate = new Date(today);
+  const day = todayDate.getDay();
+  const orderDays = (s.orderDays?.length ? s.orderDays : (s.orderDay!==undefined?[parseInt(s.orderDay)]:[0])).map(Number);
   if(s.frequency==='daily') return true;
-  const orderDays = s.orderDays?.length ? s.orderDays : (s.orderDay!==undefined ? [parseInt(s.orderDay)] : [0]);
-  if(s.frequency==='weekly') return orderDays.includes(day);
-  if(s.frequency==='biweekly'){ const w=Math.floor(new Date(today).getTime()/(7*24*60*60*1000)); return orderDays.includes(day)&&w%2===0; }
-  if(s.frequency==='monthly') return new Date(today).getDate()===1;
+  if(!orderDays.includes(day)) return false;
+  if(!s.frequency||s.frequency==='weekly') return true;
+  if(s.frequency==='biweekly'){
+    const wk = getISOWeek(todayDate);
+    const phase = s.biweeklyPhase!==undefined ? parseInt(s.biweeklyPhase) : 0;
+    return wk%2 === phase%2;
+  }
+  if(s.frequency==='monthly'){
+    const first = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
+    const firstOcc = 1+(day - first.getDay()+7)%7;
+    return todayDate.getDate()===firstOcc;
+  }
   return false;
 }
 
@@ -506,10 +522,15 @@ async function loadSuppliers(){
   document.getElementById('suppliers-list').innerHTML = suppliers.map(s=>{
     const orderD = fmtDays(s.orderDays?.length?s.orderDays:(s.orderDay!==undefined?[s.orderDay]:null));
     const arrD   = fmtDays(s.arrivalDays?.length?s.arrivalDays:(s.arrivalDay!==undefined?[s.arrivalDay]:null));
+    const freqLabel = {weekly:'שבועי',biweekly:'דו-שבועי',monthly:'חודשי',daily:'יומי'}[s.frequency]||'שבועי';
+    const freqColor = s.frequency==='biweekly'?'rgba(0,194,203,.15);color:#67E8F9;border:1px solid rgba(0,194,203,.3)':s.frequency==='monthly'?'rgba(245,166,35,.12);color:#FCD34D;border:1px solid rgba(245,166,35,.3)':'rgba(34,197,94,.1);color:#86EFAC;border:1px solid rgba(34,197,94,.25)';
     return `
     <div class="supplier-card ${shouldOrderToday(s)?'urgent':''}" style="cursor:default;">
       <div onclick="openOrder('${s.id}')" style="flex:1;cursor:pointer;min-width:0;">
-        <div class="s-name">${s.name}</div>
+        <div class="s-name" style="display:flex;align-items:center;gap:8px;">
+          ${s.name}
+          <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:${freqColor}">${freqLabel}</span>
+        </div>
         <div class="s-meta">
           📅 ${orderD} &nbsp;·&nbsp; 🚚 ${arrD}
           ${s.agentName?'&nbsp;·&nbsp; 👤 '+s.agentName:''}
@@ -537,6 +558,9 @@ function editSupplierMgr(supplierId){
   document.getElementById('mgr-supp-modal-title').textContent = '✏️ ' + s.name;
   document.getElementById('mgr-supp-agent-name').value   = s.agentName   || '';
   document.getElementById('mgr-supp-agent-num').value    = s.agentNumber || '';
+  document.getElementById('mgr-supp-freq').value         = s.frequency   || 'weekly';
+  document.getElementById('mgr-supp-phase').value        = s.biweeklyPhase ?? 0;
+  toggleMgrFreqPhase();
   setMgrDays('mgr-order',   s.orderDays?.length   ? s.orderDays   : (s.orderDay   !== undefined ? [s.orderDay]   : []));
   setMgrDays('mgr-arrival', s.arrivalDays?.length ? s.arrivalDays : (s.arrivalDay !== undefined ? [s.arrivalDay] : []));
   document.getElementById('mgr-supp-modal').style.display = 'flex';
@@ -551,13 +575,15 @@ async function saveMgrSupplier(){
   const btn = document.getElementById('mgr-supp-save-btn');
   btn.disabled = true; btn.textContent = 'שומר...';
   try {
-    const orderDays   = getMgrDays('mgr-order');
-    const arrivalDays = getMgrDays('mgr-arrival');
-    const agentName   = document.getElementById('mgr-supp-agent-name').value.trim();
-    const agentNumber = document.getElementById('mgr-supp-agent-num').value.trim();
-    await setDoc(doc(db,'suppliers', mgrEditSupplierId), { orderDays, arrivalDays, agentName, agentNumber }, { merge: true });
+    const orderDays     = getMgrDays('mgr-order');
+    const arrivalDays   = getMgrDays('mgr-arrival');
+    const agentName     = document.getElementById('mgr-supp-agent-name').value.trim();
+    const agentNumber   = document.getElementById('mgr-supp-agent-num').value.trim();
+    const frequency     = document.getElementById('mgr-supp-freq').value;
+    const biweeklyPhase = frequency==='biweekly' ? parseInt(document.getElementById('mgr-supp-phase').value||'0') : 0;
+    await setDoc(doc(db,'suppliers', mgrEditSupplierId), { orderDays, arrivalDays, agentName, agentNumber, frequency, biweeklyPhase }, { merge: true });
     const s = allSuppliersCache.find(x=>x.id===mgrEditSupplierId);
-    if(s){ s.orderDays=orderDays; s.arrivalDays=arrivalDays; s.agentName=agentName; s.agentNumber=agentNumber; }
+    if(s){ Object.assign(s,{orderDays,arrivalDays,agentName,agentNumber,frequency,biweeklyPhase}); }
     toast('✅ ספק עודכן!');
     closeMgrSuppModal();
     loadSuppliers();
@@ -565,6 +591,13 @@ async function saveMgrSupplier(){
   btn.disabled = false; btn.textContent = 'שמור';
 }
 window.saveMgrSupplier = saveMgrSupplier;
+
+function toggleMgrFreqPhase(){
+  const freq = document.getElementById('mgr-supp-freq')?.value;
+  const phaseWrap = document.getElementById('mgr-phase-wrap');
+  if(phaseWrap) phaseWrap.style.display = freq==='biweekly' ? 'block' : 'none';
+}
+window.toggleMgrFreqPhase = toggleMgrFreqPhase;
 
 // ── order form ────────────────────────────────────────────────────────────────
 async function openOrder(supplierId){
@@ -1210,6 +1243,25 @@ window.printSingleOrder = printSingleOrder;
         <button type="button" class="day-tog" data-group="mgr-arrival" data-day="5" onclick="toggleMgrDay(this)">ו׳</button>
         <button type="button" class="day-tog" data-group="mgr-arrival" data-day="6" onclick="toggleMgrDay(this)">ש׳</button>
       </div>
+    </div>
+
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:600;">תדירות הזמנה</label>
+      <select id="mgr-supp-freq" onchange="toggleMgrFreqPhase()"
+        style="width:100%;padding:10px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:14px;">
+        <option value="weekly">פעם בשבוע</option>
+        <option value="biweekly">פעם בשבועיים</option>
+        <option value="monthly">פעם בחודש</option>
+      </select>
+    </div>
+
+    <div id="mgr-phase-wrap" style="display:none;margin-bottom:14px;">
+      <label style="display:block;font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:600;">שבוע הזמנה</label>
+      <select id="mgr-supp-phase"
+        style="width:100%;padding:10px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:14px;">
+        <option value="0">שבוע א׳ (שבועות זוגיים)</option>
+        <option value="1">שבוע ב׳ (שבועות אי-זוגיים)</option>
+      </select>
     </div>
 
     <div style="margin-bottom:14px;">
