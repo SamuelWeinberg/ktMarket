@@ -73,6 +73,9 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
 .promo-row{background:rgba(245,166,35,.03);border-bottom:1px solid rgba(245,166,35,.15) !important;}
 .day-tog{flex:1;padding:8px 2px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text3);font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;text-align:center;}
 .day-tog.active{background:rgba(26,108,242,.25);border-color:var(--blue);color:var(--text);}
+.branch-sel-btn{padding:7px 16px;border-radius:20px;font-family:'Heebo',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--navy3);color:var(--text2);transition:all .15s;}
+.branch-sel-btn.active{background:rgba(26,108,242,.2);border-color:var(--blue);color:var(--text);}
+.branch-sel-btn:hover{color:var(--text);}
 
 /* ── mobile ──────────────────────────────────────────────────────────── */
 .bottom-nav{display:none;}
@@ -167,6 +170,7 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
       <span style="font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;background:rgba(0,194,203,.12);border:1px solid rgba(0,194,203,.25);color:#67E8F9;" id="topbar-branch" style="display:none;"></span>
     </div>
     <div id="greeting-line" style="font-size:13px;color:var(--text2);display:none;"></div>
+    <div id="branch-selector-wrap" style="display:none;gap:8px;flex-wrap:wrap;margin-top:10px;"></div>
   </div>
 
   <!-- SUPPLIERS LIST -->
@@ -291,6 +295,7 @@ function getMgrDays(group){
 window.toggleMgrDay = toggleMgrDay;
 
 let currentProfile = null;
+let currentBranch = '';
 let currentSupplier = null;
 let currentOrderItems = [];
 let editingOrderId = null;
@@ -303,7 +308,7 @@ let _session = null;
   if(!session){ location.href = 'index.html'; return; }
   _session = session;
   const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
-  if(!profile || !profile.branch){
+  if(!profile || (!profile.branch && profile.role !== 'network_manager')){
     await showSetupScreen(session);
     return;
   }
@@ -368,10 +373,24 @@ async function initApp(profile){
     greetEl.style.display = 'block';
   }
 
-  // branch badge in topbar
-  if(profile.branch){
+  // branch setup
+  if(profile.role === 'network_manager'){
+    const branchSnap = await getDocs(collection(db,'branches'));
+    const branches = branchSnap.docs.map(d=>d.data().name||d.id).sort();
+    currentBranch = branches[0] || '';
+    const wrap = document.getElementById('branch-selector-wrap');
+    if(wrap){
+      wrap.style.display = 'flex';
+      wrap.innerHTML = branches.map(b=>`<button class="branch-sel-btn${b===currentBranch?' active':''}" onclick="switchBranch('${b}')">${b}</button>`).join('');
+    }
     const bb = document.getElementById('topbar-branch');
-    if(bb){ bb.textContent = '🏪 ' + profile.branch; bb.style.display = 'inline'; }
+    if(bb){ bb.textContent = '🏪 ' + currentBranch; bb.style.display = 'inline'; }
+  } else {
+    currentBranch = profile.branch || '';
+    if(currentBranch){
+      const bb = document.getElementById('topbar-branch');
+      if(bb){ bb.textContent = '🏪 ' + currentBranch; bb.style.display = 'inline'; }
+    }
   }
 
   await loadSuppliers();
@@ -379,6 +398,17 @@ async function initApp(profile){
 
 async function doLogout(){ await sb.auth.signOut(); location.href = 'index.html'; }
 window.doLogout = doLogout;
+
+async function switchBranch(branch){
+  currentBranch = branch;
+  const bb = document.getElementById('topbar-branch');
+  if(bb) bb.textContent = '🏪 ' + branch;
+  document.querySelectorAll('.branch-sel-btn').forEach(b=>{
+    b.classList.toggle('active', b.textContent === branch);
+  });
+  await loadSuppliers();
+}
+window.switchBranch = switchBranch;
 
 // ── nav ───────────────────────────────────────────────────────────────────────
 const PAGE_TITLES = { suppliers:'ספקים', order:'הזמנה חדשה', history:'היסטוריה' };
@@ -406,7 +436,7 @@ function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg
 
 // ── pending delivery confirmations ────────────────────────────────────────────
 async function loadPendingConfirmations(suppliers){
-  const myBranch = currentProfile?.branch || '';
+  const myBranch = currentBranch;
   const supplierMap = Object.fromEntries(suppliers.map(s=>[s.id,s]));
 
   let allOrders = [];
@@ -504,7 +534,7 @@ async function loadSuppliers(){
   setSuppFilter('today');
   document.getElementById('suppliers-list').innerHTML = '<div class="loading"><div class="spinner"></div> טוען...</div>';
   const snap = await getDocs(collection(db,'suppliers'));
-  const myBranch = currentProfile?.branch || '';
+  const myBranch = currentBranch;
   const suppliers = snap.docs.map(d=>({id:d.id,...d.data()}))
     .filter(s => s.blocked !== true)
     .filter(s => !s.blockedBranches?.includes(myBranch))
@@ -697,7 +727,7 @@ async function openOrder(supplierId){
 
   // load products for this supplier (skip blocked)
   const prodSnap = await getDocs(query(collection(db,'products'), where('supplierCode','==', currentSupplier.code||currentSupplier.id)));
-  const myBranchForSort = currentProfile?.branch||'';
+  const myBranchForSort = currentBranch;
   const isPromoForSort = p => {
     const pb = p.promoBranches||[];
     const base = pb.includes('*')||pb.includes(myBranchForSort)||(!pb.length&&p.isPromo);
@@ -883,14 +913,14 @@ async function saveOrder(status){
     }
   }
 
-  const orderId = editingOrderId || `${currentProfile?.branch||'all'}_${currentSupplier.id}_${today}_${Date.now()}`;
+  const orderId = editingOrderId || `${currentBranch||'all'}_${currentSupplier.id}_${today}_${Date.now()}`;
   await setDoc(doc(db,'orders', orderId), {
     supplierId: currentSupplier.id,
     supplierName: currentSupplier.name,
     supplierCode: currentSupplier.code || '',
     agentNumber: currentSupplier.agentNumber || '',
     agentName: currentSupplier.agentName || '',
-    branch: currentProfile?.branch || '',
+    branch: currentBranch || '',
     createdBy: currentProfile?.id || '',
     date: today,
     createdAt: new Date().toISOString(),
@@ -950,7 +980,7 @@ let historyOrders = [];
 
 async function loadHistory(){
   document.getElementById('history-list').innerHTML='<div class="loading"><div class="spinner"></div> טוען...</div>';
-  const myBranch = currentProfile?.branch||'';
+  const myBranch = currentBranch;
   const isAdmin = currentProfile?.role === 'super_admin';
   const snap = await getDocs(collection(db,'orders'));
   historyOrders = snap.docs
