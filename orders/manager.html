@@ -203,23 +203,62 @@ let editingOrderId = null;
 const today = new Date().toISOString().split('T')[0];
 
 // ── auth ──────────────────────────────────────────────────────────────────────
+let _session = null;
 (async () => {
   const { data: { session } } = await sb.auth.getSession();
   if(!session){ location.href = 'index.html'; return; }
+  _session = session;
   const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
-  if(!profile){ location.href = 'index.html'; return; }
+  if(!profile || !profile.branch){
+    await showSetupScreen(session);
+    return;
+  }
+  await initApp(profile);
+})();
+
+async function showSetupScreen(session){
+  const branchSnap = await getDocs(collection(db,'branches'));
+  const branches = branchSnap.docs.map(d=>d.data().name||d.id).sort();
+  const sel = document.getElementById('setup-branch-select');
+  sel.innerHTML = '<option value="">— בחר סניף —</option>' + branches.map(b=>`<option value="${b}">${b}</option>`).join('');
+  document.getElementById('setup-email').textContent = session.user.email || '';
+  document.getElementById('setup-screen').style.display = 'flex';
+}
+window.showSetupScreen = showSetupScreen;
+
+async function submitSetup(){
+  const branch = document.getElementById('setup-branch-select').value;
+  const name   = document.getElementById('setup-name-input').value.trim();
+  if(!branch){ alert('בחר סניף'); return; }
+  if(!name)  { alert('הכנס שם'); return; }
+  const btn = document.getElementById('setup-submit-btn');
+  btn.disabled = true; btn.textContent = 'שומר...';
+  const { error } = await sb.from('profiles').upsert({
+    id: _session.user.id,
+    role: 'branch_manager',
+    branch,
+    full_name: name,
+    email: _session.user.email
+  });
+  if(error){ alert('שגיאה: '+error.message); btn.disabled=false; btn.textContent='כניסה'; return; }
+  document.getElementById('setup-screen').style.display = 'none';
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', _session.user.id).single();
+  await initApp(profile);
+}
+window.submitSetup = submitSetup;
+
+async function initApp(profile){
   currentProfile = profile;
   const name = profile.full_name || profile.email || '';
   document.getElementById('av').textContent    = name[0]?.toUpperCase() || '?';
   document.getElementById('uname').textContent = name;
   document.getElementById('urole').textContent = profile.branch || 'מנהל סניף';
   if(profile.branch) document.getElementById('sb-branch').textContent = profile.branch;
-
   const d = new Date();
   const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
   document.getElementById('today-label').textContent = `היום — יום ${days[d.getDay()]}, ${d.toLocaleDateString('he-IL')}`;
   await loadSuppliers();
-})();
+}
 
 async function doLogout(){ await sb.auth.signOut(); location.href = 'index.html'; }
 window.doLogout = doLogout;
@@ -1008,6 +1047,35 @@ window.printSingleOrder = printSingleOrder;
       <button onclick="closeMgrConfirmModal()" style="flex:1;padding:11px;background:var(--navy3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:Heebo,sans-serif;font-size:14px;cursor:pointer;">ביטול</button>
       <button onclick="submitMgrConfirmDelivery()" style="flex:2;padding:11px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);border-radius:8px;color:#86EFAC;font-family:Heebo,sans-serif;font-size:14px;font-weight:700;cursor:pointer;">✅ אשר קבלה</button>
     </div>
+  </div>
+</div>
+
+<!-- First-login branch setup screen -->
+<div id="setup-screen" style="display:none;position:fixed;inset:0;background:var(--navy);z-index:2000;align-items:center;justify-content:center;">
+  <div style="background:var(--navy2);border:1px solid var(--border);border-radius:20px;padding:36px 32px;width:420px;max-width:92vw;text-align:center;">
+    <div style="font-size:40px;margin-bottom:12px;">🛒</div>
+    <h2 style="font-size:20px;font-weight:800;margin-bottom:6px;">ברוך הבא!</h2>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:24px;">כניסה ראשונה — נא למלא פרטים</p>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:20px;" id="setup-email"></div>
+
+    <div style="text-align:right;margin-bottom:14px;">
+      <label style="display:block;font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:600;">שם מלא</label>
+      <input type="text" id="setup-name-input" placeholder="שם ומשפחה"
+        style="width:100%;padding:11px 14px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:15px;">
+    </div>
+
+    <div style="text-align:right;margin-bottom:24px;">
+      <label style="display:block;font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:600;">סניף</label>
+      <select id="setup-branch-select"
+        style="width:100%;padding:11px 14px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:15px;">
+        <option value="">— טוען סניפים... —</option>
+      </select>
+    </div>
+
+    <button id="setup-submit-btn" onclick="submitSetup()"
+      style="width:100%;padding:13px;background:linear-gradient(135deg,var(--blue),#2A7FFF);border:none;border-radius:var(--rsm);color:#fff;font-family:Heebo,sans-serif;font-size:16px;font-weight:700;cursor:pointer;">
+      כניסה למערכת
+    </button>
   </div>
 </div>
 
