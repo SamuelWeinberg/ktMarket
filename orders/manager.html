@@ -180,16 +180,27 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
       </div>
     </div>
 
-    <!-- filter tabs -->
-    <div style="display:flex;gap:8px;margin-bottom:14px;">
+    <!-- filter tabs + search -->
+    <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
       <button id="filter-tab-today" onclick="setSuppFilter('today')"
-        style="flex:1;padding:9px;border-radius:var(--rsm);font-family:Heebo,sans-serif;font-size:13px;font-weight:700;cursor:pointer;border:1px solid rgba(245,166,35,.4);background:rgba(245,166,35,.15);color:#FCD34D;">
+        style="flex:1;padding:9px 6px;border-radius:var(--rsm);font-family:Heebo,sans-serif;font-size:13px;font-weight:700;cursor:pointer;border:1px solid rgba(245,166,35,.4);background:rgba(245,166,35,.15);color:#FCD34D;white-space:nowrap;">
         📅 להזמין היום
       </button>
       <button id="filter-tab-all" onclick="setSuppFilter('all')"
-        style="flex:1;padding:9px;border-radius:var(--rsm);font-family:Heebo,sans-serif;font-size:13px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text2);">
+        style="flex:1;padding:9px 6px;border-radius:var(--rsm);font-family:Heebo,sans-serif;font-size:13px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text2);white-space:nowrap;">
         📋 כל הספקים
       </button>
+      <button id="search-toggle-btn" onclick="toggleSupplierSearch()"
+        style="width:40px;height:38px;border-radius:var(--rsm);border:1px solid var(--border);background:var(--card2);color:var(--text2);font-size:17px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+        🔍
+      </button>
+    </div>
+
+    <!-- search bar (hidden by default) -->
+    <div id="supplier-search-wrap" style="display:none;margin-bottom:10px;position:relative;">
+      <input type="text" id="supplier-search" placeholder="חיפוש ספק..." oninput="filterSuppliersBySearch()"
+        style="width:100%;padding:10px 40px 10px 14px;background:var(--navy3);border:1px solid var(--blue);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:14px;outline:none;">
+      <button onclick="clearSupplierSearch()" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;line-height:1;">×</button>
     </div>
 
     <div id="arriving-today-wrap" style="display:none;margin-bottom:16px;"></div>
@@ -549,12 +560,44 @@ function setSuppFilter(f){
 }
 window.setSuppFilter = setSuppFilter;
 
+function toggleSupplierSearch(){
+  const wrap = document.getElementById('supplier-search-wrap');
+  const btn  = document.getElementById('search-toggle-btn');
+  const open = wrap.style.display === 'none';
+  wrap.style.display = open ? 'block' : 'none';
+  btn.style.borderColor = open ? 'var(--blue)' : 'var(--border)';
+  btn.style.color = open ? '#93C5FD' : 'var(--text2)';
+  if(open) { document.getElementById('supplier-search').focus(); }
+  else { clearSupplierSearch(); }
+}
+function clearSupplierSearch(){
+  const el = document.getElementById('supplier-search');
+  if(el) el.value = '';
+  renderSuppliersList(allSuppliersCache, currentSuppFilter);
+}
+function filterSuppliersBySearch(){
+  const q = (document.getElementById('supplier-search')?.value || '').trim();
+  const base = currentSuppFilter==='today' ? allSuppliersCache.filter(s=>shouldOrderToday(s)) : allSuppliersCache;
+  const list = q ? base.filter(s=>(s.name||'').includes(q)) : base;
+  renderSuppliersHtml(list, currentSuppFilter, !base.length);
+}
+window.toggleSupplierSearch = toggleSupplierSearch;
+window.clearSupplierSearch  = clearSupplierSearch;
+window.filterSuppliersBySearch = filterSuppliersBySearch;
+
 function renderSuppliersList(suppliers, filter){
-  const list = filter==='today' ? suppliers.filter(s=>shouldOrderToday(s)) : suppliers;
+  const q = (document.getElementById('supplier-search')?.value || '').trim();
+  const base = filter==='today' ? suppliers.filter(s=>shouldOrderToday(s)) : suppliers;
+  const list = q ? base.filter(s=>(s.name||'').includes(q)) : base;
+  renderSuppliersHtml(list, filter, !base.length);
+}
+function renderSuppliersHtml(list, filter, baseEmpty){
   if(!list.length){
-    document.getElementById('suppliers-list').innerHTML = filter==='today'
-      ? '<div style="padding:40px;text-align:center;color:var(--text3);font-size:14px;">✅ אין ספקים לסידור היום</div>'
-      : '<div style="padding:40px;text-align:center;color:var(--text3);">אין ספקים במערכת עדיין</div>';
+    document.getElementById('suppliers-list').innerHTML = baseEmpty
+      ? (filter==='today'
+          ? '<div style="padding:40px;text-align:center;color:var(--text3);font-size:14px;">✅ אין ספקים לסידור היום</div>'
+          : '<div style="padding:40px;text-align:center;color:var(--text3);">אין ספקים במערכת עדיין</div>')
+      : '<div style="padding:30px;text-align:center;color:var(--text3);">לא נמצאו ספקים תואמים</div>';
     return;
   }
   document.getElementById('suppliers-list').innerHTML = list.map(s=>{
