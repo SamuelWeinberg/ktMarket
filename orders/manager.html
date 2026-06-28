@@ -73,6 +73,44 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
 .promo-row{background:rgba(245,166,35,.03);border-bottom:1px solid rgba(245,166,35,.15) !important;}
 .day-tog{flex:1;padding:8px 2px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text3);font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;text-align:center;}
 .day-tog.active{background:rgba(26,108,242,.25);border-color:var(--blue);color:var(--text);}
+
+/* ── mobile ──────────────────────────────────────────────────────────── */
+.bottom-nav{display:none;}
+@media(max-width:768px){
+  .sidebar{display:none;}
+  .main{margin-right:0;padding:12px 12px 80px;}
+  .topbar{margin-bottom:14px;}
+  .topbar h2{font-size:17px;}
+  .sc-header{flex-direction:column;align-items:flex-start;gap:10px;}
+  .sc-header h3{font-size:13px;}
+  .supplier-card{padding:14px 14px;gap:10px;}
+  .s-name{font-size:14px;}
+  .s-meta{font-size:11px;}
+  .order-item-row{grid-template-columns:1fr auto auto;gap:8px;padding:10px 0;}
+  .qty-input{width:64px;font-size:16px;padding:8px 6px;}
+  .btn{padding:10px 14px;font-size:13px;}
+  /* history rows */
+  #history-list > div > div:first-child{flex-wrap:wrap;gap:6px;padding:10px 12px;}
+  /* bottom nav */
+  .bottom-nav{
+    display:flex;position:fixed;bottom:0;left:0;right:0;height:62px;
+    background:var(--navy2);border-top:1px solid var(--border);
+    z-index:200;align-items:stretch;
+  }
+  .bn-item{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:3px;cursor:pointer;color:var(--text3);font-size:10px;font-weight:600;
+    transition:color .15s;padding:4px 0;border:none;background:none;font-family:'Heebo',sans-serif;
+  }
+  .bn-item .bn-icon{font-size:22px;line-height:1;}
+  .bn-item.active{color:var(--blue);}
+  .bn-item.active .bn-icon{filter:drop-shadow(0 0 6px rgba(26,108,242,.5));}
+  /* mobile topbar: add user button */
+  .mobile-user-btn{display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;color:var(--text2);font-family:'Heebo',sans-serif;font-size:12px;}
+  .mobile-user-menu{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:500;align-items:flex-end;}
+  .mobile-user-menu.open{display:flex;}
+  .mobile-user-sheet{background:var(--navy2);border-radius:20px 20px 0 0;padding:24px 20px 32px;width:100%;}
+}
 </style>
 </head>
 <body>
@@ -93,6 +131,33 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
     </div>
   </div>
 </nav>
+
+<!-- bottom nav (mobile only) -->
+<nav class="bottom-nav" id="bottom-nav">
+  <button class="bn-item active" id="bn-suppliers" onclick="gotoPage('suppliers')">
+    <span class="bn-icon">🚚</span><span>ספקים</span>
+  </button>
+  <button class="bn-item" id="bn-history" onclick="gotoPage('history')">
+    <span class="bn-icon">📋</span><span>היסטוריה</span>
+  </button>
+  <button class="bn-item" id="bn-user" onclick="openMobileUserMenu()">
+    <span class="bn-icon">👤</span><span id="bn-uname">אני</span>
+  </button>
+</nav>
+
+<!-- mobile user menu -->
+<div class="mobile-user-menu" id="mobile-user-menu" onclick="closeMobileUserMenu()">
+  <div class="mobile-user-sheet" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+      <div class="u-av" id="av2" style="width:42px;height:42px;font-size:16px;">?</div>
+      <div>
+        <div style="font-size:15px;font-weight:700;" id="uname2">—</div>
+        <div style="font-size:12px;color:var(--text3);" id="urole2">מנהל סניף</div>
+      </div>
+    </div>
+    <button onclick="doLogout()" style="width:100%;padding:13px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.25);border-radius:var(--rsm);color:#FCA5A5;font-family:Heebo,sans-serif;font-size:15px;font-weight:700;cursor:pointer;">↪ התנתק</button>
+  </div>
+</div>
 
 <div class="main">
   <div class="topbar">
@@ -141,12 +206,12 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
     <div class="sc">
       <div class="sc-header">
         <h3>📋 היסטוריית הזמנות</h3>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <input type="date" id="hist-from" onchange="filterHistory()" style="padding:5px 10px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:12px;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;width:100%;">
+          <input type="date" id="hist-from" onchange="filterHistory()" style="flex:1;min-width:120px;padding:7px 10px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:13px;">
           <span style="color:var(--text3);font-size:12px;">עד</span>
-          <input type="date" id="hist-to" onchange="filterHistory()" style="padding:5px 10px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:12px;">
-          <button onclick="setHistoryToday()" style="padding:5px 12px;border-radius:var(--rsm);background:rgba(26,108,242,.15);border:1px solid rgba(26,108,242,.3);color:#93C5FD;font-size:12px;cursor:pointer;font-family:Heebo,sans-serif;">היום</button>
-          <button onclick="clearHistoryFilter()" style="padding:5px 12px;border-radius:var(--rsm);background:var(--card2);border:1px solid var(--border);color:var(--text3);font-size:12px;cursor:pointer;font-family:Heebo,sans-serif;">הכל</button>
+          <input type="date" id="hist-to" onchange="filterHistory()" style="flex:1;min-width:120px;padding:7px 10px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:13px;">
+          <button onclick="setHistoryToday()" style="padding:7px 14px;border-radius:var(--rsm);background:rgba(26,108,242,.15);border:1px solid rgba(26,108,242,.3);color:#93C5FD;font-size:13px;cursor:pointer;font-family:Heebo,sans-serif;">היום</button>
+          <button onclick="clearHistoryFilter()" style="padding:7px 14px;border-radius:var(--rsm);background:var(--card2);border:1px solid var(--border);color:var(--text3);font-size:13px;cursor:pointer;font-family:Heebo,sans-serif;">הכל</button>
         </div>
       </div>
       <div id="history-list"><div class="loading"><div class="spinner"></div> טוען...</div></div>
@@ -250,10 +315,16 @@ window.submitSetup = submitSetup;
 async function initApp(profile){
   currentProfile = profile;
   const name = profile.full_name || profile.email || '';
-  document.getElementById('av').textContent    = name[0]?.toUpperCase() || '?';
+  const av = name[0]?.toUpperCase() || '?';
+  document.getElementById('av').textContent    = av;
   document.getElementById('uname').textContent = name;
   document.getElementById('urole').textContent = profile.branch || 'מנהל סניף';
   if(profile.branch) document.getElementById('sb-branch').textContent = profile.branch;
+  // mobile
+  if(document.getElementById('av2'))    document.getElementById('av2').textContent    = av;
+  if(document.getElementById('uname2')) document.getElementById('uname2').textContent = name;
+  if(document.getElementById('urole2')) document.getElementById('urole2').textContent = profile.branch || 'מנהל סניף';
+  if(document.getElementById('bn-uname')) document.getElementById('bn-uname').textContent = name.split(' ')[0] || 'אני';
   const d = new Date();
   const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
   document.getElementById('today-label').textContent = `היום — יום ${days[d.getDay()]}, ${d.toLocaleDateString('he-IL')}`;
@@ -268,13 +339,22 @@ const PAGE_TITLES = { suppliers:'ספקים', order:'הזמנה חדשה', histo
 function gotoPage(name){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.bn-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
   const navEl = document.getElementById('nav-'+name);
   if(navEl) navEl.classList.add('active');
+  const bnEl = document.getElementById('bn-'+name);
+  if(bnEl) bnEl.classList.add('active');
   document.getElementById('page-title').textContent = PAGE_TITLES[name] || name;
   if(name==='history') loadHistory();
+  window.scrollTo(0,0);
 }
 window.gotoPage = gotoPage;
+
+function openMobileUserMenu(){ document.getElementById('mobile-user-menu').classList.add('open'); }
+function closeMobileUserMenu(){ document.getElementById('mobile-user-menu').classList.remove('open'); }
+window.openMobileUserMenu = openMobileUserMenu;
+window.closeMobileUserMenu = closeMobileUserMenu;
 
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
 
