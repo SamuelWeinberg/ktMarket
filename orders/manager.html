@@ -152,6 +152,9 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
   <button class="bn-item" id="bn-history" onclick="gotoPage('history')">
     <span class="bn-icon">📋</span><span>היסטוריה</span>
   </button>
+  <button class="bn-item" id="bn-analytics" onclick="location.href='analytics.html'" style="display:none;">
+    <span class="bn-icon">📊</span><span>אנליטיקה</span>
+  </button>
   <button class="bn-item" id="bn-user" onclick="openMobileUserMenu()">
     <span class="bn-icon">👤</span><span id="bn-uname">אני</span>
   </button>
@@ -405,8 +408,10 @@ async function initApp(profile){
 
   // show analytics link for network_manager
   if(profile.role === 'network_manager'){
-    const analyticsLink = document.getElementById('nav-analytics');
-    if(analyticsLink) analyticsLink.style.display = 'flex';
+    const navA = document.getElementById('nav-analytics');
+    if(navA) navA.style.display = 'flex';
+    const bnA = document.getElementById('bn-analytics');
+    if(bnA) bnA.style.display = 'flex';
   }
 
   // branch setup
