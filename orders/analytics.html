@@ -739,6 +739,14 @@ function closeOrderModal() {
 }
 window.closeOrderModal = closeOrderModal;
 
+// days from today until the next arrival day (never 0 — same-day means next week)
+function daysUntilNextArrival(arrivalDays) {
+  if(!arrivalDays||!arrivalDays.length) return 7;
+  const today = new Date().getDay(); // 0=Sun
+  const diffs = arrivalDays.map(d => { const diff = (d-today+7)%7; return diff===0?7:diff; });
+  return Math.min(...diffs);
+}
+
 async function renderOrderProducts(supplierId) {
   const container = document.getElementById('modal-order-products');
   if(!supplierId) { container.innerHTML=''; return; }
@@ -756,24 +764,30 @@ async function renderOrderProducts(supplierId) {
       .filter(p=>(p.supplierCode===supplier.code||p.supplierId===supplierId));
   } catch(e) {}
 
-  // match with analytics
   const matched = supplierProducts.map(p=>{
     const bc = String(p.barcode||p.id);
     const analytics = products[bc];
-    return { ...p, barcode:bc, analytics };
-  }).filter(p=>p.analytics||true); // show all, even without data
+    const minQty = parseFloat(localStorage.getItem('kt_min_'+bc))||0;
+    return { ...p, barcode:bc, analytics, minQty };
+  });
 
   if(!matched.length) {
     container.innerHTML = '<p style="color:var(--text3);font-size:13px;padding:12px 0;">לא נמצאו מוצרים לספק זה</p>';
     return;
   }
 
-  const daysToOrder = 7; // default
+  // default period = days until next delivery from this supplier
+  const arrivalDays = supplier.arrivalDays || (supplier.arrivalDay!=null?[supplier.arrivalDay]:[]);
+  const defaultDays = daysUntilNextArrival(arrivalDays);
+  const nextArrivalName = arrivalDays.length
+    ? 'יום ' + (NUM_TO_NAME[arrivalDays[daysUntilNextArrival(arrivalDays) === 7
+        ? arrivalDays[0] : arrivalDays.find(d=>((d-new Date().getDay()+7)%7||7)===defaultDays)]] || '')
+    : '';
 
   let html = `<div class="days-cover-row">
-    <label>כמה ימים לכסות:</label>
-    <input type="number" id="days-cover" value="${daysToOrder}" min="1" max="60" oninput="recalcSuggestions()">
-    <span style="font-size:12px;color:var(--text3);">ימים</span>
+    <label>ימים לכסות:</label>
+    <input type="number" id="days-cover" value="${defaultDays}" min="1" max="60" oninput="recalcSuggestions()">
+    <span style="font-size:12px;color:var(--text3);">ימים${nextArrivalName?' — הגעה הבאה '+nextArrivalName:''}</span>
   </div>
   <div style="margin-bottom:14px;">
     <div class="order-product-row" style="font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);padding-bottom:6px;">
@@ -781,11 +795,20 @@ async function renderOrderProducts(supplierId) {
     </div>
     ${matched.map((p,i)=>{
       const avg = p.analytics?.avgPerDay||0;
-      const suggested = avg>0 ? Math.ceil(avg*daysToOrder) : 0;
+      const fromAvg = avg>0 ? Math.ceil(avg*defaultDays) : 0;
+      const suggested = Math.max(fromAvg, p.minQty);
+      const isMin = p.minQty>0 && suggested===p.minQty && suggested>fromAvg;
       return `<div class="order-product-row">
-        <div><div class="op-name">${p.name||p.barcode}</div><div class="op-avg">${avg>0?avg.toFixed(1)+' יח\'/יום':'אין נתון'}</div></div>
+        <div>
+          <div class="op-name">${p.name||p.barcode}</div>
+          <div class="op-avg">${avg>0?avg.toFixed(1)+' יח\'/יום':'אין נתון'}${p.minQty>0?' · מינ\' '+p.minQty:''}</div>
+        </div>
         <div style="text-align:center;font-size:12px;color:var(--text2);">${avg>0?avg.toFixed(1):'-'}</div>
-        <input class="op-qty" type="number" min="0" value="${suggested}" data-avg="${avg.toFixed(4)}" id="oq-${i}" placeholder="0">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+          <input class="op-qty" type="number" min="0" value="${suggested}"
+            data-avg="${avg.toFixed(4)}" data-min="${p.minQty}" id="oq-${i}" placeholder="0">
+          ${isMin?'<span style="font-size:10px;color:#FDE047;">מינימום</span>':''}
+        </div>
       </div>`;
     }).join('')}
   </div>
@@ -805,7 +828,12 @@ window.recalcSuggestions = function() {
     const input = document.getElementById('oq-'+i);
     if(!input) return;
     const avg = parseFloat(input.dataset.avg)||0;
-    if(avg>0) input.value = Math.ceil(avg*days);
+    const minQty = parseFloat(input.dataset.min)||0;
+    const fromAvg = avg>0 ? Math.ceil(avg*days) : 0;
+    input.value = Math.max(fromAvg, minQty);
+    // update min label
+    const label = input.parentElement?.querySelector('span');
+    if(label) label.style.display = (minQty>0 && Math.max(fromAvg,minQty)===minQty && fromAvg<minQty) ? '' : 'none';
   });
 };
 
