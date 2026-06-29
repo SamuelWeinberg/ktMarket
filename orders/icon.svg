@@ -7,6 +7,6 @@
   </defs>
   <rect width="512" height="512" rx="110" fill="#0D1B2A"/>
   <rect width="512" height="512" rx="110" fill="url(#g)" opacity="0.9"/>
-  <text x="256" y="210" font-family="Arial Black,Arial,sans-serif" font-size="180" font-weight="900" text-anchor="middle" fill="white">KT</text>
-  <text x="256" y="360" font-family="Arial,sans-serif" font-size="90" font-weight="400" text-anchor="middle" fill="rgba(255,255,255,0.85)">הזמנות</text>
+  <text x="256" y="255" font-family="Arial Black,Arial,sans-serif" font-size="180" font-weight="900" text-anchor="middle" fill="white">KT</text>
+  <text x="256" y="400" font-family="Arial,sans-serif" font-size="85" font-weight="400" text-anchor="middle" fill="rgba(255,255,255,0.85)">הזמנות</text>
 </svg>
