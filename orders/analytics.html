@@ -409,16 +409,33 @@ function parseRows(rowsText, rowsRaw) {
   return data;
 }
 
+// day letter → 0-6 (Sun=0)
+const DAY_TO_NUM = {'א':0,'ב':1,'ג':2,'ד':3,'ה':4,'ו':5,'ש':6};
+const NUM_TO_DAY = ['א','ב','ג','ד','ה','ו','ש'];
+const NUM_TO_NAME = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+
 function analyzeData(data) {
   const products = {};
   const dates = new Set();
   data.forEach(row => {
-    if(!products[row.barcode]) products[row.barcode] = { barcode:row.barcode, name:row.name, days:{}, totalQty:0, dates:new Set() };
+    if(!products[row.barcode]) products[row.barcode] = {
+      barcode: row.barcode, name: row.name,
+      days: {}, totalQty: 0, dates: new Set(),
+      storeData: {}   // per-store breakdown
+    };
     const p = products[row.barcode];
     p.days[row.day] = (p.days[row.day]||0) + row.qty;
     p.totalQty += row.qty;
     p.dates.add(row.date);
     dates.add(row.date);
+    // per-store
+    if(row.store) {
+      if(!p.storeData[row.store]) p.storeData[row.store] = { days:{}, totalQty:0, dates:new Set() };
+      const sd = p.storeData[row.store];
+      sd.days[row.day] = (sd.days[row.day]||0) + row.qty;
+      sd.totalQty += row.qty;
+      sd.dates.add(row.date);
+    }
   });
   const totalDays = dates.size || 1;
   Object.values(products).forEach(p => {
@@ -426,8 +443,59 @@ function analyzeData(data) {
     const top = DAYS_ORDER.filter(d=>p.days[d]).sort((a,b)=>(p.days[b]||0)-(p.days[a]||0));
     p.peakDay = top[0] || '';
     p.daysActive = p.dates.size;
+    // per-store averages
+    Object.values(p.storeData).forEach(sd => {
+      const storeDays = sd.dates.size || 1;
+      sd.avgPerDay = sd.totalQty / storeDays;
+      sd.peakDay = DAYS_ORDER.filter(d=>sd.days[d]).sort((a,b)=>(sd.days[b]||0)-(sd.days[a]||0))[0]||'';
+    });
   });
   return { products, totalDays, dateList: [...dates].sort() };
+}
+
+// build barcode → supplier map (loaded once per session)
+async function buildSupplierMap() {
+  if(window._supplierMap) return;
+  window._supplierMap = {};
+  try {
+    if(!allSuppliers.length) await loadSuppliers();
+    const snap = await getDocs(collection(db,'products'));
+    const supByCode = {};
+    allSuppliers.forEach(s => { if(s.code) supByCode[s.code] = s; supByCode[s.id] = s; });
+    snap.docs.forEach(d => {
+      const pData = d.data();
+      const bc = String(pData.barcode || d.id);
+      const sup = supByCode[pData.supplierCode] || supByCode[pData.supplierId];
+      if(sup) window._supplierMap[bc] = sup;
+    });
+  } catch(e) { console.warn('supplier map:', e); }
+}
+
+// compute order recommendation based on supplier arrival days + peak sales day
+function getOrderRec(peakDayLetter, supplier, totalDays) {
+  if(!supplier || totalDays < 90) return null;
+  const peakNum = DAY_TO_NUM[peakDayLetter];
+  if(peakNum === undefined) return null;
+  const arrivalDays = supplier.arrivalDays || (supplier.arrivalDay !== undefined ? [supplier.arrivalDay] : []);
+  const orderDays   = supplier.orderDays   || (supplier.orderDay   !== undefined ? [supplier.orderDay]   : []);
+  if(!arrivalDays.length) return null;
+
+  // find best arrival: latest arrival day ≤ peak day (so stock arrives before/on peak)
+  const cands = arrivalDays.filter(d => d <= peakNum).sort((a,b)=>b-a);
+  const bestArrival = cands.length ? cands[0] : arrivalDays.slice().sort((a,b)=>b-a)[0];
+
+  // find best order day: latest order day before bestArrival
+  let bestOrder = null;
+  if(orderDays.length) {
+    const ords = orderDays.filter(d => d < bestArrival).sort((a,b)=>b-a);
+    bestOrder = ords.length ? ords[0] : orderDays.slice().sort((a,b)=>b-a)[0];
+  }
+
+  return {
+    arrivalDay: NUM_TO_NAME[bestArrival] || '',
+    orderDay:   bestOrder !== null ? NUM_TO_NAME[bestOrder] : null,
+    peakDayName: NUM_TO_NAME[peakNum] || '',
+  };
 }
 
 function renderDashboard() {
@@ -504,7 +572,6 @@ function renderDashboard() {
   dash.innerHTML = html;
   window._products = products;
   window._totalDays = totalDays;
-
   // store tab clicks (event delegation — avoids encoding issues)
   const tabsEl = document.getElementById('store-tabs');
   if(tabsEl) tabsEl.addEventListener('click', e=>{
@@ -523,7 +590,8 @@ function renderDashboard() {
     renderProducts();
   });
 
-  renderProducts();
+  // load supplier map then render (needs async for arrival-day recommendations)
+  buildSupplierMap().then(() => renderProducts());
 }
 
 function renderProducts() {
@@ -549,15 +617,46 @@ function renderProducts() {
         <div class="day-label">${d}</div>
       </div>`;
     }).join('');
-    const peakIdx = DAYS_ORDER.indexOf(p.peakDay);
-    const orderDayName = peakIdx>0 ? DAYS_NAME[DAYS_ORDER[peakIdx-1]] : peakIdx===0?'שישי (שבוע קודם)':'';
     const savedMin = localStorage.getItem('kt_min_'+p.barcode)||'';
+    const supplier = (window._supplierMap||{})[p.barcode];
 
+    // overall recommendation
     let recHtml = '';
-    if(hasEnoughData && orderDayName) {
-      recHtml = `<div class="rec-banner">💡 ממוצע ${avgDay} יח'/יום · יום שיא ${DAYS_NAME[p.peakDay]||p.peakDay} · <strong>הזמן ביום ${orderDayName}</strong> כדי שיגיע בזמן</div>`;
-    } else if(!hasEnoughData) {
+    if(!hasEnoughData) {
       recHtml = `<div style="margin-top:9px;padding:8px 12px;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.2);border-radius:9px;font-size:12px;color:#FDE047;">⚠️ נדרשים לפחות 90 ימי נתונים להמלצה — יש כרגע ${totalDays} ימים</div>`;
+    } else {
+      const rec = getOrderRec(p.peakDay, supplier, totalDays);
+      if(rec) {
+        recHtml = `<div class="rec-banner">💡 יום שיא: <strong>${rec.peakDayName}</strong> · הגעה: <strong>${rec.arrivalDay}</strong>${rec.orderDay ? ` · <strong>הזמן ביום ${rec.orderDay}</strong>` : ''}</div>`;
+      } else if(p.peakDay) {
+        // fallback: no supplier data, just show peak
+        const peakIdx = DAYS_ORDER.indexOf(p.peakDay);
+        const fallbackOrder = peakIdx>0 ? DAYS_NAME[DAYS_ORDER[peakIdx-1]] : 'שישי (שבוע קודם)';
+        recHtml = `<div class="rec-banner">💡 יום שיא ${DAYS_NAME[p.peakDay]||p.peakDay} · הזמן ביום ${fallbackOrder}</div>`;
+      }
+
+      // per-store breakdown
+      const storeEntries = Object.entries(p.storeData||{}).filter(([,sd])=>sd.peakDay);
+      if(storeEntries.length > 1) {
+        const storeRows = storeEntries.map(([storeName, sd]) => {
+          const sRec = getOrderRec(sd.peakDay, supplier, totalDays);
+          const avgS = Math.round(sd.avgPerDay*10)/10;
+          if(sRec) {
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
+              <span style="color:var(--text2);">${storeName}</span>
+              <span>שיא <strong>${sRec.peakDayName}</strong> · הגעה <strong>${sRec.arrivalDay}</strong>${sRec.orderDay?` · הזמן <strong>${sRec.orderDay}</strong>`:''} · ${avgS} יח'/יום</span>
+            </div>`;
+          }
+          return `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
+            <span style="color:var(--text2);">${storeName}</span>
+            <span>שיא יום <strong>${DAYS_NAME[sd.peakDay]||sd.peakDay}</strong> · ${avgS} יח'/יום</span>
+          </div>`;
+        }).join('');
+        recHtml += `<div style="margin-top:9px;padding:10px 12px;background:var(--navy3);border-radius:9px;">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px;font-weight:700;">📍 לפי סניף</div>
+          ${storeRows}
+        </div>`;
+      }
     }
 
     return `<div class="product-card">
