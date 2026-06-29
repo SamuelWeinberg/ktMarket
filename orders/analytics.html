@@ -266,9 +266,9 @@ function handleFile(file) {
   const reader = new FileReader();
   reader.onload = async e => {
     try {
-      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true, codepage: 1255 });
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true, codepage: 1255, cellNF: false });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, cellDates: true, defval: '' });
       allData = parseRows(rows);
       if(!allData.length) { alert('לא נמצאו נתונים בקובץ'); return; }
       await loadSuppliers();
@@ -358,26 +358,39 @@ function parseRows(rows) {
   });
   // barcode = column just before date (usually C), name = column just before barcode (D)
   // auto-detect barcode column by content (13-digit number)
+  const fmtDate = v => {
+    if(v instanceof Date) {
+      const d=v.getDate(), m=v.getMonth()+1, y=v.getFullYear();
+      return `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}`;
+    }
+    return String(v||'').trim();
+  };
+  const fmtBarcode = v => {
+    if(typeof v === 'number') return Math.round(v).toString();
+    return String(v||'').trim();
+  };
+
   const data = [];
   for(let i=headerIdx+1; i<rows.length; i++) {
     const r = rows[i];
     if(!r||r.length<4) continue;
-    const qty = parseFloat(String(r[cQty]||'0').replace(',','.'));
+    const qty = typeof r[cQty]==='number' ? r[cQty] : parseFloat(String(r[cQty]||'0').replace(',','.'));
     const day = String(r[cDay]||'').trim();
-    const date = String(r[cDate]||'').trim();
-    // detect barcode: scan row for 8-13 digit number
-    let barcode = String(r[cBarcode]||'').trim();
+    const date = fmtDate(r[cDate]);
+    let barcode = fmtBarcode(r[cBarcode]);
     let name = String(r[cName]||'').trim();
+    // fallback: scan row for large number that looks like barcode
     if(!barcode.match(/^\d{6,13}$/)) {
       for(let j=0;j<r.length;j++) {
-        if(String(r[j]||'').match(/^\d{8,13}$/)) { barcode=String(r[j]).trim(); name=String(r[j+1]||r[j-1]||'').trim(); break; }
+        const bc = fmtBarcode(r[j]);
+        if(bc.match(/^\d{8,13}$/)) { barcode=bc; name=String(r[j+1]||r[j-1]||'').trim(); break; }
       }
     }
     if(!barcode||!day||!date||isNaN(qty)) continue;
     data.push({
       store: String(r[cStore]||'').trim(),
       barcode, name, date, day, qty,
-      price: parseFloat(String(r[cPrice]||'0').replace(',','.')) || 0,
+      price: typeof r[cPrice]==='number' ? r[cPrice] : parseFloat(String(r[cPrice]||'0').replace(',','.')) || 0,
     });
   }
   return data;
