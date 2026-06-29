@@ -797,19 +797,23 @@ async function openOrder(supplierId){
   const myBranch = currentProfile?.branch || currentBranch || '';
   const salesStats = {};
   try {
-    const barcodes = products.map(p=>String(p.barcode||p.id)).filter(Boolean);
-    // fetch in batches of 10 (Firestore 'in' limit)
-    for(let i=0; i<barcodes.length; i+=10) {
-      const chunk = barcodes.slice(i,i+10);
-      const snap = await getDocs(query(collection(db,'sales_stats'), where('barcode','in',chunk)));
-      snap.docs.forEach(d=>{ salesStats[d.id] = d.data(); });
-    }
+    // fetch all sales_stats — simpler and avoids 'in' query edge cases
+    const snap = await getDocs(collection(db,'sales_stats'));
+    snap.docs.forEach(d=>{ salesStats[d.id] = d.data(); });
   } catch(e) { console.warn('sales_stats:', e); }
+
+  // fuzzy branch match: "אמוראים 14" matches "קיטי מרקט האמוראים 14"
+  const findBranchKey = (stores) => {
+    if(!stores) return null;
+    if(stores[myBranch]) return myBranch;
+    return Object.keys(stores).find(k => k.includes(myBranch) || myBranch.includes(k)) || null;
+  };
 
   const avgSuggestion = (barcode) => {
     const stat = salesStats[String(barcode)];
-    if(stat?.stores?.[myBranch]?.avgPerDay) {
-      return Math.max(1, Math.ceil(stat.stores[myBranch].avgPerDay * _daysUntil));
+    const key = findBranchKey(stat?.stores);
+    if(key && stat.stores[key]?.avgPerDay) {
+      return Math.max(1, Math.ceil(stat.stores[key].avgPerDay * _daysUntil));
     }
     return 0;
   };
