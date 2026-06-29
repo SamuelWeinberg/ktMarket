@@ -723,10 +723,19 @@ async function openOrderModal() {
   }
 
   const stores = [...new Set(allData.map(r=>r.store).filter(Boolean))].sort();
-  // default branch: the active tab if specific, else first store
+  // only non-blocked suppliers
+  const activeSuppliers = allSuppliers.filter(s => !s.blocked);
+  // default branch: active tab if specific, else first store
   const defaultBranch = (activeStore !== 'all' ? activeStore : stores[0]) || '';
-  // default supplier: last used or first
-  const lastSuppId = localStorage.getItem('kt_last_supplier') || (allSuppliers[0]?.id||'');
+  // best supplier: most products from analytics data match this supplier
+  const freqMap = {};
+  Object.keys(window._products||{}).forEach(bc => {
+    const sid = (window._supplierMap||{})[bc]?.id;
+    if(sid) freqMap[sid] = (freqMap[sid]||0) + 1;
+  });
+  const topSuppId = Object.entries(freqMap).sort((a,b)=>b[1]-a[1])[0]?.[0]
+    || localStorage.getItem('kt_last_supplier')
+    || activeSuppliers[0]?.id || '';
 
   body.innerHTML = `
     ${(window._totalDays||0) < 90
@@ -735,21 +744,24 @@ async function openOrderModal() {
     <div style="margin-bottom:12px;">
       <div style="font-size:11px;color:var(--text3);margin-bottom:7px;font-weight:600;">סניף</div>
       <div id="modal-branch-btns" style="display:flex;flex-wrap:wrap;gap:7px;">
-        ${stores.map(s=>`<button onclick="selectModalBranch(this,'${s.replace(/'/g,"\\'")}'')"
-          data-branch="${s}"
-          style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:${s===defaultBranch?'var(--blue)':'var(--navy3)'};color:${s===defaultBranch?'#fff':'var(--text2)'};font-family:Heebo,sans-serif;font-size:13px;cursor:pointer;transition:.15s;"
+        ${stores.map(s=>`<button data-branch="${s}" onclick="selectModalBranch(this)"
+          style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);
+            background:${s===defaultBranch?'var(--blue)':'var(--navy3)'};
+            color:${s===defaultBranch?'#fff':'var(--text2)'};
+            font-family:Heebo,sans-serif;font-size:13px;cursor:pointer;transition:.15s;"
           >${s}</button>`).join('')}
       </div>
     </div>
     <div style="margin-bottom:14px;">
       <div style="font-size:11px;color:var(--text3);margin-bottom:5px;font-weight:600;">ספק</div>
       <select id="modal-supplier-select" style="width:100%;padding:10px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:14px;">
-        ${allSuppliers.map(s=>`<option value="${s.id}"${s.id===lastSuppId?' selected':''}>${s.name}</option>`).join('')}
+        ${activeSuppliers.map(s=>`<option value="${s.id}"${s.id===topSuppId?' selected':''}>${s.name}</option>`).join('')}
       </select>
     </div>
     <div id="modal-order-products"></div>`;
 
   window._modalBranch = defaultBranch;
+  window._modalStores = stores;
   document.getElementById('modal-supplier-select').onchange = e => {
     localStorage.setItem('kt_last_supplier', e.target.value);
     renderOrderProducts(e.target.value, window._modalBranch);
@@ -761,7 +773,8 @@ async function openOrderModal() {
 }
 window.openOrderModal = openOrderModal;
 
-window.selectModalBranch = function(btn, branch) {
+window.selectModalBranch = function(btn) {
+  const branch = btn.dataset.branch;
   window._modalBranch = branch;
   document.querySelectorAll('#modal-branch-btns button').forEach(b => {
     const active = b.dataset.branch === branch;
@@ -771,7 +784,6 @@ window.selectModalBranch = function(btn, branch) {
   const suppId = document.getElementById('modal-supplier-select')?.value;
   if(suppId) renderOrderProducts(suppId, branch);
 };
-window.openOrderModal = openOrderModal;
 
 function closeOrderModal() {
   document.getElementById('order-modal').classList.remove('open');
@@ -854,9 +866,10 @@ async function renderOrderProducts(supplierId, branch) {
       </div>`;
     }).join('')}
   </div>
-  <div style="display:flex;gap:10px;margin-top:4px;">
-    <button class="btn btn-primary" onclick="saveOrderDraft('${supplierId}')">💾 שמור טיוטה</button>
-    <button class="btn btn-ghost" onclick="closeOrderModal()">ביטול</button>
+  <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">
+    <button class="btn btn-primary" style="flex:1;" onclick="saveOrderDraft('${supplierId}')">💾 שמור לסניף הזה</button>
+    <button class="btn" style="flex:1;background:rgba(0,194,203,.15);border:1px solid rgba(0,194,203,.3);color:#67E8F9;" onclick="saveAllBranchDrafts('${supplierId}')">📦 שמור לכל הסניפים</button>
+    <button class="btn btn-ghost" style="flex:0 0 auto;padding:0 18px;" onclick="closeOrderModal()">ביטול</button>
   </div>`;
 
   container.innerHTML = html;
@@ -879,15 +892,10 @@ window.recalcSuggestions = function() {
   });
 };
 
-window.saveOrderDraft = async function(supplierId) {
-  const supplier = allSuppliers.find(s=>s.id===supplierId);
-  const products = window._modalProducts||[];
-  const { data:{session} } = await sb.auth.getSession();
-  const { data: profile } = await sb.from('profiles').select('*').eq('id',session.user.id).single();
-
-  const items = products.map((p,i)=>({
-    productId: p.barcode,
-    barcode: p.barcode,
+// build order items from current qty inputs
+function buildOrderItems(supplier, matchedProducts) {
+  return matchedProducts.map((p,i)=>({
+    productId: p.barcode, barcode: p.barcode,
     productName: p.name||p.barcode,
     supplierCode: supplier.code||'',
     conversionUnit: p.conversionUnit||'יחידה',
@@ -895,29 +903,78 @@ window.saveOrderDraft = async function(supplierId) {
     conversionFactor: p.conversionFactor||1,
     orderedQty: parseFloat(document.getElementById('oq-'+i)?.value)||0,
     suggestedQty: parseFloat(document.getElementById('oq-'+i)?.value)||0,
-  })).filter(i=>i.orderedQty>0);
+  })).filter(it=>it.orderedQty>0);
+}
 
+// build items for a given branch (without DOM inputs — calculate directly)
+async function buildBranchItems(supplier, supplierId, branchName, days, supplierProductsSnap) {
+  const branchData = allData.filter(r=>r.store===branchName);
+  const { products: branchProds } = analyzeData(branchData);
+  const matched = supplierProductsSnap
+    .map(p=>{ const bc=String(p.barcode||p.id); return {...p,barcode:bc,analytics:branchProds[bc]}; });
+  return matched.map(p=>{
+    const avg = p.analytics?.avgPerDay||0;
+    const minQty = parseFloat(localStorage.getItem('kt_min_'+p.barcode))||0;
+    const qty = Math.max(avg>0?Math.ceil(avg*days):0, minQty);
+    return { productId:p.barcode, barcode:p.barcode, productName:p.name||p.barcode,
+      supplierCode:supplier.code||'', conversionUnit:p.conversionUnit||'יחידה',
+      purchasePrice:p.purchasePrice||0, conversionFactor:p.conversionFactor||1,
+      orderedQty:qty, suggestedQty:qty };
+  }).filter(it=>it.orderedQty>0);
+}
+
+window.saveOrderDraft = async function(supplierId) {
+  const supplier = allSuppliers.find(s=>s.id===supplierId);
+  const items = buildOrderItems(supplier, window._modalProducts||[]);
   if(!items.length){ alert('לא הוזנו כמויות'); return; }
 
-  const branch = document.getElementById('modal-branch-select')?.value || profile?.branch || '';
+  const { data:{session} } = await sb.auth.getSession();
+  const { data: profile } = await sb.from('profiles').select('*').eq('id',session.user.id).single();
+  const branch = window._modalBranch || profile?.branch || '';
   const order = {
-    supplierId, supplierCode: supplier.code||'', supplierName: supplier.name,
-    branch,
-    createdBy: profile?.full_name||profile?.email||'',
-    date: new Date().toISOString().split('T')[0],
-    status: 'draft',
-    items,
-    createdAt: new Date().toISOString(),
-    source: 'analytics',
+    supplierId, supplierCode:supplier.code||'', supplierName:supplier.name,
+    branch, createdBy:profile?.full_name||profile?.email||'',
+    date:new Date().toISOString().split('T')[0],
+    status:'draft', items, createdAt:new Date().toISOString(), source:'analytics',
   };
-
   try {
     await addDoc(collection(db,'orders'), order);
     closeOrderModal();
     alert('✅ טיוטה נשמרה! תוכל למצוא אותה בהיסטוריה');
-  } catch(e) {
-    alert('❌ שגיאה: '+e.message);
+  } catch(e) { alert('❌ שגיאה: '+e.message); }
+};
+
+window.saveAllBranchDrafts = async function(supplierId) {
+  const supplier = allSuppliers.find(s=>s.id===supplierId);
+  const stores = window._modalStores || [];
+  if(!stores.length) return;
+
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'שומר...';
+
+  const { data:{session} } = await sb.auth.getSession();
+  const { data: profile } = await sb.from('profiles').select('*').eq('id',session.user.id).single();
+  const days = parseFloat(document.getElementById('days-cover')?.value)||7;
+
+  // load supplier products once
+  const snap = await getDocs(collection(db,'products'));
+  const supplierProducts = snap.docs.map(d=>({id:d.id,...d.data()}))
+    .filter(p=>p.supplierCode===supplier.code||p.supplierId===supplierId);
+
+  let saved = 0, skipped = 0;
+  for(const branchName of stores) {
+    const items = await buildBranchItems(supplier, supplierId, branchName, days, supplierProducts);
+    if(!items.length){ skipped++; continue; }
+    await addDoc(collection(db,'orders'), {
+      supplierId, supplierCode:supplier.code||'', supplierName:supplier.name,
+      branch:branchName, createdBy:profile?.full_name||profile?.email||'',
+      date:new Date().toISOString().split('T')[0],
+      status:'draft', items, createdAt:new Date().toISOString(), source:'analytics',
+    });
+    saved++;
   }
+  closeOrderModal();
+  alert(`✅ נשמרו ${saved} טיוטות${skipped?` (${skipped} סניפים ללא מוצרים)`:''}`)
 };
 </script>
 </body>
