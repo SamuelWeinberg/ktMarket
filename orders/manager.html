@@ -786,27 +786,32 @@ async function openOrder(supplierId){
       return (a.name||'').localeCompare(b.name||'', 'he');
     });
 
-  // load last order for suggested quantities
-  const lastOrderSnap = await getDocs(query(
-    collection(db,'orders')
-  ));
-  const lastOrders = lastOrderSnap.docs.map(d=>d.data())
-    .filter(o => (o.supplierCode===currentSupplier.code||o.supplierId===currentSupplier.id) && o.branch===(currentProfile?.branch||'') && o.status==='received')
-    .sort((a,b)=>(b.date||'').localeCompare(a.date||''))
-    .slice(0,3);
+  // days until next supplier arrival
+  const _arrivalDays = currentSupplier.arrivalDays || (currentSupplier.arrivalDay!=null?[currentSupplier.arrivalDay]:[]);
+  const _today = new Date().getDay();
+  const _daysUntil = _arrivalDays.length
+    ? Math.min(..._arrivalDays.map(d=>{ const diff=(d-_today+7)%7; return diff===0?7:diff; }))
+    : 7;
 
-  // calculate suggested qty per product
-  const suggestions = {};
-  lastOrders.forEach(o=>{
-    (o.items||[]).forEach(item=>{
-      if(!suggestions[item.productId]) suggestions[item.productId] = [];
-      suggestions[item.productId].push(item.receivedQty || item.orderedQty || 0);
-    });
-  });
-  const avgSuggestion = (id) => {
-    const arr = suggestions[id];
-    if(!arr || !arr.length) return 0;
-    return Math.round(arr.reduce((a,b)=>a+b,0)/arr.length);
+  // load analytics suggestions from sales_stats (uploaded Excel data)
+  const myBranch = currentProfile?.branch || currentBranch || '';
+  const salesStats = {};
+  try {
+    const barcodes = products.map(p=>String(p.barcode||p.id)).filter(Boolean);
+    // fetch in batches of 10 (Firestore 'in' limit)
+    for(let i=0; i<barcodes.length; i+=10) {
+      const chunk = barcodes.slice(i,i+10);
+      const snap = await getDocs(query(collection(db,'sales_stats'), where('barcode','in',chunk)));
+      snap.docs.forEach(d=>{ salesStats[d.id] = d.data(); });
+    }
+  } catch(e) { console.warn('sales_stats:', e); }
+
+  const avgSuggestion = (barcode) => {
+    const stat = salesStats[String(barcode)];
+    if(stat?.stores?.[myBranch]?.avgPerDay) {
+      return Math.max(1, Math.ceil(stat.stores[myBranch].avgPerDay * _daysUntil));
+    }
+    return 0;
   };
 
   currentOrderItems = products.map(p=>({
@@ -828,7 +833,6 @@ async function openOrder(supplierId){
     return;
   }
 
-  const myBranch = currentProfile?.branch||'';
   const isPromo = p => { const pb=p.promoBranches||[]; return pb.includes('*')||pb.includes(myBranch)||(!pb.length&&p.isPromo); };
   const promoCount = products.filter(isPromo).length;
   document.getElementById('order-items-wrap').innerHTML = `
