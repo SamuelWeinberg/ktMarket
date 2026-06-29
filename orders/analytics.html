@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KT אנליטיקה</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --navy:#0D1B2A;--navy2:#1B2E42;--navy3:#243B53;--navy4:#1a2d42;
+  --blue:#1A6CF2;--blue2:#2A7FFF;--cyan:#00C2CB;
+  --text:#F0F4F8;--text2:#8FA3B8;--text3:#5A7A96;
+  --border:rgba(255,255,255,0.08);--red:#EF4444;--green:#22C55E;--rsm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);direction:rtl;}
+body{display:flex;flex-direction:column;min-height:100vh;}
+
+/* header */
+.top-bar{background:var(--navy2);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.top-bar h1{font-size:17px;font-weight:800;}
+.top-bar a{color:var(--text3);font-size:13px;text-decoration:none;}
+.top-bar a:hover{color:var(--text);}
+
+/* main */
+.main{flex:1;padding:24px;max-width:960px;margin:0 auto;width:100%;}
+
+/* upload zone */
+.upload-zone{border:2px dashed var(--border);border-radius:16px;padding:48px 24px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;background:var(--navy2);}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--blue);background:rgba(26,108,242,.06);}
+.upload-icon{font-size:48px;margin-bottom:12px;}
+.upload-zone h2{font-size:18px;font-weight:700;margin-bottom:6px;}
+.upload-zone p{font-size:13px;color:var(--text3);}
+.upload-zone input{display:none;}
+.upload-btn{display:inline-block;margin-top:16px;padding:10px 24px;background:var(--blue);border-radius:var(--rsm);font-size:14px;font-weight:700;cursor:pointer;}
+
+/* summary bar */
+.summary-bar{display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;}
+.stat-card{background:var(--navy2);border:1px solid var(--border);border-radius:12px;padding:16px 20px;flex:1;min-width:140px;}
+.stat-card .val{font-size:26px;font-weight:800;color:var(--blue);}
+.stat-card .lbl{font-size:12px;color:var(--text3);margin-top:2px;}
+
+/* filter bar */
+.filter-bar{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center;}
+.filter-bar input,.filter-bar select{padding:8px 12px;background:var(--navy2);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:'Heebo',sans-serif;font-size:13px;}
+.filter-bar input{flex:1;min-width:180px;}
+.sort-btn{padding:8px 14px;border-radius:var(--rsm);border:1px solid var(--border);background:var(--navy3);color:var(--text2);font-size:12px;cursor:pointer;font-family:'Heebo',sans-serif;}
+.sort-btn.active{background:var(--blue);border-color:var(--blue);color:#fff;}
+
+/* product cards */
+.product-card{background:var(--navy2);border:1px solid var(--border);border-radius:14px;padding:18px 20px;margin-bottom:14px;}
+.product-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;gap:12px;}
+.product-name{font-size:15px;font-weight:700;}
+.product-meta{font-size:12px;color:var(--text3);margin-top:2px;}
+.badges{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start;}
+.badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.badge-blue{background:rgba(26,108,242,.15);color:#93C5FD;}
+.badge-green{background:rgba(34,197,94,.15);color:#86EFAC;}
+.badge-yellow{background:rgba(234,179,8,.12);color:#FDE047;}
+.badge-red{background:rgba(239,68,68,.12);color:#FCA5A5;}
+
+/* day bars */
+.day-bars{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:14px;}
+.day-col{text-align:center;}
+.day-bar-wrap{height:60px;display:flex;align-items:flex-end;justify-content:center;margin-bottom:4px;}
+.day-bar{width:28px;border-radius:4px 4px 0 0;background:var(--navy3);transition:height .3s;min-height:3px;}
+.day-bar.peak{background:var(--blue);}
+.day-label{font-size:11px;color:var(--text3);}
+.day-qty{font-size:12px;font-weight:700;margin-bottom:2px;}
+
+/* min order row */
+.min-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--navy3);border-radius:10px;flex-wrap:wrap;}
+.min-row label{font-size:12px;color:var(--text2);white-space:nowrap;}
+.min-row input{width:80px;padding:6px 10px;background:var(--navy2);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:'Heebo',sans-serif;font-size:13px;text-align:center;}
+.min-result{font-size:13px;font-weight:700;color:var(--cyan);}
+
+/* recommendation banner */
+.rec-banner{margin-top:12px;padding:10px 14px;background:rgba(0,194,203,.08);border:1px solid rgba(0,194,203,.2);border-radius:10px;font-size:13px;color:#67E8F9;}
+
+/* loading */
+.loading-msg{text-align:center;padding:48px;color:var(--text3);}
+.spinner{display:inline-block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:10px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* store tabs */
+.store-tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.store-tab{padding:6px 16px;border-radius:20px;border:1px solid var(--border);background:var(--navy3);color:var(--text2);font-size:13px;cursor:pointer;font-family:'Heebo',sans-serif;}
+.store-tab.active{background:var(--blue);border-color:var(--blue);color:#fff;}
+
+/* overall day chart */
+.overall-section{background:var(--navy2);border:1px solid var(--border);border-radius:14px;padding:18px 20px;margin-bottom:24px;}
+.overall-section h3{font-size:15px;font-weight:700;margin-bottom:14px;}
+
+@media(max-width:600px){
+  .main{padding:12px;}
+  .product-header{flex-direction:column;}
+  .day-bar{width:20px;}
+}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <h1>📊 אנליטיקה KT</h1>
+  <a href="manager.html">← חזרה</a>
+</div>
+
+<div class="main">
+  <div id="upload-section">
+    <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <div class="upload-icon">📂</div>
+      <h2>העלה קובץ מכירות</h2>
+      <p>גרור לכאן קובץ Excel (.xlsx) או לחץ לבחירה</p>
+      <div class="upload-btn">בחר קובץ</div>
+      <input type="file" id="file-input" accept=".xlsx,.xls" onchange="handleFile(this.files[0])">
+    </div>
+  </div>
+
+  <div id="dashboard" style="display:none;"></div>
+</div>
+
+<script>
+const SUPA_URL = 'https://dkpqgyieoidrydxfiwhd.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRrcHFneWllb2lkcnlkeGZpd2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MzA4NDgsImV4cCI6MjA4OTMwNjg0OH0.cFYdJK7P58pc_VlQxCo4HdLVRPkyiLz_8hMLepoK3Ws';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session) { location.href = 'index.html'; return; }
+})();
+
+// drag & drop
+const dropZone = document.getElementById('drop-zone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag'); handleFile(e.dataTransfer.files[0]); });
+
+let allData = [];
+let activeStore = 'all';
+let sortMode = 'qty'; // qty | peak | name
+
+function handleFile(file) {
+  if(!file) return;
+  document.getElementById('upload-section').innerHTML = '<div class="loading-msg"><div class="spinner"></div><br>מעבד קובץ...</div>';
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
+      allData = parseRows(rows);
+      if(!allData.length) { alert('לא נמצאו נתונים בקובץ'); return; }
+      renderDashboard();
+    } catch(err) {
+      alert('שגיאה בקריאת הקובץ: ' + err.message);
+      location.reload();
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+const DAYS_ORDER = ['א','ב','ג','ד','ה','ו','ש'];
+const DAYS_NAME  = {'א':'ראשון','ב':'שני','ג':'שלישי','ד':'רביעי','ה':'חמישי','ו':'שישי','ש':'שבת'};
+
+function detectCols(headerRow) {
+  // find column indices by content pattern
+  let cols = { store: -1, barcode: -1, name: -1, date: -1, day: -1, qty: -1, price: -1 };
+  headerRow.forEach((cell, i) => {
+    const v = String(cell || '').trim();
+    if(v === 'מחסן' && cols.store === -1) cols.store = i;
+    if((v === 'פריט' || v === 'ברקוד') && cols.barcode === -1) cols.barcode = i;
+    if((v === 'שם פריט' || v === 'פריט') && cols.name === -1 && i !== cols.barcode) cols.name = i;
+    if(v === 'תאריך') cols.date = i;
+    if(v === 'יום') cols.day = i;
+    if(v === 'כמות') cols.qty = i;
+    if(v === 'ממוצע' || v === 'מחיר') cols.price = i;
+  });
+  return cols;
+}
+
+function parseRows(rows) {
+  if(rows.length < 2) return [];
+
+  // find header row (first row where we see 'תאריך' or 'כמות')
+  let headerIdx = 0;
+  for(let i = 0; i < Math.min(5, rows.length); i++) {
+    const r = rows[i];
+    if(r.some(c => String(c||'').includes('תאריך') || String(c||'').includes('כמות'))) {
+      headerIdx = i;
+      break;
+    }
+  }
+
+  const header = rows[headerIdx];
+  const cols = detectCols(header);
+
+  // fallback: use positional mapping from screenshot
+  // A=0:storeNum, B=1:storeName, C=2:barcode, D=3:name, E=4:date, F=5:day, G=6:qty, H=7:price
+  if(cols.store    === -1) cols.store    = 1;
+  if(cols.barcode  === -1) cols.barcode  = 2;
+  if(cols.name     === -1) cols.name     = 3;
+  if(cols.date     === -1) cols.date     = 4;
+  if(cols.day      === -1) cols.day      = 5;
+  if(cols.qty      === -1) cols.qty      = 6;
+  if(cols.price    === -1) cols.price    = 7;
+
+  const data = [];
+  for(let i = headerIdx + 1; i < rows.length; i++) {
+    const r = rows[i];
+    if(!r || r.length < 4) continue;
+    const qty = parseFloat(String(r[cols.qty]||'0').replace(',','.'));
+    const barcode = String(r[cols.barcode]||'').trim();
+    const day = String(r[cols.day]||'').trim();
+    const dateStr = String(r[cols.date]||'').trim();
+    if(!barcode || !day || isNaN(qty)) continue;
+    data.push({
+      store:   String(r[cols.store]||'').trim(),
+      barcode,
+      name:    String(r[cols.name]||'').trim(),
+      date:    dateStr,
+      day,
+      qty,
+      price:   parseFloat(String(r[cols.price]||'0').replace(',','.')) || 0,
+    });
+  }
+  return data;
+}
+
+function analyzeData(data) {
+  const products = {};
+  const dates = new Set();
+
+  data.forEach(row => {
+    if(!products[row.barcode]) {
+      products[row.barcode] = { barcode: row.barcode, name: row.name, days: {}, totalQty: 0, totalSales: 0, dates: new Set() };
+    }
+    const p = products[row.barcode];
+    p.days[row.day] = (p.days[row.day] || 0) + row.qty;
+    p.totalQty += row.qty;
+    p.totalSales += row.qty * row.price;
+    p.dates.add(row.date);
+    dates.add(row.date);
+  });
+
+  const totalDays = dates.size || 1;
+
+  Object.values(products).forEach(p => {
+    const activeDays = p.dates.size || 1;
+    p.avgPerDay = p.totalQty / totalDays;
+    p.avgPerActiveDay = p.totalQty / activeDays;
+    const dayEntries = DAYS_ORDER.filter(d => p.days[d]).map(d => ({ d, q: p.days[d] }));
+    p.peakDay = dayEntries.sort((a,b) => b.q - a.q)[0]?.d || '';
+    p.daysActive = activeDays;
+  });
+
+  return { products, totalDays, dateList: [...dates].sort() };
+}
+
+function renderDashboard() {
+  document.getElementById('upload-section').style.display = 'none';
+  const dash = document.getElementById('dashboard');
+  dash.style.display = 'block';
+
+  const stores = [...new Set(allData.map(r => r.store))].filter(Boolean).sort();
+  let activeData = activeStore === 'all' ? allData : allData.filter(r => r.store === activeStore);
+  const { products, totalDays, dateList } = analyzeData(activeData);
+
+  const productList = Object.values(products);
+  const totalQty = productList.reduce((s,p) => s+p.totalQty, 0);
+  const dateFrom = dateList[0] || '';
+  const dateTo   = dateList[dateList.length-1] || '';
+
+  // overall day totals
+  const overallDays = {};
+  activeData.forEach(r => { overallDays[r.day] = (overallDays[r.day]||0) + r.qty; });
+  const maxOverall = Math.max(...DAYS_ORDER.map(d => overallDays[d]||0), 1);
+  const bestDay = DAYS_ORDER.slice().sort((a,b) => (overallDays[b]||0)-(overallDays[a]||0))[0];
+
+  let html = '';
+
+  // new upload button
+  html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+    <div style="font-size:13px;color:var(--text3);">${dateFrom} — ${dateTo} · ${totalDays} ימים</div>
+    <button onclick="location.reload()" style="padding:7px 16px;border-radius:var(--rsm);border:1px solid var(--border);background:var(--navy3);color:var(--text2);font-size:12px;cursor:pointer;font-family:Heebo,sans-serif;">📂 קובץ חדש</button>
+  </div>`;
+
+  // summary cards
+  html += `<div class="summary-bar">
+    <div class="stat-card"><div class="val">${productList.length}</div><div class="lbl">מוצרים</div></div>
+    <div class="stat-card"><div class="val">${Math.round(totalQty)}</div><div class="lbl">יחידות נמכרו</div></div>
+    <div class="stat-card"><div class="val">יום ${DAYS_NAME[bestDay]||bestDay}</div><div class="lbl">היום החזק ביותר</div></div>
+    <div class="stat-card"><div class="val">${totalDays}</div><div class="lbl">ימי מכירה</div></div>
+  </div>`;
+
+  // store tabs
+  if(stores.length > 1) {
+    html += `<div class="store-tabs">
+      <button class="store-tab${activeStore==='all'?' active':''}" onclick="switchStore('all')">כל הסניפים</button>
+      ${stores.map(s => `<button class="store-tab${activeStore===s?' active':''}" onclick="switchStore('${s.replace(/'/g,"\\'")}'">${s}</button>`).join('')}
+    </div>`;
+  }
+
+  // overall day chart
+  html += `<div class="overall-section">
+    <h3>📅 מכירות לפי יום — סה"כ</h3>
+    <div class="day-bars">
+      ${DAYS_ORDER.map(d => {
+        const q = overallDays[d]||0;
+        const pct = Math.round((q/maxOverall)*100);
+        const isPeak = d === bestDay;
+        return `<div class="day-col">
+          <div class="day-qty" style="color:${isPeak?'#93C5FD':'var(--text2)'};">${q>0?Math.round(q*10)/10:''}</div>
+          <div class="day-bar-wrap"><div class="day-bar${isPeak?' peak':''}" style="height:${Math.max(pct,3)}%;"></div></div>
+          <div class="day-label" style="color:${isPeak?'var(--blue)':'var(--text3)'};font-weight:${isPeak?700:400};">${d}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="font-size:13px;color:var(--cyan);margin-top:4px;">
+      💡 הכי חזק ביום ${DAYS_NAME[bestDay]||bestDay} — כדאי שהסחורה תגיע לפני כן
+    </div>
+  </div>`;
+
+  // sort & filter
+  html += `<div class="filter-bar">
+    <input type="text" id="search-input" placeholder="חיפוש מוצר..." oninput="renderProducts()">
+    <button class="sort-btn${sortMode==='qty'?' active':''}" onclick="setSortMode('qty')">לפי כמות</button>
+    <button class="sort-btn${sortMode==='peak'?' active':''}" onclick="setSortMode('peak')">לפי יום שיא</button>
+    <button class="sort-btn${sortMode==='name'?' active':''}" onclick="setSortMode('name')">לפי שם</button>
+  </div>`;
+
+  html += `<div id="products-list"></div>`;
+
+  dash.innerHTML = html;
+
+  window._products = products;
+  window._totalDays = totalDays;
+  renderProducts();
+}
+
+function renderProducts() {
+  const products = window._products || {};
+  const totalDays = window._totalDays || 1;
+  const search = (document.getElementById('search-input')?.value || '').toLowerCase();
+  let list = Object.values(products).filter(p =>
+    !search || p.name.toLowerCase().includes(search) || p.barcode.includes(search)
+  );
+
+  if(sortMode === 'qty') list.sort((a,b) => b.totalQty - a.totalQty);
+  else if(sortMode === 'peak') list.sort((a,b) => DAYS_ORDER.indexOf(a.peakDay) - DAYS_ORDER.indexOf(b.peakDay));
+  else list.sort((a,b) => a.name.localeCompare(b.name, 'he'));
+
+  const maxQtyAll = Math.max(...list.map(p => Math.max(...DAYS_ORDER.map(d => p.days[d]||0))), 1);
+
+  let html = list.map(p => {
+    const maxQty = Math.max(...DAYS_ORDER.map(d => p.days[d]||0), 1);
+    const avgDay = Math.round(p.avgPerDay * 10) / 10;
+
+    const dayBars = DAYS_ORDER.map(d => {
+      const q = p.days[d] || 0;
+      const pct = Math.round((q/maxQty)*100);
+      const isPeak = d === p.peakDay;
+      return `<div class="day-col">
+        <div class="day-qty" style="color:${isPeak?'#93C5FD':'var(--text3)'};">${q>0?Math.round(q*10)/10:''}</div>
+        <div class="day-bar-wrap"><div class="day-bar${isPeak?' peak':''}" style="height:${Math.max(pct,q>0?5:0)}%;"></div></div>
+        <div class="day-label" style="color:${isPeak?'var(--blue)':'var(--text3)'};font-weight:${isPeak?700:400};">${d}</div>
+      </div>`;
+    }).join('');
+
+    // order recommendation
+    const peakIdx = DAYS_ORDER.indexOf(p.peakDay);
+    let orderDay = '';
+    if(peakIdx >= 1) orderDay = DAYS_NAME[DAYS_ORDER[peakIdx - 1]] || '';
+    else if(peakIdx === 0) orderDay = 'שישי (שבוע קודם)';
+
+    const recText = orderDay
+      ? `הזמן ביום ${orderDay} כדי שיגיע לפני יום ${DAYS_NAME[p.peakDay]||p.peakDay}`
+      : '';
+
+    return `<div class="product-card">
+      <div class="product-header">
+        <div>
+          <div class="product-name">${p.name}</div>
+          <div class="product-meta">${p.barcode} · ממוצע ${avgDay} יח'/יום · ${p.daysActive} ימי מכירה</div>
+        </div>
+        <div class="badges">
+          <span class="badge badge-blue">יום ${p.peakDay} שיא</span>
+          <span class="badge badge-green">${Math.round(p.totalQty)} יח'</span>
+        </div>
+      </div>
+      <div class="day-bars">${dayBars}</div>
+      <div class="min-row">
+        <label>מינימום הזמנה (יחידות):</label>
+        <input type="number" min="1" placeholder="0"
+          oninput="calcMin(this, ${p.avgPerDay.toFixed(4)}, '${p.barcode}')"
+          id="min-${p.barcode}" value="${window['minInput_'+p.barcode]||''}">
+        <span class="min-result" id="min-result-${p.barcode}"></span>
+      </div>
+      ${recText ? `<div class="rec-banner">💡 ${recText}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  document.getElementById('products-list').innerHTML = html || '<div style="text-align:center;padding:32px;color:var(--text3);">לא נמצאו מוצרים</div>';
+}
+
+function calcMin(input, avgPerDay, barcode) {
+  const minQty = parseFloat(input.value);
+  window['minInput_'+barcode] = input.value;
+  const el = document.getElementById('min-result-'+barcode);
+  if(!el) return;
+  if(!minQty || minQty < 1 || avgPerDay <= 0) { el.textContent = ''; return; }
+  const days = Math.ceil(minQty / avgPerDay);
+  const weeks = (days / 7).toFixed(1);
+  el.textContent = `→ ${days} ימים (${weeks} שבועות) למכירה`;
+}
+
+function switchStore(store) {
+  activeStore = store;
+  renderDashboard();
+}
+
+function setSortMode(mode) {
+  sortMode = mode;
+  // update buttons
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  renderProducts();
+}
+
+window.handleFile = handleFile;
+window.switchStore = switchStore;
+window.setSortMode = setSortMode;
+window.calcMin = calcMin;
+window.renderProducts = renderProducts;
+</script>
+</body>
+</html>
