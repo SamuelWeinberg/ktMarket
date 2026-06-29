@@ -3,7 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KT Orders | כניסה</title>
+<title>KT הזמנות</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1A6CF2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="KT הזמנות">
+<link rel="apple-touch-icon" href="/icon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -104,6 +111,8 @@ async function doResetPassword(){
   err.style.cssText = 'display:block;background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.3);color:#86EFAC;';
   err.textContent = '✅ מייל איפוס נשלח — בדוק את תיבת הדואר';
 }
+
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
 
 // auto-login if already logged in
 (async () => {

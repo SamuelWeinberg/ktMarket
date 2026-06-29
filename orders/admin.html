@@ -3,7 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KT Orders | ניהול</title>
+<title>KT הזמנות | ניהול</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1A6CF2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="KT הזמנות">
+<link rel="apple-touch-icon" href="/icon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -548,6 +555,8 @@ async function toggleSupplierBlocked(id, currentlyBlocked){
 }
 window.toggleSupplierBlocked = toggleSupplierBlocked;
 
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
+
 // ── auth check ────────────────────────────────────────────────────────────────
 (async () => {
   const { data: { session } } = await sb.auth.getSession();
@@ -835,6 +844,7 @@ function renderProducts(list){
         <tr style="border-bottom:1px solid var(--border);${blocked?'opacity:.55;':''}${hasPromo&&!blocked?'background:rgba(245,166,35,.04);':''}">
           <td class="col-name" style="padding:11px 16px;font-weight:600;">
             ${hasPromo?'<span style="color:#F5A623;font-size:13px;margin-left:6px;">🏷️</span>':''}${p.name||'—'}
+            ${p.conversionUnit&&p.conversionUnit!=='יחידה'?`<div style="margin-top:4px;"><button onclick="editConversionFactor('${pid}','${p.conversionUnit||''}',${p.conversionFactor||0})" style="font-size:11px;padding:2px 8px;border-radius:10px;cursor:pointer;border:1px solid var(--border);background:var(--navy3);color:${(p.conversionFactor||0)>0?'#86EFAC':'var(--text3)'};">${(p.conversionFactor||0)>0?p.conversionFactor+' ב'+p.conversionUnit:'הגדר כמה ב'+p.conversionUnit}</button></div>`:''}
           </td>
           <td class="col-barcode" style="padding:11px 16px;text-align:center;font-size:12px;color:var(--text2);">${p.barcode||'—'}</td>
           <td class="col-supplier" style="padding:11px 16px;text-align:center;font-size:12px;">${p.supplierName||'—'}</td>
@@ -934,6 +944,21 @@ async function toggleProductBlocked(productId, currentlyBlocked){
   } catch(e){ toast('❌ שגיאה: '+e.message); }
 }
 window.toggleProductBlocked = toggleProductBlocked;
+
+async function editConversionFactor(productId, conversionUnit, current){
+  const val = prompt(`כמה בודדים יש ב${conversionUnit}?\n(לדוגמה: אם ${conversionUnit} מכיל 12 בודדים — הכנס 12)`, current||'');
+  if(val === null) return;
+  const n = parseInt(val);
+  if(isNaN(n) || n < 1){ toast('❌ מספר לא תקין'); return; }
+  try {
+    await setDoc(doc(db,'products',productId), { conversionFactor: n }, { merge: true });
+    const idx = allProducts.findIndex(p=>p.id===productId);
+    if(idx >= 0) allProducts[idx].conversionFactor = n;
+    searchProducts();
+    toast('✅ עודכן: '+n+' ב'+conversionUnit);
+  } catch(e){ toast('❌ שגיאה: '+e.message); }
+}
+window.editConversionFactor = editConversionFactor;
 
 // ── supplier bulk actions ─────────────────────────────────────────────────────
 function updateSupplierActionBar(){

@@ -3,7 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KT Orders | הזמנות</title>
+<title>KT הזמנות</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1A6CF2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="KT הזמנות">
+<link rel="apple-touch-icon" href="/icon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -300,6 +307,8 @@ let currentSupplier = null;
 let currentOrderItems = [];
 let editingOrderId = null;
 const today = new Date().toISOString().split('T')[0];
+
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
 
 // ── auth ──────────────────────────────────────────────────────────────────────
 let _session = null;
@@ -774,6 +783,7 @@ async function openOrder(supplierId){
     supplierCode: p.supplierCode,
     conversionUnit: p.conversionUnit,
     purchasePrice: p.purchasePrice || 0,
+    conversionFactor: p.conversionFactor || 1,
     suggestedQty: avgSuggestion(p.barcode||p.id),
     orderedQty: avgSuggestion(p.barcode||p.id),
     receivedQty: 0
@@ -845,7 +855,7 @@ function updateMinBar(){
   if(!minAmt){ bar.style.display='none'; return; }
   const total = currentOrderItems.reduce((sum,item,i) => {
     const qty = parseFloat(document.getElementById('qty-'+i)?.value)||0;
-    return sum + qty*(item.purchasePrice||0);
+    return sum + qty*(item.purchasePrice||0)*(item.conversionFactor||1);
   }, 0);
   const ok = total >= minAmt;
   const pct = Math.min(100, minAmt>0 ? (total/minAmt)*100 : 0);
@@ -901,7 +911,7 @@ async function saveOrder(status){
     const minAmt = currentSupplier.hasMinimum ? (parseFloat(currentSupplier.minimumAmount) || 0) : 0;
     if(currentSupplier.hasMinimum && minAmt > 0){
       const hasPrices = items.some(i => (i.purchasePrice||0) > 0);
-      const total = items.reduce((sum,i) => sum + ((i.orderedQty||0) * (i.purchasePrice||0)), 0);
+      const total = items.reduce((sum,i) => sum + ((i.orderedQty||0) * (i.purchasePrice||0) * (i.conversionFactor||1)), 0);
       if(!hasPrices){
         toast('🚫 לא ניתן לשלוח — מינימום הזמנה ₪' + minAmt + ' ומחירי עלות לא מוגדרים במוצרים');
         return;

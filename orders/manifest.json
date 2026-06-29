@@ -1,0 +1,20 @@
+{
+  "name": "KT הזמנות",
+  "short_name": "KT הזמנות",
+  "description": "מערכת הזמנות חכמות KT Market",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0D1B2A",
+  "theme_color": "#1A6CF2",
+  "lang": "he",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
