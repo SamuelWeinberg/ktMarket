@@ -962,7 +962,6 @@ async function editConversionFactor(productId, conversionUnit, current){
 window.editConversionFactor = editConversionFactor;
 
 async function bulkUpdateConversionFactors(){
-  if(localStorage.getItem('cf_migration_v1')) return;
   const updates = {
     '7290018815908': 32,
     '7290018815915': 32,
@@ -973,19 +972,21 @@ async function bulkUpdateConversionFactors(){
   };
   try {
     const snap = await getDocs(collection(db,'products'));
+    console.log('סה"כ מוצרים:', snap.docs.length);
     let ok=0;
-    const batch = writeBatch(db);
+    const b = writeBatch(db);
     snap.docs.forEach(d => {
-      const bc = d.data().barcode || d.id;
+      const data = d.data();
+      const bc = String(data.barcode || d.id);
       if(bc in updates){
-        batch.update(d.ref, { conversionFactor: updates[bc] });
+        console.log(`✅ עדכון: ${bc} → ${updates[bc]} בארגז (doc: ${d.id})`);
+        b.update(d.ref, { conversionFactor: updates[bc] });
         ok++;
       }
     });
-    if(ok>0){ await batch.commit(); }
-    localStorage.setItem('cf_migration_v1','done');
-    if(ok>0) toast(`✅ עודכנו ${ok} מוצרים עם כמות בארגז`);
-  } catch(e){ console.error('migration error',e); }
+    if(ok>0){ await b.commit(); toast(`✅ עודכנו ${ok} מוצרים עם כמות בארגז`); }
+    else { console.warn('לא נמצאו מוצרים תואמים. ברקודים בפועל:'); snap.docs.slice(0,5).forEach(d=>console.log(d.id, d.data().barcode)); }
+  } catch(e){ console.error('שגיאה:', e); toast('❌ '+e.message); }
 }
 window.bulkUpdateConversionFactors = bulkUpdateConversionFactors;
 
