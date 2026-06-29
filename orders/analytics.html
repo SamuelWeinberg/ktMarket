@@ -793,9 +793,14 @@ window.closeOrderModal = closeOrderModal;
 // days from today until the next arrival day (never 0 — same-day means next week)
 function daysUntilNextArrival(arrivalDays) {
   if(!arrivalDays||!arrivalDays.length) return 7;
-  const today = new Date().getDay(); // 0=Sun
-  const diffs = arrivalDays.map(d => { const diff = (d-today+7)%7; return diff===0?7:diff; });
-  return Math.min(...diffs);
+  const sorted = arrivalDays.slice().sort((a,b)=>a-b);
+  if(sorted.length === 1) return 7; // weekly
+  // gap from next arrival to the one after = how many days of stock to cover
+  const today = new Date().getDay();
+  const diffs = sorted.map(d=>{ const diff=(d-today+7)%7; return diff===0?7:diff; });
+  const nextIdx = diffs.indexOf(Math.min(...diffs));
+  const followIdx = (nextIdx + 1) % sorted.length;
+  return (sorted[followIdx] - sorted[nextIdx] + 7) % 7 || 7;
 }
 
 async function renderOrderProducts(supplierId, branch) {
@@ -849,18 +854,20 @@ async function renderOrderProducts(supplierId, branch) {
     </div>
     ${matched.map((p,i)=>{
       const avg = p.analytics?.avgPerDay||0;
-      const fromAvg = avg>0 ? Math.ceil(avg*defaultDays) : 0;
+      const cf = p.conversionFactor || 1;
+      const fromAvg = avg>0 ? Math.ceil((avg*defaultDays)/cf) : 0; // in cartons
       const suggested = Math.max(fromAvg, p.minQty);
       const isMin = p.minQty>0 && suggested===p.minQty && suggested>fromAvg;
+      const unit = p.conversionUnit || 'ארגז';
       return `<div class="order-product-row">
         <div>
           <div class="op-name">${p.name||p.barcode}</div>
-          <div class="op-avg">${avg>0?avg.toFixed(1)+' יח\'/יום':'אין נתון'}${p.minQty>0?' · מינ\' '+p.minQty:''}</div>
+          <div class="op-avg">${avg>0?(avg/cf).toFixed(2)+' '+unit+'/יום':'אין נתון'}${p.minQty>0?' · מינ\' '+p.minQty:''}</div>
         </div>
-        <div style="text-align:center;font-size:12px;color:var(--text2);">${avg>0?avg.toFixed(1):'-'}</div>
+        <div style="text-align:center;font-size:12px;color:var(--text2);">${avg>0?(avg/cf).toFixed(2):'-'}</div>
         <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
           <input class="op-qty" type="number" min="0" value="${suggested}"
-            data-avg="${avg.toFixed(4)}" data-min="${p.minQty}" id="oq-${i}" placeholder="0">
+            data-avg="${(avg/cf).toFixed(4)}" data-min="${p.minQty}" data-cf="${cf}" id="oq-${i}" placeholder="0">
           ${isMin?'<span style="font-size:10px;color:#FDE047;">מינימום</span>':''}
         </div>
       </div>`;
@@ -915,7 +922,8 @@ async function buildBranchItems(supplier, supplierId, branchName, days, supplier
   return matched.map(p=>{
     const avg = p.analytics?.avgPerDay||0;
     const minQty = parseFloat(localStorage.getItem('kt_min_'+p.barcode))||0;
-    const qty = Math.max(avg>0?Math.ceil(avg*days):0, minQty);
+    const cf = p.conversionFactor || 1;
+    const qty = Math.max(avg>0?Math.ceil((avg*days)/cf):0, minQty);
     return { productId:p.barcode, barcode:p.barcode, productName:p.name||p.barcode,
       supplierCode:supplier.code||'', conversionUnit:p.conversionUnit||'יחידה',
       purchasePrice:p.purchasePrice||0, conversionFactor:p.conversionFactor||1,

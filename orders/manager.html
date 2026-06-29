@@ -786,12 +786,19 @@ async function openOrder(supplierId){
       return (a.name||'').localeCompare(b.name||'', 'he');
     });
 
-  // days until next supplier arrival
-  const _arrivalDays = currentSupplier.arrivalDays || (currentSupplier.arrivalDay!=null?[currentSupplier.arrivalDay]:[]);
-  const _today = new Date().getDay();
-  const _daysUntil = _arrivalDays.length
-    ? Math.min(..._arrivalDays.map(d=>{ const diff=(d-_today+7)%7; return diff===0?7:diff; }))
-    : 7;
+  // days between this delivery and the NEXT one = how many days of stock to cover
+  const _arrivalDays = (currentSupplier.arrivalDays || (currentSupplier.arrivalDay!=null?[currentSupplier.arrivalDay]:[])).slice().sort((a,b)=>a-b);
+  let _daysUntil = 7; // default weekly
+  if(_arrivalDays.length >= 2) {
+    // find next arrival from today, then gap to the following arrival
+    const _today = new Date().getDay();
+    const diffs = _arrivalDays.map(d=>{ const diff=(d-_today+7)%7; return diff===0?7:diff; });
+    const nextIdx = diffs.indexOf(Math.min(...diffs));
+    const followIdx = (nextIdx + 1) % _arrivalDays.length;
+    _daysUntil = (_arrivalDays[followIdx] - _arrivalDays[nextIdx] + 7) % 7 || 7;
+  } else if(_arrivalDays.length === 1) {
+    _daysUntil = 7; // comes once a week
+  }
 
   // load analytics suggestions from sales_stats (uploaded Excel data)
   const myBranch = currentProfile?.branch || currentBranch || '';
@@ -809,11 +816,13 @@ async function openOrder(supplierId){
     return Object.keys(stores).find(k => k.includes(myBranch) || myBranch.includes(k)) || null;
   };
 
-  const avgSuggestion = (barcode) => {
+  const avgSuggestion = (barcode, conversionFactor) => {
     const stat = salesStats[String(barcode)];
     const key = findBranchKey(stat?.stores);
     if(key && stat.stores[key]?.avgPerDay) {
-      return Math.max(1, Math.ceil(stat.stores[key].avgPerDay * _daysUntil));
+      const units = stat.stores[key].avgPerDay * _daysUntil;
+      const cf = conversionFactor || 1;
+      return Math.max(1, Math.ceil(units / cf)); // cartons
     }
     return 0;
   };
@@ -826,8 +835,8 @@ async function openOrder(supplierId){
     conversionUnit: p.conversionUnit,
     purchasePrice: p.purchasePrice || 0,
     conversionFactor: p.conversionFactor || 1,
-    suggestedQty: avgSuggestion(p.barcode||p.id),
-    orderedQty: avgSuggestion(p.barcode||p.id),
+    suggestedQty: avgSuggestion(p.barcode||p.id, p.conversionFactor||1),
+    orderedQty: avgSuggestion(p.barcode||p.id, p.conversionFactor||1),
     receivedQty: 0
   }));
 
