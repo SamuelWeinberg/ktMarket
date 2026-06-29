@@ -528,6 +528,8 @@ function renderDashboard() {
 
 function renderProducts() {
   const products = window._products || {};
+  const totalDays = window._totalDays || 0;
+  const hasEnoughData = totalDays >= 90;
   const search = (document.getElementById('search-input')?.value||'').toLowerCase();
   let list = Object.values(products).filter(p=>
     !search || p.name.toLowerCase().includes(search) || p.barcode.includes(search)
@@ -538,7 +540,7 @@ function renderProducts() {
 
   const html = list.map(p=>{
     const maxQ = Math.max(...DAYS_ORDER.map(d=>p.days[d]||0),1);
-    const avgDay = (p.avgPerDay*10|0)/10;
+    const avgDay = Math.round(p.avgPerDay*10)/10;
     const dayBars = DAYS_ORDER.map(d=>{
       const q=p.days[d]||0, pct=Math.round((q/maxQ)*100), isPeak=d===p.peakDay;
       return `<div class="day-col${isPeak?' peak':''}">
@@ -550,6 +552,14 @@ function renderProducts() {
     const peakIdx = DAYS_ORDER.indexOf(p.peakDay);
     const orderDayName = peakIdx>0 ? DAYS_NAME[DAYS_ORDER[peakIdx-1]] : peakIdx===0?'שישי (שבוע קודם)':'';
     const savedMin = localStorage.getItem('kt_min_'+p.barcode)||'';
+
+    let recHtml = '';
+    if(hasEnoughData && orderDayName) {
+      recHtml = `<div class="rec-banner">💡 ממוצע ${avgDay} יח'/יום · יום שיא ${DAYS_NAME[p.peakDay]||p.peakDay} · <strong>הזמן ביום ${orderDayName}</strong> כדי שיגיע בזמן</div>`;
+    } else if(!hasEnoughData) {
+      recHtml = `<div style="margin-top:9px;padding:8px 12px;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.2);border-radius:9px;font-size:12px;color:#FDE047;">⚠️ נדרשים לפחות 90 ימי נתונים להמלצה — יש כרגע ${totalDays} ימים</div>`;
+    }
+
     return `<div class="product-card">
       <div class="product-header">
         <div>
@@ -569,7 +579,7 @@ function renderProducts() {
           oninput="calcMinInput(this)" id="min-${p.barcode}">
         <span class="min-result" id="min-result-${p.barcode}"></span>
       </div>
-      ${orderDayName?`<div class="rec-banner">💡 הזמן ביום ${orderDayName} כדי שיגיע לפני יום ${DAYS_NAME[p.peakDay]||p.peakDay}</div>`:''}
+      ${recHtml}
     </div>`;
   }).join('') || '<div style="text-align:center;padding:32px;color:var(--text3);">לא נמצאו מוצרים</div>';
 
@@ -611,6 +621,9 @@ async function openOrderModal() {
   }
 
   body.innerHTML = `
+    ${(window._totalDays||0) < 90
+      ? `<div style="padding:10px 14px;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.2);border-radius:9px;font-size:12px;color:#FDE047;margin-bottom:14px;">⚠️ הנתונים מכסים ${window._totalDays||0} ימים בלבד — לקבלת המלצה אמינה יש לעלות דוח של לפחות 90 יום</div>`
+      : ''}
     <p style="font-size:13px;color:var(--text2);margin-bottom:14px;">בחר ספק ליצירת הצעת הזמנה על בסיס ממוצע המכירות:</p>
     <select id="modal-supplier-select" style="width:100%;padding:10px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:14px;margin-bottom:14px;">
       <option value="">— בחר ספק —</option>
