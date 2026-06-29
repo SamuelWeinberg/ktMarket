@@ -792,15 +792,16 @@ window.closeOrderModal = closeOrderModal;
 
 // days from today until the next arrival day (never 0 — same-day means next week)
 function daysUntilNextArrival(arrivalDays) {
-  if(!arrivalDays||!arrivalDays.length) return 7;
+  const MIN_DAYS = 21;
+  if(!arrivalDays||!arrivalDays.length) return MIN_DAYS;
   const sorted = arrivalDays.slice().sort((a,b)=>a-b);
-  if(sorted.length === 1) return 7; // weekly
-  // gap from next arrival to the one after = how many days of stock to cover
+  if(sorted.length === 1) return MIN_DAYS;
   const today = new Date().getDay();
   const diffs = sorted.map(d=>{ const diff=(d-today+7)%7; return diff===0?7:diff; });
   const nextIdx = diffs.indexOf(Math.min(...diffs));
   const followIdx = (nextIdx + 1) % sorted.length;
-  return (sorted[followIdx] - sorted[nextIdx] + 7) % 7 || 7;
+  const gap = (sorted[followIdx] - sorted[nextIdx] + 7) % 7 || 7;
+  return Math.max(gap, MIN_DAYS);
 }
 
 async function renderOrderProducts(supplierId, branch) {
