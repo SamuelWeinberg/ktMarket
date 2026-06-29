@@ -567,6 +567,7 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
   document.getElementById('av').textContent   = name[0]?.toUpperCase() || 'A';
   document.getElementById('uname').textContent = name;
   await loadDashboard();
+  bulkUpdateConversionFactors();
 })();
 
 async function doLogout(){
@@ -961,6 +962,7 @@ async function editConversionFactor(productId, conversionUnit, current){
 window.editConversionFactor = editConversionFactor;
 
 async function bulkUpdateConversionFactors(){
+  if(localStorage.getItem('cf_migration_v1')) return;
   const updates = {
     '7290018815908': 32,
     '7290018815915': 32,
@@ -969,21 +971,21 @@ async function bulkUpdateConversionFactors(){
     '7290120881242': 18,
     '7290120881259': 9,
   };
-  let ok=0, notFound=0, fail=0;
-  for(const p of allProducts){
-    const bc = p.barcode || p.id;
-    if(!(bc in updates)) continue;
-    const factor = updates[bc];
-    try {
-      await setDoc(doc(db,'products',p.id), { conversionFactor: factor }, { merge: true });
-      p.conversionFactor = factor;
-      ok++;
-      console.log(`✅ ${bc} (doc id: ${p.id}) → ${factor} בארגז`);
-    } catch(e){ console.error(`❌ ${bc}`, e); fail++; }
-  }
-  notFound = Object.keys(updates).length - ok - fail;
-  searchProducts();
-  toast(`✅ עודכנו ${ok} מוצרים${notFound?` · ⚠️ ${notFound} לא נמצאו`:''}${fail?` · ❌ ${fail} שגיאות`:''}`);
+  try {
+    const snap = await getDocs(collection(db,'products'));
+    let ok=0;
+    const batch = writeBatch(db);
+    snap.docs.forEach(d => {
+      const bc = d.data().barcode || d.id;
+      if(bc in updates){
+        batch.update(d.ref, { conversionFactor: updates[bc] });
+        ok++;
+      }
+    });
+    if(ok>0){ await batch.commit(); }
+    localStorage.setItem('cf_migration_v1','done');
+    if(ok>0) toast(`✅ עודכנו ${ok} מוצרים עם כמות בארגז`);
+  } catch(e){ console.error('migration error',e); }
 }
 window.bulkUpdateConversionFactors = bulkUpdateConversionFactors;
 
