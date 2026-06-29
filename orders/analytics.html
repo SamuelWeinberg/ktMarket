@@ -723,38 +723,54 @@ async function openOrderModal() {
   }
 
   const stores = [...new Set(allData.map(r=>r.store).filter(Boolean))].sort();
-  const sel = s => `style="width:100%;padding:10px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:14px;margin-bottom:14px;"`;
+  // default branch: the active tab if specific, else first store
+  const defaultBranch = (activeStore !== 'all' ? activeStore : stores[0]) || '';
+  // default supplier: last used or first
+  const lastSuppId = localStorage.getItem('kt_last_supplier') || (allSuppliers[0]?.id||'');
 
   body.innerHTML = `
     ${(window._totalDays||0) < 90
       ? `<div style="padding:10px 14px;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.2);border-radius:9px;font-size:12px;color:#FDE047;margin-bottom:14px;">⚠️ הנתונים מכסים ${window._totalDays||0} ימים בלבד — לקבלת המלצה אמינה יש לעלות דוח של לפחות 90 יום</div>`
       : ''}
-    <div style="display:flex;gap:10px;margin-bottom:14px;">
-      <div style="flex:1;">
-        <div style="font-size:11px;color:var(--text3);margin-bottom:5px;font-weight:600;">סניף</div>
-        <select id="modal-branch-select" ${sel()}>
-          <option value="">— בחר סניף —</option>
-          ${stores.map(s=>`<option value="${s}">${s}</option>`).join('')}
-        </select>
+    <div style="margin-bottom:12px;">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:7px;font-weight:600;">סניף</div>
+      <div id="modal-branch-btns" style="display:flex;flex-wrap:wrap;gap:7px;">
+        ${stores.map(s=>`<button onclick="selectModalBranch(this,'${s.replace(/'/g,"\\'")}'')"
+          data-branch="${s}"
+          style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:${s===defaultBranch?'var(--blue)':'var(--navy3)'};color:${s===defaultBranch?'#fff':'var(--text2)'};font-family:Heebo,sans-serif;font-size:13px;cursor:pointer;transition:.15s;"
+          >${s}</button>`).join('')}
       </div>
-      <div style="flex:1;">
-        <div style="font-size:11px;color:var(--text3);margin-bottom:5px;font-weight:600;">ספק</div>
-        <select id="modal-supplier-select" ${sel()}>
-          <option value="">— בחר ספק —</option>
-          ${allSuppliers.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}
-        </select>
-      </div>
+    </div>
+    <div style="margin-bottom:14px;">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:5px;font-weight:600;">ספק</div>
+      <select id="modal-supplier-select" style="width:100%;padding:10px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:14px;">
+        ${allSuppliers.map(s=>`<option value="${s.id}"${s.id===lastSuppId?' selected':''}>${s.name}</option>`).join('')}
+      </select>
     </div>
     <div id="modal-order-products"></div>`;
 
-  const refresh = () => {
-    const branch = document.getElementById('modal-branch-select')?.value;
-    const suppId = document.getElementById('modal-supplier-select')?.value;
-    if(branch && suppId) renderOrderProducts(suppId, branch);
+  window._modalBranch = defaultBranch;
+  document.getElementById('modal-supplier-select').onchange = e => {
+    localStorage.setItem('kt_last_supplier', e.target.value);
+    renderOrderProducts(e.target.value, window._modalBranch);
   };
-  document.getElementById('modal-branch-select').onchange  = refresh;
-  document.getElementById('modal-supplier-select').onchange = refresh;
+
+  // auto-render immediately
+  const suppId = document.getElementById('modal-supplier-select').value;
+  if(defaultBranch && suppId) renderOrderProducts(suppId, defaultBranch);
 }
+window.openOrderModal = openOrderModal;
+
+window.selectModalBranch = function(btn, branch) {
+  window._modalBranch = branch;
+  document.querySelectorAll('#modal-branch-btns button').forEach(b => {
+    const active = b.dataset.branch === branch;
+    b.style.background = active ? 'var(--blue)' : 'var(--navy3)';
+    b.style.color = active ? '#fff' : 'var(--text2)';
+  });
+  const suppId = document.getElementById('modal-supplier-select')?.value;
+  if(suppId) renderOrderProducts(suppId, branch);
+};
 window.openOrderModal = openOrderModal;
 
 function closeOrderModal() {
