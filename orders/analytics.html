@@ -722,18 +722,38 @@ async function openOrderModal() {
     return;
   }
 
+  const stores = [...new Set(allData.map(r=>r.store).filter(Boolean))].sort();
+  const sel = s => `style="width:100%;padding:10px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:14px;margin-bottom:14px;"`;
+
   body.innerHTML = `
     ${(window._totalDays||0) < 90
       ? `<div style="padding:10px 14px;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.2);border-radius:9px;font-size:12px;color:#FDE047;margin-bottom:14px;">⚠️ הנתונים מכסים ${window._totalDays||0} ימים בלבד — לקבלת המלצה אמינה יש לעלות דוח של לפחות 90 יום</div>`
       : ''}
-    <p style="font-size:13px;color:var(--text2);margin-bottom:14px;">בחר ספק ליצירת הצעת הזמנה על בסיס ממוצע המכירות:</p>
-    <select id="modal-supplier-select" style="width:100%;padding:10px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:14px;margin-bottom:14px;">
-      <option value="">— בחר ספק —</option>
-      ${allSuppliers.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}
-    </select>
+    <div style="display:flex;gap:10px;margin-bottom:14px;">
+      <div style="flex:1;">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:5px;font-weight:600;">סניף</div>
+        <select id="modal-branch-select" ${sel()}>
+          <option value="">— בחר סניף —</option>
+          ${stores.map(s=>`<option value="${s}">${s}</option>`).join('')}
+        </select>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:5px;font-weight:600;">ספק</div>
+        <select id="modal-supplier-select" ${sel()}>
+          <option value="">— בחר ספק —</option>
+          ${allSuppliers.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}
+        </select>
+      </div>
+    </div>
     <div id="modal-order-products"></div>`;
 
-  document.getElementById('modal-supplier-select').onchange = e => renderOrderProducts(e.target.value);
+  const refresh = () => {
+    const branch = document.getElementById('modal-branch-select')?.value;
+    const suppId = document.getElementById('modal-supplier-select')?.value;
+    if(branch && suppId) renderOrderProducts(suppId, branch);
+  };
+  document.getElementById('modal-branch-select').onchange  = refresh;
+  document.getElementById('modal-supplier-select').onchange = refresh;
 }
 window.openOrderModal = openOrderModal;
 
@@ -750,13 +770,16 @@ function daysUntilNextArrival(arrivalDays) {
   return Math.min(...diffs);
 }
 
-async function renderOrderProducts(supplierId) {
+async function renderOrderProducts(supplierId, branch) {
   const container = document.getElementById('modal-order-products');
-  if(!supplierId) { container.innerHTML=''; return; }
+  if(!supplierId || !branch) { container.innerHTML=''; return; }
   container.innerHTML = '<div style="text-align:center;padding:16px;"><div class="spinner"></div></div>';
 
   const supplier = allSuppliers.find(s=>s.id===supplierId);
-  const products = window._products || {};
+
+  // calculate averages for this specific branch only
+  const branchData = allData.filter(r=>r.store===branch);
+  const { products } = analyzeData(branchData);
 
   // load products for this supplier from Firestore
   let supplierProducts = [];
@@ -860,9 +883,10 @@ window.saveOrderDraft = async function(supplierId) {
 
   if(!items.length){ alert('לא הוזנו כמויות'); return; }
 
+  const branch = document.getElementById('modal-branch-select')?.value || profile?.branch || '';
   const order = {
     supplierId, supplierCode: supplier.code||'', supplierName: supplier.name,
-    branch: profile?.branch||'',
+    branch,
     createdBy: profile?.full_name||profile?.email||'',
     date: new Date().toISOString().split('T')[0],
     status: 'draft',
