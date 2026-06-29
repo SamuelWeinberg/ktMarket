@@ -793,20 +793,19 @@ async function openOrder(supplierId){
 
   // days between this delivery and the NEXT one = how many days of stock to cover
   const _arrivalDays = (currentSupplier.arrivalDays || (currentSupplier.arrivalDay!=null?[currentSupplier.arrivalDay]:[])).slice().sort((a,b)=>a-b);
-  let _daysUntil = 7; // default weekly
+  let _daysUntil = 21; // minimum 21 days
   if(_arrivalDays.length >= 2) {
-    // find next arrival from today, then gap to the following arrival
     const _today = new Date().getDay();
     const diffs = _arrivalDays.map(d=>{ const diff=(d-_today+7)%7; return diff===0?7:diff; });
     const nextIdx = diffs.indexOf(Math.min(...diffs));
     const followIdx = (nextIdx + 1) % _arrivalDays.length;
-    _daysUntil = (_arrivalDays[followIdx] - _arrivalDays[nextIdx] + 7) % 7 || 7;
-  } else if(_arrivalDays.length === 1) {
-    _daysUntil = 7; // comes once a week
+    const gap = (_arrivalDays[followIdx] - _arrivalDays[nextIdx] + 7) % 7 || 7;
+    _daysUntil = Math.max(gap, 21);
   }
 
   // load analytics suggestions from sales_stats (uploaded Excel data)
-  const myBranch = currentProfile?.branch || currentBranch || '';
+  // use currentBranch first — it reflects the selected tab, not the manager's profile branch
+  const myBranch = currentBranch || currentProfile?.branch || '';
   const salesStats = {};
   try {
     // fetch all sales_stats — simpler and avoids 'in' query edge cases
