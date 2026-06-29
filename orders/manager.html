@@ -447,7 +447,12 @@ async function switchBranch(branch){
   document.querySelectorAll('.branch-sel-btn').forEach(b=>{
     b.classList.toggle('active', b.textContent === branch);
   });
-  await loadSuppliers();
+  // if currently in order view — reload suggestions for the new branch
+  if(currentSupplier && document.getElementById('page-order')?.classList.contains('active')) {
+    await loadSupplierProducts(currentSupplier.id);
+  } else {
+    await loadSuppliers();
+  }
 }
 window.switchBranch = switchBranch;
 
@@ -811,7 +816,7 @@ async function openOrder(supplierId){
 
   // fuzzy branch match: "אמוראים 14" matches "קיטי מרקט האמוראים 14"
   const findBranchKey = (stores) => {
-    if(!stores) return null;
+    if(!stores || !myBranch) return null;
     if(stores[myBranch]) return myBranch;
     return Object.keys(stores).find(k => k.includes(myBranch) || myBranch.includes(k)) || null;
   };
