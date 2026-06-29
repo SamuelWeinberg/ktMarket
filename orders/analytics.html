@@ -396,7 +396,7 @@ function renderProducts() {
         <label>מינימום הזמנה (יחידות):</label>
         <input type="number" min="1" placeholder="0"
           oninput="calcMin(this, ${p.avgPerDay.toFixed(4)}, '${p.barcode}')"
-          id="min-${p.barcode}" value="${window['minInput_'+p.barcode]||''}">
+          id="min-${p.barcode}" value="${localStorage.getItem('kt_min_'+p.barcode)||''}">
         <span class="min-result" id="min-result-${p.barcode}"></span>
       </div>
       ${recText ? `<div class="rec-banner">💡 ${recText}</div>` : ''}
@@ -404,11 +404,21 @@ function renderProducts() {
   }).join('');
 
   document.getElementById('products-list').innerHTML = html || '<div style="text-align:center;padding:32px;color:var(--text3);">לא נמצאו מוצרים</div>';
+
+  // restore saved min calculations
+  list.forEach(p => {
+    const saved = localStorage.getItem('kt_min_'+p.barcode);
+    if(saved) {
+      const input = document.getElementById('min-'+p.barcode);
+      if(input) calcMin(input, p.avgPerDay, p.barcode);
+    }
+  });
 }
 
 function calcMin(input, avgPerDay, barcode) {
   const minQty = parseFloat(input.value);
-  window['minInput_'+barcode] = input.value;
+  if(input.value) localStorage.setItem('kt_min_'+barcode, input.value);
+  else localStorage.removeItem('kt_min_'+barcode);
   const el = document.getElementById('min-result-'+barcode);
   if(!el) return;
   if(!minQty || minQty < 1 || avgPerDay <= 0) { el.textContent = ''; return; }
