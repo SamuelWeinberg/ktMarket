@@ -414,8 +414,14 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
         יש מינימום הזמנה
       </label>
     </div>
-    <div id="s-min-wrap" style="margin-bottom:14px;display:none;"><label style="display:block;font-size:12px;color:var(--text2);margin-bottom:5px;font-weight:600;">סכום מינימום (₪)</label>
-      <input type="number" id="s-min" placeholder="500" style="width:100%;padding:11px 14px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:14px;direction:ltr;"></div>
+    <div id="s-min-wrap" style="margin-bottom:14px;display:none;">
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <button id="s-min-type-price" onclick="setMinType('price')" style="flex:1;padding:8px;border-radius:var(--rsm);border:1px solid var(--blue);background:var(--blue);color:#fff;font-family:Heebo,sans-serif;font-size:13px;cursor:pointer;">לפי מחיר ₪</button>
+        <button id="s-min-type-cartons" onclick="setMinType('cartons')" style="flex:1;padding:8px;border-radius:var(--rsm);border:1px solid var(--border);background:var(--navy3);color:var(--text2);font-family:Heebo,sans-serif;font-size:13px;cursor:pointer;">לפי קרטונים</button>
+      </div>
+      <label id="s-min-label" style="display:block;font-size:12px;color:var(--text2);margin-bottom:5px;font-weight:600;">סכום מינימום (₪)</label>
+      <input type="number" id="s-min" placeholder="500" style="width:100%;padding:11px 14px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:14px;direction:ltr;">
+    </div>
     <div style="display:flex;gap:10px;margin-top:16px;">
       <button class="btn btn-ghost" onclick="closeSupplierModal()" style="flex:1">ביטול</button>
       <button class="btn btn-primary" onclick="saveSupplier()" style="flex:2" id="save-supplier-btn">שמור</button>
@@ -745,6 +751,7 @@ async function openAddSupplier(){
   document.getElementById('s-hasmin').checked = false;
   document.getElementById('s-min').value = '';
   document.getElementById('s-min-wrap').style.display = 'none';
+  setMinType('price');
   document.getElementById('supplier-modal').style.display = 'flex';
   allBranches = [];
   await loadBranches();
@@ -769,6 +776,7 @@ async function editSupplier(id){
   document.getElementById('s-hasmin').checked = !!s.hasMinimum;
   document.getElementById('s-min').value = s.minimumAmount || '';
   document.getElementById('s-min-wrap').style.display = s.hasMinimum ? 'block' : 'none';
+  setMinType(s.minOrderType || 'price');
   document.getElementById('supplier-modal').style.display = 'flex';
   allBranches = [];
   await loadBranches();
@@ -780,8 +788,22 @@ window.editSupplier = editSupplier;
 function closeSupplierModal(){ document.getElementById('supplier-modal').style.display = 'none'; }
 window.closeSupplierModal = closeSupplierModal;
 
-function toggleMin(){ document.getElementById('s-min-wrap').style.display = document.getElementById('s-hasmin').checked ? 'block' : 'none'; }
+function toggleMin(){
+  const show = document.getElementById('s-hasmin').checked;
+  document.getElementById('s-min-wrap').style.display = show ? 'block' : 'none';
+}
 window.toggleMin = toggleMin;
+
+let _minOrderType = 'price';
+function setMinType(type){
+  _minOrderType = type;
+  const isCartons = type === 'cartons';
+  document.getElementById('s-min-type-price').style.cssText   = `flex:1;padding:8px;border-radius:var(--rsm);border:1px solid ${!isCartons?'var(--blue)':'var(--border)'};background:${!isCartons?'var(--blue)':'var(--navy3)'};color:${!isCartons?'#fff':'var(--text2)'};font-family:Heebo,sans-serif;font-size:13px;cursor:pointer;`;
+  document.getElementById('s-min-type-cartons').style.cssText = `flex:1;padding:8px;border-radius:var(--rsm);border:1px solid ${isCartons?'var(--blue)':'var(--border)'};background:${isCartons?'var(--blue)':'var(--navy3)'};color:${isCartons?'#fff':'var(--text2)'};font-family:Heebo,sans-serif;font-size:13px;cursor:pointer;`;
+  document.getElementById('s-min-label').textContent = isCartons ? 'מינימום קרטונים' : 'סכום מינימום (₪)';
+  document.getElementById('s-min').placeholder = isCartons ? '10' : '500';
+}
+window.setMinType = setMinType;
 
 async function saveSupplier(){
   const name = document.getElementById('s-name').value.trim();
@@ -794,13 +816,14 @@ async function saveSupplier(){
   const hasEDI = document.getElementById('s-hasedi').checked;
   const hasMinimum = document.getElementById('s-hasmin').checked;
   const minimumAmount = hasMinimum ? parseFloat(document.getElementById('s-min').value)||0 : 0;
+  const minOrderType = hasMinimum ? (_minOrderType || 'price') : 'price';
   if(!name){ toast('⚠️ חובה להזין שם ספק'); return; }
   const btn = document.getElementById('save-supplier-btn');
   btn.disabled = true; btn.textContent = 'שומר...';
   const id = editingSupplierId || (code || name.replace(/\s+/g,'-').toLowerCase() + '-' + Date.now());
   const branches = getSelectedBranches();
   const blockedBranches = getBlockedBranches();
-  const data = { name, code, agentNumber, agentName, frequency, orderDays, arrivalDays, hasEDI, hasMinimum, minimumAmount, branches, blockedBranches };
+  const data = { name, code, agentNumber, agentName, frequency, orderDays, arrivalDays, hasEDI, hasMinimum, minimumAmount, minOrderType, branches, blockedBranches };
   await setDoc(doc(db,'suppliers',id), data);
   btn.disabled = false; btn.textContent = 'שמור';
   closeSupplierModal();
