@@ -266,10 +266,12 @@ function handleFile(file) {
   const reader = new FileReader();
   reader.onload = async e => {
     try {
-      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true, codepage: 1255, cellNF: false });
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true, codepage: 1255 });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, cellDates: true, defval: '' });
-      allData = parseRows(rows);
+      // read twice: text for display, raw for barcode precision
+      const rowsText = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, cellDates: true, defval: '' });
+      const rowsRaw  = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true,  cellDates: true, defval: '' });
+      allData = parseRows(rowsText, rowsRaw);
       if(!allData.length) { alert('לא נמצאו נתונים בקובץ'); return; }
       await loadSuppliers();
       renderDashboard();
@@ -286,6 +288,10 @@ window.handleFile = handleFile;
 
 async function saveToFirestore(data) {
   if(!db) return;
+  // only save if we have real data (at least 10 rows with valid barcodes)
+  const validRows = data.filter(r => r.barcode.match(/^\d{8,13}$/) && r.qty > 0);
+  if(validRows.length < 5) { console.warn('לא מספיק נתונים לשמירה:', validRows.length); return; }
+  data = validRows;
   const statusEl = document.getElementById('save-status');
   if(statusEl) statusEl.innerHTML = '<span class="save-badge saving">⏳ שומר לשרת...</span>';
 
@@ -339,58 +345,65 @@ async function saveToFirestore(data) {
   }
 }
 
-function parseRows(rows) {
+function parseRows(rowsText, rowsRaw) {
+  const rows = rowsText;
   if(rows.length < 2) return [];
-  let headerIdx = 0;
-  for(let i = 0; i < Math.min(5, rows.length); i++) {
-    if(rows[i].some(c => String(c||'').includes('תאריך') || String(c||'').includes('כמות'))) { headerIdx = i; break; }
+
+  // find header row: must have BOTH 'תאריך' AND 'כמות' as exact separate cells
+  let headerIdx = -1;
+  for(let i = 0; i < Math.min(8, rows.length); i++) {
+    const cells = rows[i].map(c => String(c||'').trim());
+    if(cells.includes('תאריך') && cells.includes('כמות')) { headerIdx = i; break; }
   }
+  // fallback: find row where any cell equals exactly 'כמות'
+  if(headerIdx < 0) {
+    for(let i = 0; i < Math.min(8, rows.length); i++) {
+      if(rows[i].some(c => String(c||'').trim() === 'כמות')) { headerIdx = i; break; }
+    }
+  }
+  if(headerIdx < 0) headerIdx = 1; // last resort
+
   const header = rows[headerIdx];
-  // detect columns by header name
   let cStore=1, cBarcode=2, cName=3, cDate=4, cDay=5, cQty=6, cPrice=7;
   header.forEach((h,i) => {
     const v = String(h||'').trim();
-    if(v==='מחסן' && i!==cStore) cStore=i;
+    if(v==='מחסן') cStore=i;
     if(v==='תאריך') cDate=i;
     if(v==='יום') cDay=i;
     if(v==='כמות') cQty=i;
     if(v==='ממוצע'||v==='מחיר') cPrice=i;
   });
-  // barcode = column just before date (usually C), name = column just before barcode (D)
-  // auto-detect barcode column by content (13-digit number)
-  const fmtDate = v => {
-    if(v instanceof Date) {
-      const d=v.getDate(), m=v.getMonth()+1, y=v.getFullYear();
-      return `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}`;
-    }
-    return String(v||'').trim();
-  };
-  const fmtBarcode = v => {
-    if(typeof v === 'number') return Math.round(v).toString();
-    return String(v||'').trim();
+
+  // barcode from raw row (preserves full integer precision)
+  const getRawBarcode = (ri, col) => {
+    const rv = rowsRaw?.[ri]?.[col];
+    if(typeof rv === 'number') return Math.round(rv).toString();
+    return String(rv||'').trim();
   };
 
   const data = [];
   for(let i=headerIdx+1; i<rows.length; i++) {
     const r = rows[i];
     if(!r||r.length<4) continue;
-    const qty = typeof r[cQty]==='number' ? r[cQty] : parseFloat(String(r[cQty]||'0').replace(',','.'));
+    const qty = parseFloat(String(r[cQty]||'0').replace(',','.'));
     const day = String(r[cDay]||'').trim();
-    const date = fmtDate(r[cDate]);
-    let barcode = fmtBarcode(r[cBarcode]);
+    const date = String(r[cDate]||'').trim();
+    // use raw row for barcode to avoid scientific notation loss
+    let barcode = getRawBarcode(i, cBarcode);
     let name = String(r[cName]||'').trim();
-    // fallback: scan row for large number that looks like barcode
-    if(!barcode.match(/^\d{6,13}$/)) {
-      for(let j=0;j<r.length;j++) {
-        const bc = fmtBarcode(r[j]);
+    // fallback: scan raw row for 8-13 digit number
+    if(!barcode.match(/^\d{6,13}$/) && rowsRaw?.[i]) {
+      for(let j=0;j<rowsRaw[i].length;j++) {
+        const rv = rowsRaw[i][j];
+        const bc = typeof rv==='number' ? Math.round(rv).toString() : String(rv||'').trim();
         if(bc.match(/^\d{8,13}$/)) { barcode=bc; name=String(r[j+1]||r[j-1]||'').trim(); break; }
       }
     }
-    if(!barcode||!day||!date||isNaN(qty)) continue;
+    if(!barcode||!day||!date||isNaN(qty)||qty<=0) continue;
     data.push({
       store: String(r[cStore]||'').trim(),
       barcode, name, date, day, qty,
-      price: typeof r[cPrice]==='number' ? r[cPrice] : parseFloat(String(r[cPrice]||'0').replace(',','.')) || 0,
+      price: parseFloat(String(r[cPrice]||'0').replace(',','.')) || 0,
     });
   }
   return data;
