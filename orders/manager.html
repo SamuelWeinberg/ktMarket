@@ -471,7 +471,8 @@ async function loadPendingConfirmations(suppliers){
   let allOrders = [];
   try {
     const snap = await getDocs(collection(db,'orders'));
-    allOrders = snap.docs.map(d=>({...d.data(), id:d.id})).filter(o=>o.branch===myBranch);
+    const netMgr = currentProfile?.role === 'network_manager';
+    allOrders = snap.docs.map(d=>({...d.data(), id:d.id})).filter(o=> netMgr || o.branch===myBranch);
   } catch(e){ return; }
 
   const pendingOrders = allOrders
@@ -1012,10 +1013,11 @@ async function loadHistory(){
   document.getElementById('history-list').innerHTML='<div class="loading"><div class="spinner"></div> טוען...</div>';
   const myBranch = currentBranch;
   const isAdmin = currentProfile?.role === 'super_admin';
+  const isNetworkMgr = currentProfile?.role === 'network_manager';
   const snap = await getDocs(collection(db,'orders'));
   historyOrders = snap.docs
     .map(d=>({id:d.id,...d.data()}))
-    .filter(o => isAdmin || o.branch===myBranch)
+    .filter(o => isAdmin || isNetworkMgr || o.branch===myBranch)
     .sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 
   const sSnap = await getDocs(collection(db,'suppliers'));
