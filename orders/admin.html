@@ -961,25 +961,29 @@ async function editConversionFactor(productId, conversionUnit, current){
 window.editConversionFactor = editConversionFactor;
 
 async function bulkUpdateConversionFactors(){
-  const updates = [
-    ['7290018815908', 32],
-    ['7290018815915', 32],
-    ['7290018815939', 32],
-    ['7290120881235', 15],
-    ['7290120881242', 18],
-    ['7290120881259', 9],
-  ];
-  let ok=0, fail=0;
-  for(const [barcode, factor] of updates){
+  const updates = {
+    '7290018815908': 32,
+    '7290018815915': 32,
+    '7290018815939': 32,
+    '7290120881235': 15,
+    '7290120881242': 18,
+    '7290120881259': 9,
+  };
+  let ok=0, notFound=0, fail=0;
+  for(const p of allProducts){
+    const bc = p.barcode || p.id;
+    if(!(bc in updates)) continue;
+    const factor = updates[bc];
     try {
-      await setDoc(doc(db,'products',barcode), { conversionFactor: factor }, { merge: true });
-      const idx = allProducts.findIndex(p=>(p.barcode||p.id)===barcode);
-      if(idx>=0) allProducts[idx].conversionFactor = factor;
+      await setDoc(doc(db,'products',p.id), { conversionFactor: factor }, { merge: true });
+      p.conversionFactor = factor;
       ok++;
-    } catch(e){ console.error(barcode, e); fail++; }
+      console.log(`✅ ${bc} (doc id: ${p.id}) → ${factor} בארגז`);
+    } catch(e){ console.error(`❌ ${bc}`, e); fail++; }
   }
+  notFound = Object.keys(updates).length - ok - fail;
   searchProducts();
-  toast(`✅ עודכנו ${ok} מוצרים${fail?` · ❌ ${fail} שגיאות`:''}`);
+  toast(`✅ עודכנו ${ok} מוצרים${notFound?` · ⚠️ ${notFound} לא נמצאו`:''}${fail?` · ❌ ${fail} שגיאות`:''}`);
 }
 window.bulkUpdateConversionFactors = bulkUpdateConversionFactors;
 
