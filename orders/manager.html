@@ -322,7 +322,27 @@ let _session = null;
     return;
   }
   await initApp(profile);
+  runConversionFactorMigration();
 })();
+
+async function runConversionFactorMigration(){
+  if(localStorage.getItem('cf_mig2')) return;
+  const CF = {'7290018815908':32,'7290018815915':32,'7290018815939':32,'7290120881235':15,'7290120881242':18,'7290120881259':9};
+  try {
+    const snap = await getDocs(collection(db,'products'));
+    const b = writeBatch(db);
+    let n = 0;
+    snap.docs.forEach(d => {
+      const bc = String(d.data().barcode ?? d.id);
+      if(CF[bc] !== undefined){
+        b.update(d.ref, { conversionFactor: CF[bc] });
+        n++;
+      }
+    });
+    if(n > 0) await b.commit();
+    localStorage.setItem('cf_mig2','done');
+  } catch(e){ console.error('cf migration:', e); }
+}
 
 async function showSetupScreen(session){
   const branchSnap = await getDocs(collection(db,'branches'));
@@ -776,7 +796,6 @@ async function openOrder(supplierId){
     return Math.round(arr.reduce((a,b)=>a+b,0)/arr.length);
   };
 
-  const CF_HARDCODE = {'7290018815908':32,'7290018815915':32,'7290018815939':32,'7290120881235':15,'7290120881242':18,'7290120881259':9};
   currentOrderItems = products.map(p=>({
     productId: p.barcode || p.id,
     barcode: p.barcode || p.id,
@@ -784,7 +803,7 @@ async function openOrder(supplierId){
     supplierCode: p.supplierCode,
     conversionUnit: p.conversionUnit,
     purchasePrice: p.purchasePrice || 0,
-    conversionFactor: p.conversionFactor || CF_HARDCODE[String(p.barcode||p.id)] || 1,
+    conversionFactor: p.conversionFactor || 1,
     suggestedQty: avgSuggestion(p.barcode||p.id),
     orderedQty: avgSuggestion(p.barcode||p.id),
     receivedQty: 0
