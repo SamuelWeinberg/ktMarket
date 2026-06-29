@@ -140,7 +140,7 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
   <div class="nav-item" onclick="gotoPage('orders')" id="nav-orders"><span class="nav-icon">📋</span><span>הזמנות</span></div>
   <div class="nav-item" onclick="gotoPage('branches')" id="nav-branches"><span class="nav-icon">🏪</span><span>סניפים</span></div>
   <div class="nav-item" onclick="gotoPage('neworder')" id="nav-neworder"><span class="nav-icon">✏️</span><span>הזמנה חדשה</span></div>
-  <div class="nav-item" onclick="location.href='analytics.html'" id="nav-analytics"><span class="nav-icon">📊</span><span>אנליטיקה</span></div>
+  <div class="nav-item" onclick="this.classList.add('active');setTimeout(()=>location.href='analytics.html',120)" id="nav-analytics"><span class="nav-icon">📊</span><span>אנליטיקה</span></div>
   <div class="sb-footer">
     <div class="user-badge">
       <div class="u-av" id="av">?</div>
