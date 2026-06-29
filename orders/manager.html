@@ -291,7 +291,7 @@ const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 
 const FREQ_LABELS = { daily:'יומי', weekly:'שבועי', biweekly:'פעם בשבועיים', monthly:'חודשי' };
-const STATUS_LABELS = { draft:'📝 טיוטה', sent:'📤 נשלחה', received:'✅ התקבלה' };
+const STATUS_LABELS = { draft:'📝 טיוטה', sent:'📤 נשלחה', received:'✅ התקבלה', recommendation:'💡 המלצה' };
 const DAY_LABELS = {0:'א׳',1:'ב׳',2:'ג׳',3:'ד׳',4:'ה׳',5:'ו׳',6:'ש׳'};
 function fmtDays(days){ return days?.length ? days.map(d=>DAY_LABELS[d]).join(' ') : '—'; }
 function toggleMgrDay(btn){ btn.classList.toggle('active'); }
@@ -1075,6 +1075,15 @@ async function editOrderFromHistory(idx){
 }
 window.editOrderFromHistory = editOrderFromHistory;
 
+// open a recommendation as a new editable order
+window.applyRecommendation = async function(idx) {
+  const rec = historyOrders[idx];
+  if(!rec) return;
+  await editOrderFromHistory(idx);
+  // after loading, update status label to show it started as recommendation
+  toast('📋 ההמלצה נפתחה — ערוך כמויות ושלח כרגיל');
+};
+
 // ── history ───────────────────────────────────────────────────────────────────
 let historyOrders = [];
 
@@ -1138,12 +1147,13 @@ function renderHistoryList(orders){
           ${o.supplierName||'—'}
           <div style="font-size:11px;color:var(--text3);font-weight:400;margin-top:2px;">${o.date||'—'} · ${o.items?.length||0} פריטים</div>
         </div>
-        <span style="font-size:12px;padding:3px 10px;border-radius:20px;white-space:nowrap;${o.status==='sent'?'background:rgba(34,197,94,.15);color:#86EFAC;border:1px solid rgba(34,197,94,.3);':o.status==='draft'?'background:rgba(143,163,184,.1);color:var(--text3);border:1px solid var(--border);':'background:rgba(26,108,242,.15);color:#93C5FD;border:1px solid rgba(26,108,242,.3);'}">
+        <span style="font-size:12px;padding:3px 10px;border-radius:20px;white-space:nowrap;${o.status==='sent'?'background:rgba(34,197,94,.15);color:#86EFAC;border:1px solid rgba(34,197,94,.3);':o.status==='draft'?'background:rgba(143,163,184,.1);color:var(--text3);border:1px solid var(--border);':o.status==='recommendation'?'background:rgba(0,194,203,.1);color:#67E8F9;border:1px solid rgba(0,194,203,.25);':'background:rgba(26,108,242,.15);color:#93C5FD;border:1px solid rgba(26,108,242,.3);'}">
           ${STATUS_LABELS[o.status]||o.status}
         </span>
         ${o.status==='sent'?`<button onclick="confirmDeliveryFromHistory('${o.id}',${idx})" style="background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);color:#86EFAC;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;white-space:nowrap;">✅ אשר קבלה</button>`:''}
+        ${o.status==='recommendation'?`<button onclick="applyRecommendation(${idx})" style="background:rgba(0,194,203,.12);border:1px solid rgba(0,194,203,.25);color:#67E8F9;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;white-space:nowrap;">📋 פתח להזמנה</button>`:''}
         <button onclick="printSingleOrder(${idx})" style="background:rgba(26,108,242,.12);border:1px solid rgba(26,108,242,.25);color:#93C5FD;border-radius:6px;padding:5px 10px;font-size:13px;cursor:pointer;" title="הדפס">🖨️</button>
-        ${o.status!=='received'?`<button onclick="editOrderFromHistory(${idx})" style="background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.25);color:#FCD34D;border-radius:6px;padding:5px 10px;font-size:13px;cursor:pointer;" title="ערוך">✏️</button>`:''}
+        ${o.status!=='received'&&o.status!=='recommendation'?`<button onclick="editOrderFromHistory(${idx})" style="background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.25);color:#FCD34D;border-radius:6px;padding:5px 10px;font-size:13px;cursor:pointer;" title="ערוך">✏️</button>`:''}
         <button onclick="deleteOrder('${o.id}',${idx})" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.25);color:#FCA5A5;border-radius:6px;padding:5px 10px;font-size:13px;cursor:pointer;">🗑️</button>
         <div onclick="toggleOrderDetails(${idx})" style="font-size:16px;color:var(--text3);cursor:pointer;transition:transform .2s;" id="arrow-${idx}">▼</div>
       </div>

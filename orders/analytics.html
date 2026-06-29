@@ -178,7 +178,7 @@ html,body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text
 <div class="modal-bg" id="order-modal">
   <div class="modal">
     <button class="modal-close" onclick="closeOrderModal()">×</button>
-    <h3 id="order-modal-title">📦 הצע הזמנה</h3>
+    <h3 id="order-modal-title">💾 שמור המלצת הזמנה</h3>
     <div id="order-modal-body"></div>
   </div>
 </div>
@@ -526,7 +526,7 @@ function renderDashboard() {
   html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:10px;flex-wrap:wrap;">
     <div style="font-size:12px;color:var(--text3);">${dateFrom} — ${dateTo} &nbsp;·&nbsp; ${totalDays} ימים</div>
     <div style="display:flex;gap:8px;">
-      <button onclick="openOrderModal()" style="padding:8px 16px;border-radius:var(--rsm);background:rgba(0,194,203,.12);border:1px solid rgba(0,194,203,.25);color:#67E8F9;font-size:13px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">📦 הצע הזמנה</button>
+      <button onclick="openOrderModal()" style="padding:8px 16px;border-radius:var(--rsm);background:rgba(0,194,203,.12);border:1px solid rgba(0,194,203,.25);color:#67E8F9;font-size:13px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;">💾 שמור המלצה</button>
       <button onclick="location.reload()" style="padding:8px 14px;border-radius:var(--rsm);border:1px solid var(--border);background:var(--navy3);color:var(--text2);font-size:12px;cursor:pointer;font-family:Heebo,sans-serif;">📂 קובץ חדש</button>
     </div>
   </div>`;
@@ -944,7 +944,7 @@ window.saveOrderDraft = async function(supplierId) {
     supplierId, supplierCode:supplier.code||'', supplierName:supplier.name,
     branch, createdBy:profile?.full_name||profile?.email||'',
     date:new Date().toISOString().split('T')[0],
-    status:'draft', items, createdAt:new Date().toISOString(), source:'analytics',
+    status:'recommendation', items, createdAt:new Date().toISOString(), source:'analytics',
   };
   try {
     await addDoc(collection(db,'orders'), order);
@@ -978,7 +978,7 @@ window.saveAllBranchDrafts = async function(supplierId) {
       supplierId, supplierCode:supplier.code||'', supplierName:supplier.name,
       branch:branchName, createdBy:profile?.full_name||profile?.email||'',
       date:new Date().toISOString().split('T')[0],
-      status:'draft', items, createdAt:new Date().toISOString(), source:'analytics',
+      status:'recommendation', items, createdAt:new Date().toISOString(), source:'analytics',
     });
     saved++;
   }
