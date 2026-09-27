@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ייבוא מוצרים מאקסל</title>
+<style>
+:root{
+  --bg:#0D1B2A;--navy2:#112236;--border:rgba(255,255,255,.1);
+  --text:#F0F4F8;--text2:#8FA3B8;--text3:#5A7A96;
+  --blue:#1A6CF2;--green:#22C55E;--red:#EF4444;--gold:#F59E0B;--teal:#009688;
+}
+*{box-sizing:border-box;}
+body{font-family:Arial,sans-serif;background:var(--bg);color:var(--text);padding:24px 20px;direction:rtl;max-width:880px;margin:0 auto;}
+h2{margin:0 0 4px;}
+.sub{color:var(--text2);margin:0 0 22px;font-size:13px;}
+
+.card{background:var(--navy2);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:14px;}
+.card h3{margin:0 0 14px;font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;display:flex;align-items:center;gap:6px;}
+.step-num{background:var(--blue);color:#fff;border-radius:50%;width:20px;height:20px;line-height:20px;text-align:center;font-size:11px;font-weight:700;flex-shrink:0;}
+
+select{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 14px;font-size:14px;width:100%;outline:none;}
+
+.modes{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+@media(max-width:500px){.modes{grid-template-columns:1fr;}}
+.mode-btn{background:rgba(255,255,255,.04);border:2px solid var(--border);border-radius:12px;padding:16px 12px;cursor:pointer;transition:all .18s;text-align:center;user-select:none;}
+.mode-btn:hover{border-color:var(--blue);background:rgba(26,108,242,.1);}
+.mode-btn.active{border-color:var(--blue);background:rgba(26,108,242,.15);}
+.mode-icon{font-size:26px;margin-bottom:6px;}
+.mode-label{font-size:13px;font-weight:700;}
+.mode-hint{font-size:11px;color:var(--text3);margin-top:3px;}
+
+.drop-zone{border:2px dashed var(--border);border-radius:12px;padding:38px 20px;text-align:center;cursor:pointer;transition:all .18s;color:var(--text2);}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--blue);background:rgba(26,108,242,.08);color:var(--text);}
+.drop-zone input{display:none;}
+
+/* Column mapper */
+.col-map-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:500px){.col-map-grid{grid-template-columns:1fr;}}
+.col-map-row{display:flex;flex-direction:column;gap:5px;}
+.col-map-label{font-size:12px;color:var(--text2);font-weight:600;}
+.col-map-label .req{color:var(--red);margin-right:2px;}
+.col-map-select{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-size:13px;width:100%;outline:none;}
+.col-preview{font-size:11px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+.btn{padding:11px 22px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:Arial,sans-serif;color:#fff;transition:opacity .15s;}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+.btn.green{background:rgba(22,163,74,.85);}
+.btn.teal{background:var(--teal);}
+.btn.blue{background:var(--blue);}
+.btn.ghost{background:rgba(255,255,255,.08);}
+.btn.sm{padding:8px 14px;font-size:12px;}
+
+.tbl-wrap{overflow-x:auto;max-height:48vh;overflow-y:auto;border-radius:10px;border:1px solid var(--border);}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{background:rgba(255,255,255,.06);padding:8px 10px;text-align:right;color:var(--text2);font-weight:600;position:sticky;top:0;z-index:1;}
+td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle;}
+tr.ok{background:rgba(34,197,94,.05);}
+tr.err{background:rgba(239,68,68,.05);}
+tr.warn{background:rgba(245,158,11,.05);}
+.badge{display:inline-block;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700;}
+.badge.ok{background:rgba(34,197,94,.2);color:#22C55E;}
+.badge.err{background:rgba(239,68,68,.2);color:#EF4444;}
+.badge.warn{background:rgba(245,158,11,.2);color:#F59E0B;}
+.summary{font-size:13px;color:var(--text2);margin-bottom:12px;display:flex;gap:14px;flex-wrap:wrap;}
+
+#log{margin-top:14px;font-size:13px;line-height:2;color:var(--text2);max-height:42vh;overflow-y:auto;background:rgba(255,255,255,.03);padding:16px;border-radius:8px;display:none;}
+.lok{color:#22C55E;}.lerr{color:#EF4444;}.lskip{color:var(--text3);}
+</style>
+</head>
+<body>
+
+<h2>📥 ייבוא מוצרים מאקסל</h2>
+<p class="sub">ייבוא, עדכון וחסימת מוצרים בכמות — רק למנהל ראשי</p>
+
+<!-- Step 1 -->
+<div class="card">
+  <h3><span class="step-num">1</span> בחר ספק</h3>
+  <select id="supplier-select" onchange="onSupplierChange()">
+    <option value="">-- טוען ספקים... --</option>
+  </select>
+</div>
+
+<!-- Step 2 -->
+<div class="card" id="step2-card" style="display:none">
+  <h3><span class="step-num">2</span> מה לייבא?</h3>
+  <div class="modes">
+    <div class="mode-btn" onclick="setMode('new')" id="mode-new">
+      <div class="mode-icon">🆕</div>
+      <div class="mode-label">מוצרים חדשים</div>
+      <div class="mode-hint">יוצר פריטים שאינם קיימים</div>
+    </div>
+    <div class="mode-btn" onclick="setMode('names')" id="mode-names">
+      <div class="mode-icon">✏️</div>
+      <div class="mode-label">עדכון שמות</div>
+      <div class="mode-hint">מעדכן שמות לפי ברקוד</div>
+    </div>
+    <div class="mode-btn" onclick="setMode('barcodes')" id="mode-barcodes">
+      <div class="mode-icon">🔢</div>
+      <div class="mode-label">עדכון ברקודים</div>
+      <div class="mode-hint">מעדכן ברקוד לפי שם מוצר</div>
+    </div>
+    <div class="mode-btn" onclick="setMode('hide')" id="mode-hide">
+      <div class="mode-icon">🚫</div>
+      <div class="mode-label">חסימת מוצרים</div>
+      <div class="mode-hint">מסתיר מהמנהלים</div>
+    </div>
+  </div>
+</div>
+
+<!-- Step 3: Upload -->
+<div class="card" id="step3-card" style="display:none">
+  <h3><span class="step-num">3</span> העלה קובץ</h3>
+  <div class="drop-zone" id="drop-zone"
+       onclick="document.getElementById('file-input').click()"
+       ondragover="onDragOver(event)" ondrop="onDrop(event)" ondragleave="onDragLeave()">
+    <div style="font-size:38px;margin-bottom:8px;">📂</div>
+    <div style="font-weight:700;margin-bottom:4px;">גרור קובץ אקסל לכאן</div>
+    <div style="font-size:12px;">או לחץ לבחירה &nbsp;·&nbsp; xlsx / xls / csv</div>
+    <input type="file" id="file-input" accept=".xlsx,.xls,.csv" onchange="onFileSelected(this)">
+  </div>
+  <div style="margin-top:10px;">
+    <button class="btn teal sm" onclick="downloadTemplate()">📋 הורד תבנית לדוגמה</button>
+  </div>
+</div>
+
+<!-- Step 4: Column Mapper -->
+<div class="card" id="step4-card" style="display:none">
+  <h3><span class="step-num">4</span> בחר עמודות</h3>
+  <p style="font-size:12px;color:var(--text3);margin:0 0 14px;">בחר מאיזו עמודה בקובץ לקחת כל שדה</p>
+  <div class="col-map-grid" id="col-map-grid"></div>
+  <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+    <button class="btn blue" onclick="applyMapping()">👁️ תצוגה מקדימה</button>
+    <button class="btn ghost sm" onclick="resetUpload()">🔄 החלף קובץ</button>
+  </div>
+</div>
+
+<!-- Step 5: Preview -->
+<div class="card" id="step5-card" style="display:none">
+  <h3><span class="step-num">5</span> תצוגה מקדימה</h3>
+  <div class="summary" id="preview-summary"></div>
+  <div class="tbl-wrap">
+    <table>
+      <thead id="preview-head"></thead>
+      <tbody id="preview-body"></tbody>
+    </table>
+  </div>
+  <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+    <button class="btn green" id="confirm-btn" onclick="doImport()">✅ אשר ייבוא</button>
+    <button class="btn ghost sm" onclick="backToMapping()">← שנה מיפוי</button>
+  </div>
+</div>
+
+<div id="log"></div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script type="module">
+import { initializeApp }   from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
+import { getFirestore, collection, getDocs, updateDoc, addDoc }
+  from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+const sb = createClient(
+  'https://dkpqgyieoidrydxfiwhd.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRrcHFneWllb2lkcnlkeGZpd2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MzA4NDgsImV4cCI6MjA4OTMwNjg0OH0.cFYdJK7P58pc_VlQxCo4HdLVRPkyiLz_8hMLepoK3Ws'
+);
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { location.href = 'index.html'; return; }
+  const { data: profile } = await sb.from('profiles').select('role').eq('id', session.user.id).single();
+  if (profile?.role !== 'super_admin') { location.href = 'manager.html'; return; }
+  loadSuppliers();
+})();
+
+const db = getFirestore(initializeApp({
+  apiKey: "AIzaSyAkDN3aDsaHAScm8vymAJFhvT6aaY1pWsw",
+  authDomain: "ktmarket.firebaseapp.com", projectId: "ktmarket",
+  storageBucket: "ktmarket.firebasestorage.app",
+  messagingSenderId: "293459990906",
+  appId: "1:293459990906:web:468b68227cc17e55389ec3"
+}));
+
+let currentMode      = null;
+let currentSuppId    = null;
+let supplierProducts = [];
+let parsedRows       = [];
+let rawData          = [];   // all rows from Excel (row 0 = header)
+let colHeaders       = [];   // column labels: ["A - מק\"ט", "B - שם פריט", ...]
+
+// ── Suppliers ─────────────────────────────────────────────────────────────────
+async function loadSuppliers() {
+  const snap = await getDocs(collection(db, 'suppliers'));
+  const list = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'he'));
+  const sel = document.getElementById('supplier-select');
+  sel.innerHTML = '<option value="">-- בחר ספק --</option>' +
+    list.map(s => `<option value="${s.id}">${s.name || s.id}</option>`).join('');
+}
+
+window.onSupplierChange = async function () {
+  const id = document.getElementById('supplier-select').value;
+  if (!id) { document.getElementById('step2-card').style.display = 'none'; return; }
+  currentSuppId = id;
+  const snap = await getDocs(collection(db, 'products'));
+  supplierProducts = snap.docs
+    .filter(d => String(d.data().supplierCode) === String(id))
+    .map(d => ({ id: d.id, ref: d.ref, ...d.data() }));
+  document.getElementById('step2-card').style.display = 'block';
+  resetAll();
+};
+
+// ── Mode ──────────────────────────────────────────────────────────────────────
+window.setMode = function (mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('mode-' + mode).classList.add('active');
+  document.getElementById('step3-card').style.display = 'block';
+  document.getElementById('step4-card').style.display = 'none';
+  document.getElementById('step5-card').style.display = 'none';
+  parsedRows = []; rawData = [];
+  document.getElementById('log').style.display = 'none';
+};
+
+// ── Drag & drop ───────────────────────────────────────────────────────────────
+window.onDragOver  = e => { e.preventDefault(); document.getElementById('drop-zone').classList.add('drag-over'); };
+window.onDragLeave = ()  => document.getElementById('drop-zone').classList.remove('drag-over');
+window.onDrop      = e  => { e.preventDefault(); onDragLeave(); if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]); };
+window.onFileSelected = inp => { if (inp.files[0]) processFile(inp.files[0]); };
+
+// ── Parse Excel → show column mapper ─────────────────────────────────────────
+function processFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb   = XLSX.read(e.target.result, { type: 'binary' });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      rawData = rows.filter(r => r.some(c => String(c || '').trim()));
+      if (rawData.length < 2) { alert('הקובץ ריק — נדרשות לפחות 2 שורות'); return; }
+      buildColMapper();
+    } catch (err) { alert('שגיאה בקריאת הקובץ: ' + err.message); }
+  };
+  reader.readAsBinaryString(file);
+}
+
+// ── Column mapper ─────────────────────────────────────────────────────────────
+const FIELD_DEFS = {
+  new:      [
+    { key:'name',  label:'שם מוצר',   req:true  },
+    { key:'bc',    label:'ברקוד',      req:false },
+    { key:'price', label:'מחיר',       req:false },
+    { key:'unit',  label:'יחידה',      req:false },
+    { key:'cat',   label:'קטגוריה',    req:false },
+  ],
+  names:    [
+    { key:'bc',      label:'ברקוד',    req:true },
+    { key:'newName', label:'שם חדש',   req:true },
+  ],
+  barcodes: [
+    { key:'name',  label:'שם מוצר',   req:true },
+    { key:'newBc', label:'ברקוד חדש', req:true },
+  ],
+  hide:     [
+    { key:'val', label:'ברקוד / שם מוצר', req:true },
+  ],
+};
+
+function colLetter(i) {
+  let s = '';
+  i++;
+  while (i > 0) { s = String.fromCharCode(64 + (i % 26 || 26)) + s; i = Math.floor((i - 1) / 26); }
+  return s;
+}
+
+function buildColMapper() {
+  const headerRow = rawData[0];
+  const numCols   = Math.max(...rawData.map(r => r.length));
+
+  // Build options: "A - כותרת" or just "A" if no header
+  colHeaders = Array.from({ length: numCols }, (_, i) => {
+    const letter = colLetter(i);
+    const hdr    = String(headerRow[i] || '').trim();
+    return { letter, label: hdr ? `${letter} — ${hdr}` : letter, idx: i };
+  });
+
+  const fields  = FIELD_DEFS[currentMode];
+  const makeOpt = (includeNone) =>
+    (includeNone ? '<option value="-1">— לא לייבא —</option>' : '') +
+    colHeaders.map(c => `<option value="${c.idx}">${c.label}</option>`).join('');
+
+  // Auto-guess: first col = first required field, second = second, etc.
+  let autoIdx = 0;
+
+  const grid = document.getElementById('col-map-grid');
+  grid.innerHTML = fields.map(f => {
+    const selVal = f.req ? autoIdx++ : -1;
+    const preview = colHeaders[selVal] ? sampleValues(selVal) : '';
+    return `
+      <div class="col-map-row">
+        <div class="col-map-label">${f.label}${f.req ? '<span class="req">*</span>' : ''}</div>
+        <select class="col-map-select" id="map-${f.key}" onchange="updatePreviewHint('${f.key}')">
+          ${makeOpt(!f.req)}
+        </select>
+        <div class="col-preview" id="hint-${f.key}">${preview}</div>
+      </div>`;
+  }).join('');
+
+  // Set auto-guessed values
+  let ai = 0;
+  fields.forEach(f => {
+    const sel = document.getElementById('map-' + f.key);
+    if (f.req) { sel.value = String(ai++); }
+    else        { sel.value = '-1'; }
+    updatePreviewHint(f.key);
+  });
+
+  document.getElementById('step4-card').style.display = 'block';
+  document.getElementById('step5-card').style.display = 'none';
+}
+
+function sampleValues(colIdx) {
+  const samples = rawData.slice(1, 4)
+    .map(r => String(r[colIdx] || '').trim())
+    .filter(Boolean);
+  return samples.length ? '✦ ' + samples.join(' · ') : '';
+}
+
+window.updatePreviewHint = function (key) {
+  const sel = document.getElementById('map-' + key);
+  const idx = parseInt(sel.value);
+  document.getElementById('hint-' + key).textContent =
+    idx >= 0 ? sampleValues(idx) : '';
+};
+
+// ── Apply mapping → build preview ─────────────────────────────────────────────
+const norm = s => String(s || '').replace(/^\d+\s*[-–—]\s*/, '').replace(/\s+/g, ' ').trim().toLowerCase();
+const findByBc   = bc   => supplierProducts.find(p => String(p.barcode || '').trim() === String(bc || '').trim()) || null;
+const findByName = name => { const n = norm(name); return supplierProducts.find(p => { const pn = norm(p.name); return pn === n || pn.includes(n) || (n.length >= 4 && n.includes(pn)); }) || null; };
+
+function getCol(key) {
+  const el = document.getElementById('map-' + key);
+  return el ? parseInt(el.value) : -1;
+}
+function cellVal(row, key) {
+  const idx = getCol(key);
+  return idx >= 0 ? String(row[idx] || '').trim() : '';
+}
+
+window.applyMapping = function () {
+  // Validate required fields
+  const fields = FIELD_DEFS[currentMode];
+  for (const f of fields) {
+    if (f.req && getCol(f.key) < 0) {
+      alert(`השדה "${f.label}" הוא חובה — בחר עמודה`); return;
+    }
+  }
+
+  const isHeader = row => isNaN(Number(String(row[0]).trim())) && !/^\d{4,}/.test(String(row[0]).trim());
+  const dataRows = isHeader(rawData[0]) ? rawData.slice(1) : rawData;
+  parsedRows = [];
+
+  const catIcon = c => c === 'frozen' ? '❄️' : c === 'chilled' ? '🧊' : c === 'dry' ? '📦' : '';
+  let thead = '', tbody = '';
+
+  if (currentMode === 'new') {
+    thead = '<tr><th>#</th><th>שם מוצר</th><th>ברקוד</th><th>מחיר</th><th>יחידה</th><th>קטגוריה</th><th>סטטוס</th></tr>';
+    dataRows.forEach((r, i) => {
+      const name = cellVal(r,'name'), bc = cellVal(r,'bc');
+      const price = cellVal(r,'price'), unit = cellVal(r,'unit'), cat = cellVal(r,'cat');
+      if (!name){
+        tbody += `<tr class="err"><td>${i+1}</td><td colspan="5" style="color:var(--red);font-size:11px;">⚠️ שם ריק — שורה ${i+1} (ערך בעמודה: "${String(r[getCol('name')]??'')}")</td><td><span class="badge err">ריק</span></td></tr>`;
+        return;
+      }
+      const exists = bc ? findByBc(bc) : findByName(name);
+      const st = exists ? 'warn' : 'ok';
+      parsedRows.push({ name, bc, price, unit, cat, exists, status: st });
+      tbody += `<tr class="${st}"><td>${i+1}</td><td>${name}</td><td>${bc||'—'}</td><td>${price||'—'}</td>
+        <td>${unit||'—'}</td><td>${catIcon(cat)} ${cat||'—'}</td>
+        <td><span class="badge ${st}">${exists?'כבר קיים':'חדש'}</span></td></tr>`;
+    });
+  } else if (currentMode === 'names') {
+    thead = '<tr><th>#</th><th>ברקוד</th><th>שם חדש</th><th>מוצר נמצא</th><th>סטטוס</th></tr>';
+    dataRows.forEach((r, i) => {
+      const bc = cellVal(r,'bc'), newName = cellVal(r,'newName');
+      if (!bc || !newName) return;
+      const found = findByBc(bc);
+      const st = found ? 'ok' : 'err';
+      parsedRows.push({ bc, newName, found, status: st });
+      tbody += `<tr class="${st}"><td>${i+1}</td><td>${bc}</td><td>${newName}</td>
+        <td>${found?found.name:'—'}</td>
+        <td><span class="badge ${st}">${found?'נמצא':'לא נמצא'}</span></td></tr>`;
+    });
+  } else if (currentMode === 'barcodes') {
+    thead = '<tr><th>#</th><th>שם מוצר</th><th>ברקוד חדש</th><th>מוצר נמצא</th><th>סטטוס</th></tr>';
+    dataRows.forEach((r, i) => {
+      const name = cellVal(r,'name'), newBc = cellVal(r,'newBc');
+      if (!name || !newBc) return;
+      const found = findByName(name);
+      const st = found ? 'ok' : 'err';
+      parsedRows.push({ name, newBc, found, status: st });
+      tbody += `<tr class="${st}"><td>${i+1}</td><td>${name}</td><td>${newBc}</td>
+        <td>${found?found.name:'—'}</td>
+        <td><span class="badge ${st}">${found?'נמצא':'לא נמצא'}</span></td></tr>`;
+    });
+  } else if (currentMode === 'hide') {
+    thead = '<tr><th>#</th><th>ברקוד / שם</th><th>מוצר נמצא</th><th>סטטוס</th></tr>';
+    dataRows.forEach((r, i) => {
+      const val = cellVal(r,'val');
+      if (!val) return;
+      const found = findByBc(val) || findByName(val);
+      const st = found ? 'ok' : 'err';
+      parsedRows.push({ val, found, status: st });
+      tbody += `<tr class="${st}"><td>${i+1}</td><td>${val}</td>
+        <td>${found?found.name:'—'}</td>
+        <td><span class="badge ${st}">${found?'יסתר':'לא נמצא'}</span></td></tr>`;
+    });
+  }
+
+  const okN   = parsedRows.filter(r => r.status === 'ok').length;
+  const errN  = parsedRows.filter(r => r.status === 'err').length;
+  const warnN = parsedRows.filter(r => r.status === 'warn').length;
+
+  document.getElementById('preview-head').innerHTML = thead;
+  document.getElementById('preview-body').innerHTML = tbody ||
+    '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px;">אין שורות תקינות</td></tr>';
+  document.getElementById('preview-summary').innerHTML =
+    `<span style="color:var(--text3);">📄 ${dataRows.length} שורות בקובץ</span>` +
+    `<span style="color:#22C55E;">✅ ${okN} תקינות</span>` +
+    (errN  ? `<span style="color:#EF4444;">❌ ${errN} לא נמצאו</span>` : '') +
+    (warnN ? `<span style="color:#F59E0B;">⚠️ ${warnN} כבר קיימים (ידולגו)</span>` : '');
+  document.getElementById('confirm-btn').disabled = okN === 0;
+  document.getElementById('step5-card').style.display = 'block';
+  document.getElementById('step5-card').scrollIntoView({ behavior:'smooth' });
+};
+
+window.backToMapping = function () {
+  document.getElementById('step5-card').style.display = 'none';
+};
+
+// ── Do Import ─────────────────────────────────────────────────────────────────
+window.doImport = async function () {
+  const btn = document.getElementById('confirm-btn');
+  btn.disabled = true; btn.textContent = '⏳ מייבא...';
+  const log = document.getElementById('log');
+  log.style.display = 'block'; log.innerHTML = '';
+  let done = 0, skip = 0, errN = 0;
+
+  for (const row of parsedRows) {
+    if (row.status === 'err') { errN++; continue; }
+    try {
+      if (currentMode === 'new') {
+        if (row.exists) { skip++; log.innerHTML += `<span class="lskip">⏭ קיים: ${row.name}</span><br>`; continue; }
+        const data = { name: row.name, supplierCode: String(currentSuppId) };
+        if (row.bc)    data.barcode        = row.bc;
+        if (row.price) data.purchasePrice  = parseFloat(String(row.price).replace(/[₪,\s]/g,'')) || undefined;
+        if (row.unit)  data.conversionUnit = row.unit;
+        if (row.cat)   data.category       = row.cat;
+        await addDoc(collection(db, 'products'), data);
+        log.innerHTML += `<span class="lok">✅ נוסף: ${row.name}</span><br>`;
+      } else if (currentMode === 'names') {
+        await updateDoc(row.found.ref, { name: row.newName });
+        log.innerHTML += `<span class="lok">✅ שם עודכן: "${row.found.name}" ← "${row.newName}"</span><br>`;
+      } else if (currentMode === 'barcodes') {
+        await updateDoc(row.found.ref, { barcode: row.newBc });
+        log.innerHTML += `<span class="lok">✅ ברקוד עודכן: ${row.found.name} ← ${row.newBc}</span><br>`;
+      } else if (currentMode === 'hide') {
+        await updateDoc(row.found.ref, { hidden: true });
+        log.innerHTML += `<span class="lok">🚫 נחסם: ${row.found.name}</span><br>`;
+      }
+      done++;
+    } catch (e) {
+      log.innerHTML += `<span class="lerr">❌ שגיאה: ${e.message}</span><br>`;
+      errN++;
+    }
+    log.scrollTop = log.scrollHeight;
+  }
+  log.innerHTML += `<br><strong style="color:#F0F4F8;">✅ הושלם: ${done} | דילוג: ${skip} | שגיאות: ${errN}</strong>`;
+  btn.textContent = '✅ הסתיים';
+};
+
+// ── Download template ─────────────────────────────────────────────────────────
+window.downloadTemplate = function () {
+  if (!currentMode) { alert('בחר מצב ייבוא קודם'); return; }
+  const T = {
+    new:      [['שם מוצר','ברקוד','מחיר','יחידה','קטגוריה'],['דוגמה לחם','12345','8.50','יח','dry']],
+    names:    [['ברקוד','שם חדש'],['12345','שם מוצר מעודכן']],
+    barcodes: [['שם מוצר','ברקוד חדש'],['לחם אחיד','12345']],
+    hide:     [['ברקוד'],['12345']],
+  };
+  const ws = XLSX.utils.aoa_to_sheet(T[currentMode]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'ייבוא');
+  XLSX.writeFile(wb, `תבנית-ייבוא-${currentMode}.xlsx`);
+};
+
+// ── Reset ─────────────────────────────────────────────────────────────────────
+window.resetUpload = function () {
+  document.getElementById('step4-card').style.display = 'none';
+  document.getElementById('step5-card').style.display = 'none';
+  document.getElementById('file-input').value = '';
+  rawData = []; parsedRows = [];
+};
+
+function resetAll() {
+  currentMode = null; parsedRows = []; rawData = [];
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  ['step3-card','step4-card','step5-card'].forEach(id => document.getElementById(id).style.display = 'none');
+  document.getElementById('log').style.display = 'none';
+  document.getElementById('log').innerHTML = '';
+}
+</script>
+</body>
+</html>

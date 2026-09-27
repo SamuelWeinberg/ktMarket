@@ -56,7 +56,7 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
 .btn-ghost{background:var(--card2);border:1px solid var(--border);color:var(--text2);}
 .btn-ghost:hover{color:var(--text);}
 .btn-success{background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);color:#86EFAC;}
-.supplier-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;transition:border-color .2s;cursor:pointer;}
+.supplier-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;transition:border-color .2s;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(26,108,242,.15);user-select:none;-webkit-user-select:none;}
 .supplier-card:hover{border-color:rgba(26,108,242,.4);}
 .supplier-card.urgent{border-color:rgba(245,166,35,.4);background:rgba(245,166,35,.04);}
 .s-name{font-size:15px;font-weight:700;}
@@ -267,7 +267,7 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, deleteDoc, query, where, orderBy, limit, writeBatch } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, getDocsFromServer, addDoc, doc, setDoc, updateDoc, deleteDoc, query, where, orderBy, limit, writeBatch } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
 window.addEventListener('unhandledrejection', e => {
   const msg = e.reason?.message || String(e.reason);
@@ -309,10 +309,31 @@ let currentProfile = null;
 let currentBranch = '';
 let currentSupplier = null;
 let currentOrderItems = [];
+let currentCategory = 'all';
+let currentSupplierIsMultiCat = false;
 let editingOrderId = null;
 const today = new Date().toISOString().split('T')[0];
 
-if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
+async function logActivity(event, meta={}){
+  try {
+    await addDoc(collection(db,'activity_log'), {
+      userId: currentProfile?.id || '',
+      userName: currentProfile?.full_name || currentProfile?.email || '',
+      branch: currentBranch || currentProfile?.branch || '',
+      event,
+      meta,
+      date: today,
+      timestamp: new Date().toISOString()
+    });
+  } catch(e){ /* silent */ }
+}
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/sw.js');
+  navigator.serviceWorker.addEventListener('message', e => {
+    if(e.data?.type === 'SW_UPDATED') location.reload();
+  });
+}
 
 // ── auth ──────────────────────────────────────────────────────────────────────
 let _session = null;
@@ -406,13 +427,7 @@ async function initApp(profile){
     greetEl.style.display = 'block';
   }
 
-  // show analytics link for network_manager
-  if(profile.role === 'network_manager'){
-    const navA = document.getElementById('nav-analytics');
-    if(navA) navA.style.display = 'flex';
-    const bnA = document.getElementById('bn-analytics');
-    if(bnA) bnA.style.display = 'flex';
-  }
+  // analytics — super_admin only (via admin.html)
 
   // branch setup
   if(profile.role === 'network_manager'){
@@ -435,6 +450,7 @@ async function initApp(profile){
   }
 
   await loadSuppliers();
+  logActivity('login');
 }
 
 async function doLogout(){ await sb.auth.signOut(); location.href = 'index.html'; }
@@ -688,10 +704,10 @@ function renderSuppliersHtml(list, filter, baseEmpty){
     const freqLabel = {weekly:'שבועי',biweekly:'דו-שבועי',monthly:'חודשי',daily:'יומי'}[s.frequency]||'שבועי';
     const freqColor = s.frequency==='biweekly'?'rgba(0,194,203,.15);color:#67E8F9;border:1px solid rgba(0,194,203,.3)':s.frequency==='monthly'?'rgba(245,166,35,.12);color:#FCD34D;border:1px solid rgba(245,166,35,.3)':'rgba(34,197,94,.1);color:#86EFAC;border:1px solid rgba(34,197,94,.25)';
     return `
-    <div class="supplier-card ${shouldOrderToday(s)?'urgent':''}" style="cursor:default;">
-      <div onclick="openOrder('${s.id}')" style="flex:1;cursor:pointer;min-width:0;">
+    <div class="supplier-card ${shouldOrderToday(s)?'urgent':''}" onclick="tapSupplier('${s.id}')" ontouchend="tapSupplier('${s.id}')" style="cursor:pointer;">
+      <div style="flex:1;min-width:0;">
         <div class="s-name" style="display:flex;align-items:center;gap:8px;">
-          ${s.name}
+          <span onclick="event.stopPropagation();openSupplierCard('${s.id}')" ontouchend="event.stopPropagation();openSupplierCard('${s.id}')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;">${s.name}</span>
           <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:${freqColor}">${freqLabel}</span>
         </div>
         <div class="s-meta">
@@ -700,10 +716,10 @@ function renderSuppliersHtml(list, filter, baseEmpty){
           ${s.agentNumber?'&nbsp;·&nbsp; <a href="tel:'+s.agentNumber+'" onclick="event.stopPropagation()" style="color:var(--cyan);text-decoration:none;">📞 '+s.agentNumber+'</a>':''}
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;" onclick="event.stopPropagation()" ontouchend="event.stopPropagation()">
         ${shouldOrderToday(s)?'<span class="s-badge badge-today">להזמין היום</span>':'<span class="s-badge badge-ok">לא דחוף</span>'}
         <button onclick="editSupplierMgr('${s.id}')" style="background:var(--navy3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px;cursor:pointer;color:var(--text2);" title="ערוך פרטי ספק">✏️</button>
-        <span onclick="openOrder('${s.id}')" style="color:var(--text3);font-size:18px;cursor:pointer;">←</span>
+        <span onclick="tapSupplier('${s.id}')" ontouchend="tapSupplier('${s.id}')" style="color:var(--text3);font-size:18px;cursor:pointer;padding:8px;touch-action:manipulation;">←</span>
       </div>
     </div>`;
   }).join('');
@@ -726,6 +742,7 @@ function editSupplierMgr(supplierId){
   toggleMgrFreqPhase();
   setMgrDays('mgr-order',   s.orderDays?.length   ? s.orderDays   : (s.orderDay   !== undefined ? [s.orderDay]   : []));
   setMgrDays('mgr-arrival', s.arrivalDays?.length ? s.arrivalDays : (s.arrivalDay !== undefined ? [s.arrivalDay] : []));
+  document.getElementById('mgr-supp-show-price').checked = !!s.showPriceInOrder;
   document.getElementById('mgr-supp-modal').style.display = 'flex';
 }
 window.editSupplierMgr = editSupplierMgr;
@@ -740,11 +757,12 @@ async function saveMgrSupplier(){
   try {
     const orderDays     = getMgrDays('mgr-order');
     const arrivalDays   = getMgrDays('mgr-arrival');
-    const agentName     = document.getElementById('mgr-supp-agent-name').value.trim();
-    const agentNumber   = document.getElementById('mgr-supp-agent-num').value.trim();
-    const frequency     = document.getElementById('mgr-supp-freq').value;
-    const biweeklyPhase = frequency==='biweekly' ? parseInt(document.getElementById('mgr-supp-phase').value||'0') : 0;
-    await setDoc(doc(db,'suppliers', mgrEditSupplierId), { orderDays, arrivalDays, agentName, agentNumber, frequency, biweeklyPhase }, { merge: true });
+    const agentName      = document.getElementById('mgr-supp-agent-name').value.trim();
+    const agentNumber    = document.getElementById('mgr-supp-agent-num').value.trim();
+    const frequency      = document.getElementById('mgr-supp-freq').value;
+    const biweeklyPhase  = frequency==='biweekly' ? parseInt(document.getElementById('mgr-supp-phase').value||'0') : 0;
+    const showPriceInOrder = document.getElementById('mgr-supp-show-price').checked;
+    await setDoc(doc(db,'suppliers', mgrEditSupplierId), { orderDays, arrivalDays, agentName, agentNumber, frequency, biweeklyPhase, showPriceInOrder }, { merge: true });
     const s = allSuppliersCache.find(x=>x.id===mgrEditSupplierId);
     if(s){ Object.assign(s,{orderDays,arrivalDays,agentName,agentNumber,frequency,biweeklyPhase}); }
     toast('✅ ספק עודכן!');
@@ -763,17 +781,26 @@ function toggleMgrFreqPhase(){
 window.toggleMgrFreqPhase = toggleMgrFreqPhase;
 
 // ── order form ────────────────────────────────────────────────────────────────
+let _lastTapTime = 0;
+function tapSupplier(id){
+  const now = Date.now();
+  if(now - _lastTapTime < 600) return;
+  _lastTapTime = now;
+  openOrder(id);
+}
+window.tapSupplier = tapSupplier;
 async function openOrder(supplierId){
+  try {
   const snap = await getDocs(collection(db,'suppliers'));
   currentSupplier = snap.docs.map(d=>({id:d.id,...d.data()})).find(s=>s.id===supplierId);
-  if(!currentSupplier) return;
+  if(!currentSupplier){ toast('❌ ספק לא נמצא: ' + supplierId); return; }
   document.getElementById('order-supplier-name').textContent = '📦 הזמנה — ' + currentSupplier.name;
   document.getElementById('order-items-wrap').innerHTML = '<div class="loading"><div class="spinner"></div> טוען מוצרים...</div>';
   document.getElementById('order-actions').style.display = 'none';
   gotoPage('order');
 
   // load products for this supplier (skip blocked)
-  const prodSnap = await getDocs(query(collection(db,'products'), where('supplierCode','==', currentSupplier.code||currentSupplier.id)));
+  const prodSnap = await getDocsFromServer(query(collection(db,'products'), where('supplierCode','==', currentSupplier.code||currentSupplier.id)));
   const myBranchForSort = currentBranch;
   const isPromoForSort = p => {
     const pb = p.promoBranches||[];
@@ -784,7 +811,7 @@ async function openOrder(supplierId){
     return true;
   };
   const products = prodSnap.docs.map(d=>({id:d.id,...d.data()}))
-    .filter(p => p.blocked !== true)
+    .filter(p => p.blocked !== true && p.hidden !== true)
     .sort((a,b) => {
       const ap = isPromoForSort(a)?1:0, bp = isPromoForSort(b)?1:0;
       if(bp !== ap) return bp - ap;
@@ -834,12 +861,12 @@ async function openOrder(supplierId){
   currentOrderItems = products.map(p=>({
     productId: p.barcode || p.id,
     barcode: p.barcode || p.id,
-    productName: p.name,
-    supplierCode: p.supplierCode,
-    conversionUnit: p.conversionUnit,
+    productName: p.name || '',
+    supplierCode: p.supplierCode || '',
+    conversionUnit: p.conversionUnit || '',
     purchasePrice: p.purchasePrice || 0,
     conversionFactor: p.conversionFactor || 1,
-    suggestedQty: avgSuggestion(p.barcode||p.id, p.conversionFactor||1),
+    suggestedQty: avgSuggestion(p.barcode||p.id, p.conversionFactor||1) || 0,
     orderedQty: 0,
     receivedQty: 0
   }));
@@ -851,39 +878,103 @@ async function openOrder(supplierId){
   }
 
   const isPromo = p => { const pb=p.promoBranches||[]; return pb.includes('*')||pb.includes(myBranch)||(!pb.length&&p.isPromo); };
-  const promoCount = products.filter(isPromo).length;
-  document.getElementById('order-items-wrap').innerHTML = `
-    ${promoCount > 0 ? `<div style="background:rgba(245,166,35,.07);border:1px solid rgba(245,166,35,.25);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#FCD34D;font-weight:600;">
-      🏷️ ${promoCount} מוצרים במבצע — דאג להזמין כמות גדולה יותר!
-    </div>` : ''}
-    <div style="display:grid;grid-template-columns:1fr 80px 80px;gap:8px;padding-bottom:8px;border-bottom:2px solid var(--border);margin-bottom:4px;">
-      <div style="font-size:11px;color:var(--text3);font-weight:700;">מוצר</div>
-      <div style="font-size:11px;color:var(--text3);font-weight:700;text-align:center;">הצעה</div>
-      <div style="font-size:11px;color:var(--text3);font-weight:700;text-align:center;">כמות</div>
-    </div>
-    ${products.map((p,i)=>{
+
+  const normN = s => String(s||'').replace(/^\d+\s*[-–—]\s*/,'').replace(/\s+/g,' ').trim();
+  const inList = (name, list) => {
+    const n = normN(name);
+    if(n.length < 4) return false;
+    for(const item of list){
+      const f = normN(item);
+      if(n === f || n.includes(f) || (n.length >= 5 && f.includes(n))) return true;
+    }
+    return false;
+  };
+  const getCategory = p => {
+    if(p.category==='frozen')  return 'frozen';
+    if(p.category==='chilled') return 'chilled';
+    if(p.category==='dry')     return 'dry';
+    const bc = String(p.barcode||'').trim();
+    if(FROZEN_BARCODES.has(bc))  return 'frozen';
+    if(CHILLED_BARCODES.has(bc)) return 'chilled';
+    if(inList(p.name, FROZEN_NAMES))  return 'frozen';
+    if(inList(p.name, CHILLED_NAMES)) return 'chilled';
+    return 'dry';
+  };
+
+  const renderOrderForm = (category) => {
+    currentCategory = category;
+    const visibleIndexed = products.map((p,i)=>({p,i})).filter(({p})=>getCategory(p)===category);
+    const promoCount = visibleIndexed.filter(({p})=>isPromo(p)).length;
+    const renderRow = (p,i) => {
       const sug = avgSuggestion(p.barcode||p.id, p.conversionFactor||1);
       const pIsPromo = isPromo(p);
-      return `<div class="${pIsPromo?'promo-row':''}" style="display:grid;grid-template-columns:1fr auto 80px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);${pIsPromo?'border-color:rgba(245,166,35,.15);':''}">
+      const bc = String(p.barcode||'');
+      const bcInName = bc && String(p.name||'').startsWith(bc);
+      const searchStr = ((p.name||'')+' '+(p.barcode||'')).toLowerCase();
+      return `<div class="order-row ${pIsPromo?'promo-row':''}" data-s="${searchStr}" style="display:grid;grid-template-columns:1fr auto 80px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);${pIsPromo?'border-color:rgba(245,166,35,.15);':''}">
         <div>
-          <div class="item-name">
-            ${pIsPromo?'<span class="promo-badge">🏷️ מבצע</span>':''}${p.name||'—'}
-          </div>
-          <div class="item-meta">${p.barcode||''} · ${p.conversionUnit||''}</div>
+          <div class="item-name">${pIsPromo?'<span class="promo-badge">🏷️ מבצע</span>':''}${p.name||'—'}</div>
+          <div class="item-meta">${bcInName?'':(bc?bc+' · ':'')}${p.conversionUnit||''}</div>
         </div>
         ${sug > 0
-          ? `<button onclick="applyRec(${i},${sug})" title="החל המלצה: ${sug}"
-               style="font-size:11px;padding:3px 8px;border-radius:12px;border:1px solid rgba(0,194,203,.3);background:rgba(0,194,203,.08);color:#67E8F9;cursor:pointer;font-family:Heebo,sans-serif;white-space:nowrap;">
-               💡 ${sug}
-             </button>`
+          ? `<button onclick="applyRec(${i},${sug})" title="החל המלצה: ${sug}" style="font-size:11px;padding:3px 8px;border-radius:12px;border:1px solid rgba(0,194,203,.3);background:rgba(0,194,203,.08);color:#67E8F9;cursor:pointer;font-family:Heebo,sans-serif;white-space:nowrap;">💡 ${sug}</button>`
           : `<span class="suggested">—</span>`}
         <input class="qty-input" type="number" min="0" value="" id="qty-${i}"
           oninput="updateQty(${i}, this.value)" placeholder="0"
           style="${pIsPromo?'border-color:rgba(245,166,35,.4);':''}">
       </div>`;
-    }).join('')}`;
-  document.getElementById('order-actions').style.display = 'flex';
-  updateMinBar();
+    };
+    const catLabels = {frozen:'❄️ קפואים', chilled:'🧊 מצונן', dry:'📦 יבש'};
+    document.getElementById('order-items-wrap').innerHTML = `
+      ${promoCount > 0 ? `<div style="background:rgba(245,166,35,.07);border:1px solid rgba(245,166,35,.25);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#FCD34D;font-weight:600;">
+        🏷️ ${promoCount} מוצרים במבצע — דאג להזמין כמות גדולה יותר!
+      </div>` : ''}
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+        ${['frozen','chilled','dry'].map(c=>{
+          const lbl = catLabels[c];
+          const cnt = products.filter(p=>getCategory(p)===c).length;
+          const active = c===category;
+          return `<button onclick="window._catSwitch('${c}')" style="padding:7px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;touch-action:manipulation;border:1px solid ${active?'rgba(26,108,242,.6)':'var(--border)'};background:${active?'rgba(26,108,242,.2)':'var(--navy3)'};color:${active?'#93C5FD':'var(--text2)'};">${lbl} <span style="opacity:.7;">(${cnt})</span></button>`;
+        }).join('')}
+      </div>
+      <div style="margin-bottom:10px;">
+        <input id="order-search" type="text" placeholder="🔍 חיפוש מוצר..." oninput="filterOrderRows(this.value)"
+          style="width:100%;padding:9px 14px;background:var(--navy3);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-family:Heebo,sans-serif;box-sizing:border-box;">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 80px 80px;gap:8px;padding-bottom:8px;border-bottom:2px solid var(--border);margin-bottom:4px;">
+        <div style="font-size:11px;color:var(--text3);font-weight:700;">מוצר</div>
+        <div style="font-size:11px;color:var(--text3);font-weight:700;text-align:center;">הצעה</div>
+        <div style="font-size:11px;color:var(--text3);font-weight:700;text-align:center;">כמות</div>
+      </div>
+      ${visibleIndexed.length ? visibleIndexed.map(({p,i})=>renderRow(p,i)).join('') : '<div style="padding:24px;text-align:center;color:var(--text3);">אין מוצרים בקטגוריה זו</div>'}`;
+    window._catSwitch = (c) => renderOrderForm(c);
+    document.getElementById('order-actions').style.display = 'flex';
+    updateMinBar();
+  };
+
+  const categories = new Set(products.map(p=>getCategory(p)));
+  currentSupplierIsMultiCat = categories.size > 1;
+  if(currentSupplierIsMultiCat){
+    const cnts = {
+      frozen:  products.filter(p=>getCategory(p)==='frozen').length,
+      chilled: products.filter(p=>getCategory(p)==='chilled').length,
+      dry:     products.filter(p=>getCategory(p)==='dry').length,
+    };
+    const btnStyle = (color,bg,border) => `padding:16px 20px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;touch-action:manipulation;border:1px solid ${border};background:${bg};color:${color};min-width:100px;`;
+    document.getElementById('order-items-wrap').innerHTML = `
+      <div style="text-align:center;padding:40px 16px;">
+        <div style="font-size:13px;color:var(--text3);margin-bottom:24px;">בחר קטגוריה להזמנה</div>
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+          ${cnts.frozen  ? `<button onclick="window._catChoice('frozen')"  style="${btnStyle('#67E8F9','rgba(0,194,203,.1)','rgba(0,194,203,.35)')}">❄️ קפואים<br><span style="font-size:11px;font-weight:400;opacity:.7;">${cnts.frozen} פריטים</span></button>` : ''}
+          ${cnts.chilled ? `<button onclick="window._catChoice('chilled')" style="${btnStyle('#86EFAC','rgba(34,197,94,.1)','rgba(34,197,94,.35)')}">🧊 מצונן<br><span style="font-size:11px;font-weight:400;opacity:.7;">${cnts.chilled} פריטים</span></button>` : ''}
+          ${cnts.dry     ? `<button onclick="window._catChoice('dry')"     style="${btnStyle('#F0F4F8','rgba(255,255,255,.05)','rgba(255,255,255,.15)')}">📦 יבש<br><span style="font-size:11px;font-weight:400;opacity:.7;">${cnts.dry} פריטים</span></button>` : ''}
+        </div>
+      </div>`;
+    window._catChoice = (c) => { delete window._catChoice; renderOrderForm(c); };
+  } else {
+    renderOrderForm([...categories][0] || 'dry');
+  }
+  } catch(e){ toast('❌ שגיאה: ' + e.message); }
 }
 window.openOrder = openOrder;
 
@@ -910,6 +1001,14 @@ function updateQty(index, val){
   updateMinBar();
 }
 window.updateQty = updateQty;
+
+function filterOrderRows(q){
+  const term = (q||'').toLowerCase().trim();
+  document.querySelectorAll('.order-row').forEach(r => {
+    r.style.display = term && !r.dataset.s.includes(term) ? 'none' : '';
+  });
+}
+window.filterOrderRows = filterOrderRows;
 
 function updateMinBar(){
   const s = currentSupplier;
@@ -953,6 +1052,86 @@ function updateMinBar(){
   }
 }
 
+const FROZEN_NAMES = new Set([
+  // נטו — שמות קצרים לזיהוי גמיש
+  'פיצה איטלקית','פיצה משפחתית','פיצה בודד','פיצה אישית',
+  'ריבועי בצק עלים','בצק עלים','בורקס תפוח אדמה','בורקס גבינה',
+  'בורקס פילו','גחנון','מלאווח','שערות קדאיף','שעורות קדאיף',
+  'קבב מובחר','המבורגר מובחר','קבב מזרחי','קבב טלה','קבב רומני',
+  'קבב עיראקי','מרגז מרוקאי','המבורגר 500','בצק עוגיות שוקולד',
+  'שעועית צהובה','אנטריקוט עטרה','טחון חזה עוף','טחון הודו',
+  'טחון בקר','גולש בקר','סיגרים תפוח אדמה','אגרול סיני',
+  'פסטלים תפוח אדמה','נקנקיות קוקטייל','נקניקיות קוקטייל',
+  'נקנקיות קראנץ','נקניקיות קראנץ','ציפס בטטה',
+  'כבד עוף מגש','חזה פרוס מגש','כרעיים עוף מגש',
+  'ירך עוף מגש','כנף עוף מגש',
+  'מס 7 חלק','מס. 7 חלק','מס 6 ארג','מס 8 ארג',
+  'פלמיני שלושת האופים','קובה במילוי בשר','קובה למרק',
+  // שמות ישנים שעשויים להיות ב-DB
+  'ירכיים עוף','כרעיים עוף קפוא','כנפיים עוף קפוא','שניצל עוף פרוס',
+  'פילה מדומה בקר',
+]);
+const CHILLED_NAMES = new Set([
+  'ריץ פרוס','ריץ מגורד','בסיס לקצפת','קצפת מתוקה','סלט סלמון',
+  'טעם טוב',
+]);
+
+// קודי ספק קצרים (4-6 ספרות) — אלה שיש בפיירסטור אחרי הסיווג
+const CHILLED_BARCODES = new Set([
+  '94984','94972','52160','21876',
+]);
+
+const FROZEN_BARCODES = new Set([
+  '52857','52631','43464','43462','52660','52630','52650','52610',
+  '43454','52608','43453','43452','52595','32019','32020','50190',
+  '50189','50188','50187','50186','50184','52200','46199','33777',
+  '33547','33548','33549','31306','53245','53243','53248','50138',
+  '50139','46377','30770','45795','45828','45833','45870','54297',
+  '54592','54594','53297','53294','53317','43457',
+]);
+
+const SUPPLIER_CODES = {
+  '4557': [
+    ['91204','סרדינים שמן חמניות'],['91206','סרדינים שמן קנולה'],['52857','פיצה איטלקית'],
+    ['94984','ריץ פרוס 1 קג'],['52631','ריבועי בצק עלים'],['21876','סלט סלמון מעושן'],
+    ['43464','פיצה משפחתית'],['43462','פיצה בודד'],['52660','בורקס תפוח אדמה 800'],
+    ['52630','בצק עלים 1 קג'],['52680','קונכיות'],['52650','בורקס גבינה 800'],
+    ['52610','גחנון 900'],['43454','בורקס פילו גבינה זית'],['90306','הרינג מלוח בשמן'],
+    ['90305','הרינג שמן בצל'],['21867','טונה וירקות מקסיקני'],['21866','טונה וירקות ים תיכוני'],
+    ['21868','טונה ירקות ברוטב השף'],['52608','מלאווח 700'],['43453','בורקס פילו תפוח אדמה'],
+    ['43452','בורקס פילו אצבעות'],['52595','גחנון 650'],['32019','קבב מובחר טאק טורו'],
+    ['32020','המבורגר מובחר טאק טורו'],['50190','קבב מזרחי 500 תומס'],
+    ['50189','קבב טלה 500 תומס'],['50188','קבב רומני 500 תומס'],
+    ['50187','קבב עיראקי 500 תומס'],['50186','מרגז מרוקאי 400'],
+    ['50184','המבורגר 500 תומס'],['52200','בצק עוגיות שוקולד'],['46199','שעועית צהובה'],
+    ['52160','בסיס לקצפת'],['91200','סרדינים בשמן 125'],['91203','סרדינים חריף'],
+    ['92780','קרם קוקוס'],['94972','ריץ פרוס 400'],['33777','אנטריקוט עטרה'],
+    ['33547','טחון חזה עוף'],['33548','טחון הודו'],['33549','טחון בקר'],
+    ['31306','גולש בקר'],['53245','סיגרים תפוח אדמה'],['53243','אגרול סיני'],
+    ['53248','פסטלים תפוח אדמה'],['90304','הרינג כבוש'],['90330','איקרה לבנה'],
+    ['90331','איקרה ורודה'],['50138','נקנקיות קוקטייל'],['50139','נקנקיות קראנץ'],
+    ['46377','ציפס בטטה'],['30770','כבד עוף מגש יסכה'],['45795','חזה פרוס מגש יסכה'],
+    ['45828','כרעיים עוף מגש יסכה'],['45828','כרעיים עוף קפוא'],
+    ['45833','ירך עוף מגש יסכה'],['45870','כנף עוף מגש יסכה'],
+    ['54297','מס. 7 חלק'],['54297','מס 7'],['54592','מס 6'],['54594','מס 8'],
+    ['53297','פלמיני שלושת האופים'],['53294','קובה במילוי בשר'],
+    ['53317','קובה למרק'],['43457','שערות קדאיף'],
+  ]
+};
+
+function getSupplierItemCode(supplierCode, productName){
+  const entries = SUPPLIER_CODES[String(supplierCode)];
+  if(!entries) return null;
+  // נרמל: הסר קוד מוביל (כגון "45828 - "), נקה רווחים
+  const norm = s => String(s||'').replace(/^\d+\s*[-–—]\s*/,'').replace(/\s+/g,' ').trim();
+  const n = norm(productName);
+  for(const [code, keyword] of entries){
+    const k = norm(keyword);
+    if(n.includes(k) || k.includes(n)) return code;
+  }
+  return null;
+}
+
 function buildWAMessage(supplier, branch, items){
   const date = new Date().toLocaleDateString('he-IL');
   let msg = `📦 הזמנה — ${supplier.name}\n`;
@@ -960,12 +1139,28 @@ function buildWAMessage(supplier, branch, items){
   msg += `🏪 סניף: ${branch}\n`;
   if(supplier.agentName) msg += `👤 סוכן: ${supplier.agentName}\n`;
   msg += `\n`;
-  items.forEach(item => {
-    msg += `• ${item.productName}: ${item.orderedQty}`;
-    if(item.conversionUnit) msg += ` ${item.conversionUnit}`;
-    msg += `\n`;
-  });
+  let grandTotal = 0;
+  const showPrice = !!supplier.showPriceInOrder;
+  const buildLine = item => {
+    const barcodeVal = String(item.barcode||'');
+    const itemCode = getSupplierItemCode(supplier.code || supplier.supplierCode, item.productName)
+                  || (/^\d{4,6}$/.test(barcodeVal) ? barcodeVal : null);
+    const codeStr    = itemCode ? `[${itemCode}] ` : '';
+    const barcode13  = /^\d{7,}$/.test(barcodeVal) ? `${barcodeVal} ` : '';
+    const pricePerCarton = (item.purchasePrice||0) * (item.conversionFactor||1);
+    grandTotal += item.orderedQty * pricePerCarton;
+    let line = `• ${barcode13}${codeStr}${item.productName}: ${item.orderedQty}`;
+    if(item.conversionUnit) line += ` ${item.conversionUnit}`;
+    if(showPrice && pricePerCarton > 0) line += ` | ₪${pricePerCarton.toFixed(2)}`;
+    return line;
+  };
+  const catHeaders = {frozen:'❄️ קפואים', chilled:'🧊 מצונן', dry:'📦 יבש'};
+  if(currentSupplierIsMultiCat && currentCategory !== 'all' && catHeaders[currentCategory]){
+    msg += `${catHeaders[currentCategory]}:\n`;
+  }
+  items.forEach(i=>{ msg += buildLine(i)+'\n'; });
   msg += `\nסה״כ: ${items.length} פריטים`;
+  if(showPrice && grandTotal > 0) msg += ` | סכום: ₪${grandTotal.toFixed(2)}`;
   return encodeURIComponent(msg);
 }
 
@@ -976,10 +1171,11 @@ function openWhatsApp(phone, message){
 }
 
 async function saveOrder(status){
-  const items = currentOrderItems.map((item,i)=>({
+  const clean = obj => JSON.parse(JSON.stringify(obj, (_,v) => v === undefined ? null : v));
+  const items = clean(currentOrderItems.map((item,i)=>({
     ...item,
     orderedQty: parseFloat(document.getElementById('qty-'+i)?.value)||0
-  })).filter(item => item.orderedQty > 0);
+  })).filter(item => item.orderedQty > 0));
 
   if(!items.length){ toast('⚠️ הכנס כמויות לפחות למוצר אחד'); return; }
 
@@ -1014,18 +1210,23 @@ async function saveOrder(status){
   }
 
   const orderId = editingOrderId || `${currentBranch||'all'}_${currentSupplier.id}_${today}_${Date.now()}`;
-  await setDoc(doc(db,'orders', orderId), {
-    supplierId: currentSupplier.id,
-    supplierName: currentSupplier.name,
+  await setDoc(doc(db,'orders', orderId), clean({
+    supplierId: currentSupplier.id || '',
+    supplierName: currentSupplier.name || '',
     supplierCode: currentSupplier.code || '',
     agentNumber: currentSupplier.agentNumber || '',
     agentName: currentSupplier.agentName || '',
     branch: currentBranch || '',
     createdBy: currentProfile?.id || '',
-    date: today,
+    date: today || '',
     createdAt: new Date().toISOString(),
-    status,
+    status: status || 'draft',
     items
+  }));
+
+  logActivity(status === 'sent' ? 'order_sent' : 'order_draft', {
+    supplierName: currentSupplier.name,
+    itemCount: items.length
   });
 
   if(status === 'sent'){
@@ -1051,14 +1252,17 @@ async function editOrderFromHistory(idx){
   document.getElementById('order-items-wrap').innerHTML = '<div class="loading"><div class="spinner"></div> טוען...</div>';
   document.getElementById('order-actions').style.display = 'none';
   gotoPage('order');
-  const prodSnap = await getDocs(query(collection(db,'products'), where('supplierCode','==', currentSupplier.code||currentSupplier.id)));
-  const products = prodSnap.docs.map(d=>({id:d.id,...d.data()})).filter(p => p.blocked !== true);
+  const prodSnap = await getDocsFromServer(query(collection(db,'products'), where('supplierCode','==', currentSupplier.code||currentSupplier.id)));
+  const products = prodSnap.docs.map(d=>({id:d.id,...d.data()})).filter(p => p.blocked !== true && p.hidden !== true);
   const qtyMap = {};
   (order.items||[]).forEach(i => { qtyMap[i.productId||i.barcode] = i.orderedQty||0; });
   currentOrderItems = products.map(p=>({
     productId: p.barcode||p.id, barcode: p.barcode||p.id,
-    productName: p.name, supplierCode: p.supplierCode,
-    conversionUnit: p.conversionUnit, purchasePrice: p.purchasePrice||0,
+    productName: p.name || '',
+    supplierCode: p.supplierCode || '',
+    conversionUnit: p.conversionUnit || '',
+    purchasePrice: p.purchasePrice || 0,
+    conversionFactor: p.conversionFactor || 1,
     orderedQty: 0, receivedQty: 0
   }));
   if(!products.length){ document.getElementById('order-items-wrap').innerHTML='<div style="padding:24px;text-align:center;color:var(--text3);">לא נמצאו מוצרים</div>'; return; }
@@ -1232,6 +1436,60 @@ function confirmDeliveryFromHistory(orderId, idx){
   document.getElementById('mgr-confirm-modal').style.display = 'flex';
 }
 window.confirmDeliveryFromHistory = confirmDeliveryFromHistory;
+
+// ── כרטסיית ספק ──────────────────────────────────────────────────────────────
+async function openSupplierCard(supplierId){
+  const modal = document.getElementById('supp-card-modal');
+  const body  = document.getElementById('supp-card-body');
+  const title = document.getElementById('supp-card-title');
+  modal.style.display = 'flex';
+  title.textContent = '';
+  body.innerHTML = '<div class="loading"><div class="spinner"></div> טוען...</div>';
+
+  const sSnap = await getDocs(collection(db,'suppliers'));
+  const s = sSnap.docs.map(d=>({id:d.id,...d.data()})).find(x=>x.id===supplierId);
+  if(!s){ body.innerHTML='<p style="color:var(--text3)">לא נמצא</p>'; return; }
+  title.textContent = s.name || s.id;
+
+  const fmtD = days => {
+    if(!days?.length) return '—';
+    const n=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+    return days.map(d=>n[d]).join(', ');
+  };
+
+  const oSnap = await getDocs(query(
+    collection(db,'orders'),
+    where('supplierId','==',supplierId),
+    orderBy('date','desc'),
+    limit(12)
+  ));
+  const orders = oSnap.docs.map(d=>({id:d.id,...d.data()}));
+
+  const statusIcon = {draft:'📝',sent:'📤',received:'✅'};
+
+  body.innerHTML = `
+    <div style="border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:16px;">
+      ${s.agentName?`<div style="font-size:13px;color:var(--text2);margin-bottom:4px;">👤 סוכן: <strong>${s.agentName}</strong>${s.agentNumber?` &nbsp;·&nbsp; <a href="tel:${s.agentNumber}" style="color:var(--cyan);text-decoration:none;">📞 ${s.agentNumber}</a>`:''}</div>`:''}
+      <div style="font-size:12px;color:var(--text3);">📅 ימי הזמנה: ${fmtD(s.orderDays?.length?s.orderDays:(s.orderDay!=null?[s.orderDay]:null))}</div>
+      <div style="font-size:12px;color:var(--text3);">🚚 ימי הגעה: ${fmtD(s.arrivalDays?.length?s.arrivalDays:(s.arrivalDay!=null?[s.arrivalDay]:null))}</div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:8px;">📋 הזמנות אחרונות</div>
+    ${orders.length ? orders.map(o=>`
+      <div style="padding:9px 0;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <div>
+          <div style="font-size:13px;font-weight:600;">${statusIcon[o.status]||'📦'} ${o.date||'—'}</div>
+          <div style="font-size:11px;color:var(--text3);">${o.branch||''} · ${o.items?.length||0} פריטים</div>
+        </div>
+        <div style="font-size:12px;color:var(--text3);text-align:left;">${o.status==='received'?'✅ התקבלה':o.status==='sent'?'📤 נשלחה':'📝 טיוטה'}</div>
+      </div>`).join('')
+    : '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px;">אין הזמנות עדיין</div>'}`;
+}
+window.openSupplierCard = openSupplierCard;
+
+function closeSupplierCard(){
+  document.getElementById('supp-card-modal').style.display='none';
+}
+window.closeSupplierCard = closeSupplierCard;
 
 function closeMgrConfirmModal(){
   document.getElementById('mgr-confirm-modal').style.display = 'none';
@@ -1409,6 +1667,14 @@ function printSingleOrder(idx){
 window.printSingleOrder = printSingleOrder;
 </script>
 
+<div id="supp-card-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1001;align-items:center;justify-content:center;backdrop-filter:blur(4px);" onclick="if(event.target===this)closeSupplierCard()">
+  <div style="background:var(--navy2);border:1px solid var(--border);border-radius:20px;padding:24px 20px;width:480px;max-width:95vw;max-height:88vh;overflow-y:auto;position:relative;">
+    <button onclick="closeSupplierCard()" style="position:absolute;top:14px;left:16px;background:none;border:none;color:var(--text3);font-size:24px;cursor:pointer;">×</button>
+    <div id="supp-card-title" style="font-size:18px;font-weight:800;margin-bottom:16px;padding-left:30px;"></div>
+    <div id="supp-card-body"></div>
+  </div>
+</div>
+
 <div id="mgr-confirm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
   <div style="background:var(--navy2);border:1px solid var(--border);border-radius:20px;padding:28px;width:520px;max-width:95vw;max-height:88vh;overflow-y:auto;position:relative;">
     <button onclick="closeMgrConfirmModal()" style="position:absolute;top:14px;left:16px;background:none;border:none;color:var(--text3);font-size:24px;cursor:pointer;">×</button>
@@ -1513,6 +1779,11 @@ window.printSingleOrder = printSingleOrder;
       <input type="tel" id="mgr-supp-agent-num" placeholder="05X-XXXXXXX"
         style="width:100%;padding:10px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:14px;direction:ltr;text-align:right;">
     </div>
+
+    <label style="display:flex;align-items:center;gap:10px;margin-bottom:20px;cursor:pointer;padding:12px;background:var(--navy3);border-radius:8px;border:1px solid var(--border);">
+      <input type="checkbox" id="mgr-supp-show-price" style="width:18px;height:18px;cursor:pointer;accent-color:#1A6CF2;">
+      <span style="font-size:14px;">💰 כלול מחיר קניה בהודעת WhatsApp</span>
+    </label>
 
     <div style="display:flex;gap:10px;">
       <button onclick="closeMgrSuppModal()" style="flex:1;padding:11px;background:var(--navy3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:Heebo,sans-serif;font-size:14px;cursor:pointer;">ביטול</button>

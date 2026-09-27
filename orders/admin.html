@@ -94,6 +94,10 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
   .main{margin-right:0;padding:16px;padding-top:72px;}
   .topbar{display:none;}
   .stats-grid{grid-template-columns:1fr 1fr;}
+  #activity-summary{grid-template-columns:1fr !important;}
+  #activity-by-manager table{font-size:12px;}
+  #activity-by-manager td,#activity-by-manager th{padding:8px 10px !important;}
+  #activity-log-list>div{flex-wrap:wrap;gap:6px;}
   .order-row{grid-template-columns:1fr auto;grid-template-rows:auto auto auto;gap:4px 8px;padding:10px 14px;}
   .order-row-name{grid-column:1;grid-row:1;}
   .order-row-status{grid-column:2;grid-row:1;align-self:start;}
@@ -134,6 +138,7 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
     <span>KT Orders</span>
     <small>ניהול מערכת</small>
   </div>
+  <div style="flex:1;overflow-y:auto;min-height:0;">
   <div class="nav-item active" onclick="gotoPage('dashboard')" id="nav-dashboard"><span class="nav-icon">🏠</span><span>סקירה כללית</span></div>
   <div class="nav-item" onclick="gotoPage('suppliers')" id="nav-suppliers"><span class="nav-icon">🚚</span><span>ספקים</span></div>
   <div class="nav-item" onclick="gotoPage('products')" id="nav-products"><span class="nav-icon">📦</span><span>מוצרים</span></div>
@@ -141,6 +146,9 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
   <div class="nav-item" onclick="gotoPage('branches')" id="nav-branches"><span class="nav-icon">🏪</span><span>סניפים</span></div>
   <div class="nav-item" onclick="gotoPage('neworder')" id="nav-neworder"><span class="nav-icon">✏️</span><span>הזמנה חדשה</span></div>
   <div class="nav-item" onclick="this.classList.add('active');setTimeout(()=>location.href='analytics.html',120)" id="nav-analytics"><span class="nav-icon">📊</span><span>אנליטיקה</span></div>
+  <div class="nav-item" onclick="gotoPage('activity')" id="nav-activity"><span class="nav-icon">👁️</span><span>פעילות מנהלים</span></div>
+  <div class="nav-item" onclick="location.href='import-excel.html'" id="nav-import"><span class="nav-icon">📥</span><span>ייבוא מאקסל</span></div>
+  </div>
   <div class="sb-footer">
     <div class="user-badge">
       <div class="u-av" id="av">?</div>
@@ -189,6 +197,7 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
     <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
       <button class="btn btn-ghost" onclick="clearAllPromos()" style="color:var(--red);border-color:rgba(239,68,68,.3);">🗑 נקה כל המבצעים</button>
       <button class="btn btn-primary" onclick="openPromoModal()">🏷️ ייבוא מבצעים מ-Excel</button>
+      <button class="btn btn-primary" onclick="openAddProductModal()" style="background:rgba(34,197,94,.2);border:1px solid rgba(34,197,94,.4);color:#86EFAC;">➕ הוסף מוצר</button>
     </div>
     <div class="sc">
       <div class="sc-header">
@@ -218,6 +227,51 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
         <button onclick="openWeeklyListModal()" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;background:rgba(26,108,242,.12);color:#93C5FD;border:1px solid rgba(26,108,242,.3);cursor:pointer;">📋 רשימה שבועית</button>
       </div>
       <div id="products-list"><div class="loading"><div class="spinner"></div> טוען...</div></div>
+    </div>
+  </div>
+
+  <!-- add product modal -->
+  <div id="add-product-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+    <div style="background:var(--navy2);border:1px solid var(--border);border-radius:20px;padding:28px;width:460px;max-width:95vw;max-height:90vh;overflow-y:auto;position:relative;">
+      <button onclick="closeAddProductModal()" style="position:absolute;top:14px;left:16px;background:none;border:none;color:var(--text3);font-size:24px;cursor:pointer;">×</button>
+      <h3 style="margin:0 0 20px;font-size:17px;">➕ הוסף מוצר חדש</h3>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div>
+          <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:5px;">ספק <span style="color:var(--red)">*</span></label>
+          <select id="ap-supplier" style="width:100%;padding:10px 14px;background:var(--navy3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:Heebo,sans-serif;"></select>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:5px;">שם מוצר <span style="color:var(--red)">*</span></label>
+          <input id="ap-name" type="text" placeholder="שם המוצר" style="width:100%;padding:10px 14px;background:var(--navy3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:Heebo,sans-serif;">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div>
+            <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:5px;">ברקוד / קוד ספק</label>
+            <input id="ap-barcode" type="text" placeholder="למשל: 12345" style="width:100%;padding:10px 14px;background:var(--navy3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:Heebo,sans-serif;">
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:5px;">מחיר עלות (₪)</label>
+            <input id="ap-price" type="number" min="0" step="0.01" placeholder="0.00" style="width:100%;padding:10px 14px;background:var(--navy3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:Heebo,sans-serif;">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div>
+            <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:5px;">יחידת מידה</label>
+            <input id="ap-unit" type="text" placeholder="יח / ק&quot;ג / קרטון" style="width:100%;padding:10px 14px;background:var(--navy3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:Heebo,sans-serif;">
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:5px;">קטגוריה</label>
+            <select id="ap-category" style="width:100%;padding:10px 14px;background:var(--navy3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:Heebo,sans-serif;">
+              <option value="">ללא</option>
+              <option value="dry">📦 יבש</option>
+              <option value="chilled">🧊 מצונן</option>
+              <option value="frozen">❄️ קפואים</option>
+            </select>
+          </div>
+        </div>
+        <div id="ap-error" style="color:var(--red);font-size:12px;display:none;"></div>
+        <button onclick="submitAddProduct()" id="ap-submit-btn" style="width:100%;padding:12px;background:rgba(34,197,94,.85);border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:Heebo,sans-serif;margin-top:4px;">✅ הוסף מוצר</button>
+      </div>
     </div>
   </div>
 
@@ -307,6 +361,27 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
       <div id="branches-list"><div class="loading"><div class="spinner"></div> טוען...</div></div>
     </div>
   </div>
+
+  <!-- ACTIVITY PAGE -->
+  <div class="page" id="page-activity">
+    <div style="display:flex;gap:10px;margin-bottom:20px;align-items:center;flex-wrap:wrap;">
+      <input type="date" id="act-from" onchange="loadActivity()" style="padding:9px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:13px;">
+      <span style="color:var(--text3);font-size:13px;">עד</span>
+      <input type="date" id="act-to" onchange="loadActivity()" style="padding:9px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:13px;">
+      <button onclick="setActWeek()" style="padding:9px 16px;border-radius:var(--rsm);background:rgba(26,108,242,.15);border:1px solid rgba(26,108,242,.3);color:#93C5FD;font-size:13px;cursor:pointer;font-family:Heebo,sans-serif;">השבוע</button>
+      <button onclick="setActToday()" style="padding:9px 16px;border-radius:var(--rsm);background:var(--card2);border:1px solid var(--border);color:var(--text3);font-size:13px;cursor:pointer;font-family:Heebo,sans-serif;">היום</button>
+    </div>
+    <div id="activity-summary" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;"></div>
+    <div class="sc" style="margin-bottom:20px;">
+      <div class="sc-header"><h3>📊 פעילות לפי מנהל</h3></div>
+      <div id="activity-by-manager"><div class="loading"><div class="spinner"></div> טוען...</div></div>
+    </div>
+    <div class="sc">
+      <div class="sc-header"><h3>📋 יומן פעולות אחרון</h3></div>
+      <div id="activity-log-list"><div class="loading"><div class="spinner"></div> טוען...</div></div>
+    </div>
+  </div>
+
 </div>
 
 <div class="toast" id="toast"></div>
@@ -414,6 +489,10 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
         <input type="checkbox" id="s-hasmin" onchange="toggleMin()" style="width:16px;height:16px;">
         יש מינימום הזמנה
       </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);cursor:pointer;">
+        <input type="checkbox" id="s-show-price" style="width:16px;height:16px;accent-color:var(--blue);">
+        💰 כלול מחיר קניה בהודעת WhatsApp
+      </label>
     </div>
     <div id="s-min-wrap" style="margin-bottom:14px;display:none;">
       <div style="display:flex;gap:8px;margin-bottom:10px;">
@@ -432,7 +511,7 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, deleteDoc, query, orderBy, limit, writeBatch, where } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, getDocsFromServer, doc, setDoc, updateDoc, deleteDoc, addDoc, query, orderBy, limit, writeBatch, where } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
 window.addEventListener('unhandledrejection', e => {
   const msg = e.reason?.message || String(e.reason);
@@ -583,16 +662,127 @@ async function doLogout(){
 }
 window.doLogout = doLogout;
 
+// ── activity log ──────────────────────────────────────────────────────────────
+function timeAgo(ts){
+  const diff = Date.now() - new Date(ts).getTime();
+  const m = Math.floor(diff/60000);
+  if(m < 1)  return 'הרגע';
+  if(m < 60) return `לפני ${m} דק'`;
+  const h = Math.floor(m/60);
+  if(h < 24) return `לפני ${h} ש'`;
+  const d = Math.floor(h/24);
+  return `לפני ${d} ימים`;
+}
+
+function setActToday(){
+  const t = new Date().toISOString().split('T')[0];
+  document.getElementById('act-from').value = t;
+  document.getElementById('act-to').value   = t;
+  loadActivity();
+}
+function setActWeek(){
+  const now = new Date();
+  const day = now.getDay();
+  const sun = new Date(now); sun.setDate(now.getDate() - day);
+  document.getElementById('act-from').value = sun.toISOString().split('T')[0];
+  document.getElementById('act-to').value   = now.toISOString().split('T')[0];
+  loadActivity();
+}
+window.setActToday = setActToday;
+window.setActWeek  = setActWeek;
+
+async function loadActivity(){
+  // default to current week if no dates set
+  if(!document.getElementById('act-from').value){
+    const now = new Date();
+    const sun = new Date(now); sun.setDate(now.getDate() - now.getDay());
+    document.getElementById('act-from').value = sun.toISOString().split('T')[0];
+    document.getElementById('act-to').value   = now.toISOString().split('T')[0];
+  }
+  const from = document.getElementById('act-from').value;
+  const to   = document.getElementById('act-to').value;
+
+  document.getElementById('activity-by-manager').innerHTML  = '<div class="loading"><div class="spinner"></div> טוען...</div>';
+  document.getElementById('activity-log-list').innerHTML    = '<div class="loading"><div class="spinner"></div> טוען...</div>';
+
+  const snap = await getDocs(collection(db,'activity_log'));
+  let logs = snap.docs.map(d => d.data());
+  if(from) logs = logs.filter(l => (l.date||'') >= from);
+  if(to)   logs = logs.filter(l => (l.date||'') <= to);
+  logs.sort((a,b) => (b.timestamp||'').localeCompare(a.timestamp||''));
+
+  const logins = logs.filter(l => l.event==='login').length;
+  const drafts = logs.filter(l => l.event==='order_draft').length;
+  const sent   = logs.filter(l => l.event==='order_sent').length;
+
+  document.getElementById('activity-summary').innerHTML = `
+    <div class="stat-card"><div class="label">כניסות לאפליקציה</div><div class="value" style="color:var(--blue)">${logins}</div></div>
+    <div class="stat-card"><div class="label">טיוטות שנשמרו</div><div class="value" style="color:var(--gold)">${drafts}</div></div>
+    <div class="stat-card"><div class="label">הזמנות נשלחו WhatsApp</div><div class="value" style="color:var(--green)">${sent}</div></div>`;
+
+  const byMgr = {};
+  logs.forEach(l => {
+    const key = l.branch || l.userName || '?';
+    if(!byMgr[key]) byMgr[key] = { branch:l.branch||'—', name:l.userName||'', logins:0, drafts:0, sent:0, lastSeen:'' };
+    const m = byMgr[key];
+    if(l.event==='login')       m.logins++;
+    if(l.event==='order_draft') m.drafts++;
+    if(l.event==='order_sent')  m.sent++;
+    if((l.timestamp||'') > m.lastSeen) m.lastSeen = l.timestamp;
+  });
+
+  const rows = Object.values(byMgr).sort((a,b)=>(b.lastSeen||'').localeCompare(a.lastSeen||''));
+  document.getElementById('activity-by-manager').innerHTML = rows.length ? `
+    <table style="width:100%;border-collapse:collapse;">
+      <thead><tr style="border-bottom:1px solid var(--border);font-size:11px;color:var(--text3);">
+        <th style="padding:10px 16px;text-align:right;font-weight:600;">סניף / מנהל</th>
+        <th style="padding:10px 16px;text-align:center;font-weight:600;">כניסות</th>
+        <th style="padding:10px 16px;text-align:center;font-weight:600;">טיוטות</th>
+        <th style="padding:10px 16px;text-align:center;font-weight:600;">שלח WhatsApp</th>
+        <th style="padding:10px 16px;text-align:center;font-weight:600;">פעיל אחרון</th>
+      </tr></thead>
+      <tbody>${rows.map(m=>{
+        const sentStyle = m.sent > 0 ? 'color:var(--green)' : 'color:var(--red)';
+        const ago = m.lastSeen ? timeAgo(m.lastSeen) : '—';
+        return `<tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:12px 16px;"><div style="font-weight:700;">${m.branch}</div><div style="font-size:11px;color:var(--text3);">${m.name}</div></td>
+          <td style="padding:12px 16px;text-align:center;font-weight:700;">${m.logins}</td>
+          <td style="padding:12px 16px;text-align:center;font-weight:700;color:var(--gold)">${m.drafts}</td>
+          <td style="padding:12px 16px;text-align:center;font-weight:700;${sentStyle}">${m.sent}</td>
+          <td style="padding:12px 16px;text-align:center;font-size:12px;color:var(--text3);">${ago}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>` : '<div style="padding:40px;text-align:center;color:var(--text3);">אין נתונים בטווח זה</div>';
+
+  const EVENT_ICONS  = { login:'🔑', order_draft:'📝', order_sent:'📱' };
+  const EVENT_LABELS = { login:'כניסה', order_draft:'שמר טיוטה', order_sent:'שלח WhatsApp' };
+  document.getElementById('activity-log-list').innerHTML = logs.slice(0,60).map(l=>{
+    const time = l.timestamp ? new Date(l.timestamp).toLocaleString('he-IL',{dateStyle:'short',timeStyle:'short'}) : '';
+    const supp = l.meta?.supplierName ? ` · ${l.meta.supplierName}` : '';
+    return `<div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;">
+      <span style="font-size:18px;flex-shrink:0;">${EVENT_ICONS[l.event]||'•'}</span>
+      <div style="flex:1;min-width:0;">
+        <span style="font-weight:700;">${l.branch||'—'}</span>
+        <span style="color:var(--text3);margin:0 6px;">·</span>
+        <span style="font-size:13px;">${EVENT_LABELS[l.event]||l.event}${supp}</span>
+      </div>
+      <div style="font-size:11px;color:var(--text3);white-space:nowrap;">${time}</div>
+    </div>`;
+  }).join('') || '<div style="padding:40px;text-align:center;color:var(--text3);">אין פעולות</div>';
+}
+window.loadActivity = loadActivity;
+
 // ── navigation ────────────────────────────────────────────────────────────────
-const PAGE_TITLES = { dashboard:'סקירה כללית', suppliers:'ספקים', products:'קטלוג מוצרים', orders:'הזמנות', branches:'סניפים', neworder:'הזמנה חדשה' };
+const PAGE_TITLES = { dashboard:'סקירה כללית', suppliers:'ספקים', products:'קטלוג מוצרים', orders:'הזמנות', branches:'סניפים', neworder:'הזמנה חדשה', activity:'פעילות מנהלים' };
 function gotoPage(name){
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
-  document.getElementById('nav-'+name).classList.add('active');
-  document.getElementById('page-title').textContent = PAGE_TITLES[name];
+  const navEl = document.getElementById('nav-'+name);
+  if(navEl) navEl.classList.add('active');
+  document.getElementById('page-title').textContent = PAGE_TITLES[name] || name;
   const mob = document.getElementById('mob-title');
-  if(mob) mob.textContent = PAGE_TITLES[name];
+  if(mob) mob.textContent = PAGE_TITLES[name] || name;
   closeSidebar();
   if(name === 'dashboard') loadDashboard();
   if(name === 'suppliers') loadSuppliers();
@@ -600,6 +790,7 @@ function gotoPage(name){
   if(name === 'orders')    loadOrders();
   if(name === 'branches')  loadBranchesPage();
   if(name === 'neworder')  initNewOrder();
+  if(name === 'activity')  loadActivity();
 }
 window.gotoPage = gotoPage;
 
@@ -750,6 +941,7 @@ async function openAddSupplier(){
   setSelectedDays('arrival', []);
   document.getElementById('s-hasedi').checked = false;
   document.getElementById('s-hasmin').checked = false;
+  document.getElementById('s-show-price').checked = false;
   document.getElementById('s-min').value = '';
   document.getElementById('s-min-wrap').style.display = 'none';
   setMinType('price');
@@ -775,6 +967,7 @@ async function editSupplier(id){
   setSelectedDays('arrival', s.arrivalDays?.length ? s.arrivalDays : (s.arrivalDay !== undefined ? [s.arrivalDay] : []));
   document.getElementById('s-hasedi').checked = !!s.hasEDI;
   document.getElementById('s-hasmin').checked = !!s.hasMinimum;
+  document.getElementById('s-show-price').checked = !!s.showPriceInOrder;
   document.getElementById('s-min').value = s.minimumAmount || '';
   document.getElementById('s-min-wrap').style.display = s.hasMinimum ? 'block' : 'none';
   setMinType(s.minOrderType || 'price');
@@ -816,6 +1009,7 @@ async function saveSupplier(){
   const arrivalDays = getSelectedDays('arrival');
   const hasEDI = document.getElementById('s-hasedi').checked;
   const hasMinimum = document.getElementById('s-hasmin').checked;
+  const showPriceInOrder = document.getElementById('s-show-price').checked;
   const minimumAmount = hasMinimum ? parseFloat(document.getElementById('s-min').value)||0 : 0;
   const minOrderType = hasMinimum ? (_minOrderType || 'price') : 'price';
   if(!name){ toast('⚠️ חובה להזין שם ספק'); return; }
@@ -824,7 +1018,7 @@ async function saveSupplier(){
   const id = editingSupplierId || (code || name.replace(/\s+/g,'-').toLowerCase() + '-' + Date.now());
   const branches = getSelectedBranches();
   const blockedBranches = getBlockedBranches();
-  const data = { name, code, agentNumber, agentName, frequency, orderDays, arrivalDays, hasEDI, hasMinimum, minimumAmount, minOrderType, branches, blockedBranches };
+  const data = { name, code, agentNumber, agentName, frequency, orderDays, arrivalDays, hasEDI, hasMinimum, minimumAmount, minOrderType, showPriceInOrder, branches, blockedBranches };
   await setDoc(doc(db,'suppliers',id), data);
   btn.disabled = false; btn.textContent = 'שמור';
   closeSupplierModal();
@@ -845,6 +1039,93 @@ async function loadProducts(){
   renderProducts(allProducts);
 }
 window.loadProducts = loadProducts;
+
+// ---- Add Product Modal ----
+async function openAddProductModal(){
+  const modal = document.getElementById('add-product-modal');
+  if(!modal) return;
+  modal.style.display='flex';
+
+  // clear fields
+  ['ap-name','ap-barcode','ap-price','ap-unit'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('ap-category').value='';
+  const err = document.getElementById('ap-error');
+  if(err){ err.style.display='none'; err.textContent=''; }
+
+  // populate supplier dropdown — always fetch fresh
+  const sel = document.getElementById('ap-supplier');
+  sel.innerHTML = '<option value="">טוען ספקים...</option>';
+  try {
+    const snap = await getDocs(collection(db,'suppliers'));
+    const supps = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+    sel.innerHTML = '<option value="">-- בחר ספק --</option>' +
+      supps.map(s=>`<option value="${s.id}" data-name="${s.name||''}" data-code="${s.code||''}">${s.name||s.id}</option>`).join('');
+  } catch(e) {
+    sel.innerHTML = '<option value="">שגיאה בטעינת ספקים</option>';
+  }
+  setTimeout(()=>document.getElementById('ap-name').focus(),100);
+}
+window.openAddProductModal = openAddProductModal;
+
+function closeAddProductModal(){
+  const modal = document.getElementById('add-product-modal');
+  if(modal) modal.style.display='none';
+}
+window.closeAddProductModal = closeAddProductModal;
+
+async function submitAddProduct(){
+  const err = document.getElementById('ap-error');
+  err.style.display='none'; err.textContent='';
+
+  const suppEl = document.getElementById('ap-supplier');
+  const suppId = suppEl.value;
+  const suppName = suppEl.selectedOptions[0]?.dataset.name || '';
+  const suppCode = suppEl.selectedOptions[0]?.dataset.code || '';
+  const name = document.getElementById('ap-name').value.trim();
+  const barcode = document.getElementById('ap-barcode').value.trim();
+  const price = parseFloat(document.getElementById('ap-price').value) || 0;
+  const unit = document.getElementById('ap-unit').value.trim();
+  const category = document.getElementById('ap-category').value;
+
+  if(!suppId){ err.textContent='יש לבחור ספק'; err.style.display='block'; return; }
+  if(!name){ err.textContent='יש להזין שם מוצר'; err.style.display='block'; return; }
+
+  const btn = document.getElementById('ap-submit-btn');
+  btn.disabled=true; btn.textContent='שומר...';
+
+  try {
+    const clean = obj => JSON.parse(JSON.stringify(obj, (_,v)=> v===undefined ? null : v));
+    const data = clean({
+      name,
+      barcode: barcode || null,
+      supplierId: suppId,
+      supplierName: suppName,
+      supplierCode: suppCode || suppId,
+      purchasePrice: price,
+      conversionUnit: unit || null,
+      category: category || null,
+      hidden: false,
+      blocked: false,
+      createdAt: new Date().toISOString()
+    });
+    await addDoc(collection(db,'products'), data);
+    closeAddProductModal();
+    await loadProducts();
+    // brief success flash
+    const t=document.createElement('div');
+    t.textContent='המוצר נוסף בהצלחה ✅';
+    Object.assign(t.style,{position:'fixed',bottom:'24px',left:'50%',transform:'translateX(-50%)',background:'rgba(34,197,94,.9)',color:'#fff',padding:'10px 24px',borderRadius:'10px',fontWeight:'700',zIndex:'9999',fontSize:'14px'});
+    document.body.appendChild(t);
+    setTimeout(()=>t.remove(),2500);
+  } catch(e){
+    err.textContent = 'שגיאה: ' + e.message;
+    err.style.display='block';
+  } finally {
+    btn.disabled=false; btn.textContent='✅ הוסף מוצר';
+  }
+}
+window.submitAddProduct = submitAddProduct;
+// ---- end Add Product Modal ----
 
 function renderProducts(list){
   if(!list.length){ document.getElementById('products-list').innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">לא נמצאו מוצרים</div>'; return; }
@@ -869,18 +1150,28 @@ function renderProducts(list){
         <tr style="border-bottom:1px solid var(--border);${blocked?'opacity:.55;':''}${hasPromo&&!blocked?'background:rgba(245,166,35,.04);':''}">
           <td class="col-name" style="padding:11px 16px;font-weight:600;">
             ${hasPromo?'<span style="color:#F5A623;font-size:13px;margin-left:6px;">🏷️</span>':''}${p.name||'—'}
+            <button onclick="editProductDept('${pid}','${(p.departmentName||'').replace(/'/g,"\\'")}','${p.category||''}')" style="margin-right:6px;font-size:11px;padding:1px 7px;border-radius:10px;cursor:pointer;border:1px solid var(--border);background:var(--navy3);color:var(--text3);">${p.departmentName||'מחלקה ✏️'}</button>
             ${p.conversionUnit&&p.conversionUnit!=='יחידה'?`<div style="margin-top:4px;"><button onclick="editConversionFactor('${pid}','${p.conversionUnit||''}',${p.conversionFactor||0})" style="font-size:11px;padding:2px 8px;border-radius:10px;cursor:pointer;border:1px solid var(--border);background:var(--navy3);color:${(p.conversionFactor||0)>0?'#86EFAC':'var(--text3)'};">${(p.conversionFactor||0)>0?p.conversionFactor+' ב'+p.conversionUnit:'הגדר כמה ב'+p.conversionUnit}</button></div>`:''}
           </td>
           <td class="col-barcode" style="padding:11px 16px;text-align:center;font-size:12px;color:var(--text2);">${p.barcode||'—'}</td>
           <td class="col-supplier" style="padding:11px 16px;text-align:center;font-size:12px;">${p.supplierName||'—'}</td>
-          <td class="col-dept" style="padding:11px 16px;text-align:center;font-size:12px;">${p.departmentName||'—'}</td>
+          <td class="col-dept" style="padding:11px 16px;text-align:center;font-size:12px;cursor:pointer;" onclick="editProductDept('${pid}','${(p.departmentName||'').replace(/'/g,"\\'")}','${p.category||''}')">
+            <span style="border-bottom:1px dashed var(--text3);">${p.departmentName||'—'}</span>
+            ${p.category ? `<div style="font-size:10px;color:var(--text3);margin-top:2px;">${{dry:'📦 יבש',chilled:'🧊 מצונן',frozen:'❄️ קפואים'}[p.category]||p.category}</div>` : ''}
+          </td>
           <td class="col-price" style="padding:11px 16px;text-align:center;font-size:13px;font-weight:600;">₪${p.salePrice||0}</td>
           <td class="col-meta" style="display:none;font-size:11px;color:var(--text3);">${p.supplierName||'—'} · ₪${p.salePrice||0}</td>
           <td class="col-status" style="padding:11px 16px;text-align:center;">
-            <button onclick="toggleProductBlocked('${pid}',${blocked})"
-              style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid ${blocked?'rgba(239,68,68,.4)':'rgba(34,197,94,.4)'};background:${blocked?'rgba(239,68,68,.12)':'rgba(34,197,94,.12)'};color:${blocked?'#FCA5A5':'#86EFAC'};">
-              ${blocked?'✗ חסום':'✓ פעיל'}
-            </button>
+            <div style="display:flex;flex-direction:column;gap:4px;align-items:center;">
+              <button onclick="toggleProductBlocked('${pid}',${blocked})"
+                style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid ${blocked?'rgba(239,68,68,.4)':'rgba(34,197,94,.4)'};background:${blocked?'rgba(239,68,68,.12)':'rgba(34,197,94,.12)'};color:${blocked?'#FCA5A5':'#86EFAC'};">
+                ${blocked?'✗ חסום':'✓ פעיל'}
+              </button>
+              <button onclick="deleteProduct('${pid}')"
+                style="padding:2px 8px;border-radius:10px;font-size:10px;cursor:pointer;border:1px solid rgba(239,68,68,.25);background:transparent;color:rgba(239,68,68,.7);">
+                🗑 מחק
+              </button>
+            </div>
           </td>
           <td class="col-promo" style="padding:11px 16px;text-align:center;">
             ${hasPromo
@@ -969,6 +1260,60 @@ async function toggleProductBlocked(productId, currentlyBlocked){
   } catch(e){ toast('❌ שגיאה: '+e.message); }
 }
 window.toggleProductBlocked = toggleProductBlocked;
+
+async function deleteProduct(productId){
+  if(!confirm('למחוק מוצר זה לצמיתות?')) return;
+  try {
+    await deleteDoc(doc(db,'products', productId));
+    allProducts = allProducts.filter(p=>p.id!==productId);
+    searchProducts();
+    toast('🗑 מוצר נמחק');
+  } catch(e){ toast('❌ שגיאה: '+e.message); }
+}
+window.deleteProduct = deleteProduct;
+
+function editProductDept(productId, currentDept, currentCat){
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2000;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML = `
+    <div style="background:var(--navy2);border:1px solid var(--border);border-radius:16px;padding:24px;width:320px;max-width:95vw;">
+      <h3 style="margin:0 0 16px;font-size:15px;">✏️ עריכת מחלקה</h3>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:5px;">שם מחלקה (חנות)</label>
+        <input id="_dept-name" value="${currentDept}" type="text" placeholder="למשל: ניקיון, מזון, קפואים..."
+          style="width:100%;padding:9px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:Heebo,sans-serif;box-sizing:border-box;">
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:5px;">קטגוריה (לסינון הזמנות)</label>
+        <select id="_dept-cat" style="width:100%;padding:9px 12px;background:var(--navy3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:Heebo,sans-serif;">
+          <option value="">ללא</option>
+          <option value="dry" ${currentCat==='dry'?'selected':''}>📦 יבש</option>
+          <option value="chilled" ${currentCat==='chilled'?'selected':''}>🧊 מצונן</option>
+          <option value="frozen" ${currentCat==='frozen'?'selected':''}>❄️ קפואים</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="this.closest('div[style*=fixed]').remove()" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-family:Heebo,sans-serif;">ביטול</button>
+        <button id="_dept-save" style="flex:1;padding:10px;border-radius:8px;border:none;background:var(--blue);color:#fff;cursor:pointer;font-family:Heebo,sans-serif;font-weight:700;">שמור</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#_dept-save').onclick = async () => {
+    const deptName = overlay.querySelector('#_dept-name').value.trim();
+    const cat = overlay.querySelector('#_dept-cat').value;
+    try {
+      await setDoc(doc(db,'products', productId), { departmentName: deptName || null, category: cat || null }, { merge: true });
+      const idx = allProducts.findIndex(p=>p.id===productId);
+      if(idx>=0){ allProducts[idx].departmentName=deptName; allProducts[idx].category=cat; }
+      overlay.remove();
+      searchProducts();
+      toast('✅ מחלקה עודכנה');
+    } catch(e){ toast('❌ שגיאה: '+e.message); }
+  };
+  overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
+  setTimeout(()=>overlay.querySelector('#_dept-name').focus(), 100);
+}
+window.editProductDept = editProductDept;
 
 async function editConversionFactor(productId, conversionUnit, current){
   const val = prompt(`כמה בודדים יש ב${conversionUnit}?\n(לדוגמה: אם ${conversionUnit} מכיל 12 בודדים — הכנס 12)`, current||'');
@@ -1211,6 +1556,21 @@ async function importSuppliersFromProducts(){
 window.importSuppliersFromProducts = importSuppliersFromProducts;
 
 // ── new order (admin) ─────────────────────────────────────────────────────────
+const FROZEN_BARCODES = new Set([
+  '7290001123065','7290001135068','7290001527061','7290001527078',
+  '7290001527092','7290001527153','7290001527474','7290002129493',
+  '7290002247715','7290002277422','7290002281474','7290002281481',
+  '7290002281955','7290002281979','7290002327042','7290002327059',
+  '7290002327073','7290002327103','7290002487364','7290002527474',
+  '7290002757139','7290002757528','7290002757535','7290002757542',
+  '7290002757733','7290002922865','7290002922872','7290002929536',
+  '7290003352173','7290003352180','7290003352197','7290003352326',
+  '7290003352333','7290003352463','7290003352470','7290003353941',
+  '7290003359240','7290004257101','7290004257477','7290004257484',
+  '7290004257491','7290004263041','7290005358869','7290008335539',
+  '7290008335553','7290008343565','7290008343572','7290008343619',
+  '7290008351881','7290008351898','7290011174866','7290012247699'
+]);
 let adminOrderItems = [];
 let adminCurrentSupplier = null;
 
@@ -1255,32 +1615,44 @@ async function onAdminSupplierChange(){
   document.getElementById('no-items-list').innerHTML = '<div class="loading"><div class="spinner"></div> טוען מוצרים...</div>';
   document.getElementById('no-products-wrap').style.display = 'block';
 
-  const snap = await getDocs(query(collection(db,'products'), where('supplierCode','==', adminCurrentSupplier.code||adminCurrentSupplier.id)));
-  const products = snap.docs.map(d=>({id:d.id,...d.data()}));
-  adminOrderItems = products.map(p=>({ productId:p.barcode||p.id, productName:p.name, supplierCode:p.supplierCode, conversionUnit:p.conversionUnit, orderedQty:0, receivedQty:0 }));
+  const snap = await getDocsFromServer(query(collection(db,'products'), where('supplierCode','==', adminCurrentSupplier.code||adminCurrentSupplier.id)));
+  const products = snap.docs.map(d=>({id:d.id,...d.data()})).filter(p => p.blocked !== true && p.hidden !== true);
+  adminOrderItems = products.map(p=>({ productId:p.barcode||p.id, barcode:p.barcode||p.id, productName:p.name||'', supplierCode:p.supplierCode||'', conversionUnit:p.conversionUnit||'', purchasePrice:p.purchasePrice||0, conversionFactor:p.conversionFactor||1, orderedQty:0, receivedQty:0 }));
 
   if(!products.length){ document.getElementById('no-items-list').innerHTML='<div style="padding:24px;text-align:center;color:var(--text3);">לא נמצאו מוצרים לספק זה</div>'; return; }
 
   document.getElementById('no-items-list').innerHTML = `
+    <div style="margin-bottom:10px;">
+      <input type="text" placeholder="🔍 חיפוש מוצר..." oninput="adminFilterRows(this.value)"
+        style="width:100%;padding:9px 14px;background:var(--navy3);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-family:Heebo,sans-serif;box-sizing:border-box;">
+    </div>
     <div style="display:grid;grid-template-columns:1fr 80px;gap:8px;padding-bottom:8px;border-bottom:2px solid var(--border);margin-bottom:4px;">
       <div style="font-size:11px;color:var(--text3);font-weight:700;">מוצר</div>
       <div style="font-size:11px;color:var(--text3);font-weight:700;text-align:center;">כמות</div>
     </div>
-    ${products.map((p,i)=>`
-      <div style="display:grid;grid-template-columns:1fr 80px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);">
+    ${products.map((p,i)=>{const bc=String(p.barcode||'');const bcInName=bc&&String(p.name||'').startsWith(bc);const ds=((p.name||'')+' '+(p.barcode||'')).toLowerCase();return`
+      <div class="admin-order-row" data-s="${ds}" style="display:grid;grid-template-columns:1fr 80px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);">
         <div>
           <div style="font-size:13px;font-weight:600;">${p.name||'—'}</div>
-          <div style="font-size:11px;color:var(--text3);">${p.barcode||''} · ${p.conversionUnit||''}</div>
+          <div style="font-size:11px;color:var(--text3);">${bcInName?'':(bc?bc+' · ':'')}${p.conversionUnit||''}</div>
         </div>
         <input class="qty-input" type="number" min="0" placeholder="0" id="no-qty-${i}"
           oninput="adminUpdateQty(${i},this.value)"
           style="width:100%;padding:7px 8px;background:var(--navy3);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:Heebo,sans-serif;font-size:14px;font-weight:700;text-align:center;">
-      </div>`).join('')}`;
+      </div>`}).join('')}`;
 }
 window.onAdminSupplierChange = onAdminSupplierChange;
 
 function adminUpdateQty(i, val){ if(adminOrderItems[i]) adminOrderItems[i].orderedQty = parseFloat(val)||0; }
 window.adminUpdateQty = adminUpdateQty;
+
+function adminFilterRows(q){
+  const term = (q||'').toLowerCase().trim();
+  document.querySelectorAll('.admin-order-row').forEach(r => {
+    r.style.display = term && !r.dataset.s.includes(term) ? 'none' : '';
+  });
+}
+window.adminFilterRows = adminFilterRows;
 
 async function adminSaveOrder(status){
   const branch = document.getElementById('no-branch').value;
@@ -1320,8 +1692,19 @@ function buildAdminWAMsg(supplier, branch, items){
   let msg = `📦 הזמנה — ${supplier.name}\n📅 תאריך: ${date}\n🏪 סניף: ${branch}\n`;
   if(supplier.agentName) msg += `👤 סוכן: ${supplier.agentName}\n`;
   msg += `\n`;
-  items.forEach(item => { msg += `• ${item.productName}: ${item.orderedQty}${item.conversionUnit?' '+item.conversionUnit:''}\n`; });
+  let grandTotal = 0;
+  const showPrice = !!supplier.showPriceInOrder;
+  items.forEach(item => {
+    const barcodeVal = String(item.barcode||'');
+    const barcode13 = /^\d{7,}$/.test(barcodeVal) ? `${barcodeVal} ` : '';
+    const pricePerCarton = (item.purchasePrice||0) * (item.conversionFactor||1);
+    grandTotal += item.orderedQty * pricePerCarton;
+    msg += `• ${barcode13}${item.productName}: ${item.orderedQty}${item.conversionUnit?' '+item.conversionUnit:''}`;
+    if(showPrice && pricePerCarton > 0) msg += ` | ₪${pricePerCarton.toFixed(2)}`;
+    msg += `\n`;
+  });
   msg += `\nסה״כ: ${items.length} פריטים`;
+  if(showPrice && grandTotal > 0) msg += ` | סכום: ₪${grandTotal.toFixed(2)}`;
   return encodeURIComponent(msg);
 }
 

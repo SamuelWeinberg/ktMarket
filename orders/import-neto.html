@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>ניהול מוצרי נטו</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0D1B2A;color:#F0F4F8;padding:40px;direction:rtl;}
+h2{margin-bottom:6px;}p{color:#8FA3B8;margin-bottom:16px;}
+.btn-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px;}
+button{padding:12px 22px;background:#1A6CF2;color:#fff;border:none;border-radius:10px;font-size:14px;cursor:pointer;font-family:Arial,sans-serif;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+button.red{background:rgba(239,68,68,.75);}
+button.teal{background:rgba(0,150,136,.8);}
+button.amber{background:rgba(217,119,6,.8);}
+button.green{background:rgba(22,163,74,.85);}
+#log{margin-top:20px;font-size:13px;line-height:2;color:#8FA3B8;max-height:65vh;overflow-y:auto;background:rgba(255,255,255,.03);padding:16px;border-radius:8px;}
+.ok{color:#22C55E;} .err{color:#EF4444;} .skip{color:#5A7A96;} .warn{color:#FCD34D;}
+</style>
+</head>
+<body>
+<h2>🏷️ ניהול מוצרי נטו</h2>
+<p>כלים לעדכון, סיווג ומיזוג מוצרי ספק נטו (4557)</p>
+<div class="btn-row">
+  <button onclick="updateCodeAndCat()" id="btn-update" class="green">🔄 עדכן קוד + קטגוריה</button>
+  <button onclick="addMissingProducts()" id="btn-add-missing" class="teal">➕ הוסף מוצרים חסרים</button>
+  <button onclick="startRename()" id="btn-rename">✏️ הוסף קוד לשמות</button>
+  <button onclick="mergeDupes()" id="btn-merge" class="amber">🗂️ מיזוג כפילויות</button>
+  <button onclick="deleteDupes()" id="btn-del" class="red">🗑 מחק neto_ כפילויות</button>
+</div>
+<div id="log"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
+import { getFirestore, collection, getDocs, updateDoc, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+const sb = createClient('https://dkpqgyieoidrydxfiwhd.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRrcHFneWllb2lkcnlkeGZpd2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MzA4NDgsImV4cCI6MjA4OTMwNjg0OH0.cFYdJK7P58pc_VlQxCo4HdLVRPkyiLz_8hMLepoK3Ws');
+(async()=>{
+  const { data:{session} } = await sb.auth.getSession();
+  if(!session){ location.href='index.html'; return; }
+  const { data:profile } = await sb.from('profiles').select('role').eq('id',session.user.id).single();
+  if(profile?.role !== 'super_admin'){ location.href='manager.html'; return; }
+})();
+
+const db = getFirestore(initializeApp({
+  apiKey:"AIzaSyAkDN3aDsaHAScm8vymAJFhvT6aaY1pWsw",
+  authDomain:"ktmarket.firebaseapp.com", projectId:"ktmarket",
+  storageBucket:"ktmarket.firebasestorage.app",
+  messagingSenderId:"293459990906",
+  appId:"1:293459990906:web:468b68227cc17e55389ec3"
+}));
+
+// ── נתוני מוצרי נטו: קוד ספק + שמות לזיהוי + קטגוריה ───────────────────────
+const NETO_DATA = [
+  {code:'91204', names:['סרדינים שמן חמניות'], cat:'dry'},
+  {code:'91206', names:['סרדינים שמן קנולה','סרדינים קנולה'], cat:'dry'},
+  {code:'91200', names:['סרדינים בשמן 125','סרדינים 125'], cat:'dry'},
+  {code:'91203', names:['סרדינים חריף'], cat:'dry'},
+  {code:'90306', names:['הרינג מלוח'], cat:'dry'},
+  {code:'90305', names:['הרינג שמן בצל','הרינג בצל'], cat:'dry'},
+  {code:'90304', names:['הרינג כבוש'], cat:'dry'},
+  {code:'21867', names:['טונה וירקות מקסיקני','טונה מקסיקני'], cat:'dry'},
+  {code:'21866', names:['טונה וירקות ים תיכוני','טונה ים תיכוני'], cat:'dry'},
+  {code:'21868', names:['טונה ירקות ברוטב','טונה ברוטב'], cat:'dry'},
+  {code:'92780', names:['קרם קוקוס'], cat:'dry'},
+  {code:'52680', names:['קונכיות'], cat:'dry'},
+  {code:'90330', names:['איקרה לבנה'], cat:'dry'},
+  {code:'90331', names:['איקרה ורודה'], cat:'dry'},
+  {code:'94984', names:['ריץ פרוס 1 קג'], cat:'chilled'},
+  {code:'94972', names:['ריץ פרוס 400'], cat:'chilled'},
+  {code:'52160', names:['בסיס לקצפת'], cat:'chilled'},
+  {code:'',     names:['קצפת מתוקה מוכנה','קצפת מתוקה'], cat:'chilled'},
+  {code:'21876', names:['סלט סלמון'], cat:'chilled'},
+  {code:'52857', names:['פיצה איטלקית'], cat:'frozen'},
+  {code:'43464', names:['פיצה משפחתית'], cat:'frozen'},
+  {code:'43462', names:['פיצה בודד','פיצה אישית','פיצה 80 גרם'], cat:'frozen'},
+  {code:'52631', names:['ריבועי בצק עלים'], cat:'frozen'},
+  {code:'52660', names:['בורקס תפוח אדמה 800'], cat:'frozen'},
+  {code:'52630', names:['בצק עלים 1 קג'], cat:'frozen'},
+  {code:'52650', names:['בורקס גבינה 800'], cat:'frozen'},
+  {code:'52610', names:['גחנון 900'], cat:'frozen'},
+  {code:'52595', names:['גחנון 650','גחנון 4','גחנון ארבע'], cat:'frozen'},
+  {code:'43454', names:['בורקס פילו גבינה זית','פילו גבינה זית'], cat:'frozen'},
+  {code:'43453', names:['בורקס פילו תפוח אדמה','פילו תפוח אדמה'], cat:'frozen'},
+  {code:'43452', names:['בורקס פילו אצבעות'], cat:'frozen'},
+  {code:'52608', names:['מלאווח'], cat:'frozen'},
+  {code:'43457', names:['שערות קדאיף','שעורות קדאיף'], cat:'frozen'},
+  {code:'32019', names:['קבב מובחר טאק','קבב טאק טורו'], cat:'frozen'},
+  {code:'32020', names:['המבורגר מובחר טאק','המבורגר טאק'], cat:'frozen'},
+  {code:'50190', names:['קבב מזרחי'], cat:'frozen'},
+  {code:'50189', names:['קבב טלה'], cat:'frozen'},
+  {code:'50188', names:['קבב רומני'], cat:'frozen'},
+  {code:'50187', names:['קבב עיראקי'], cat:'frozen'},
+  {code:'50186', names:['מרגז מרוקאי'], cat:'frozen'},
+  {code:'50184', names:['המבורגר 500'], cat:'frozen'},
+  {code:'52200', names:["בצק עוגיות שוקולד"], cat:'frozen'},
+  {code:'46199', names:['שעועית צהובה'], cat:'frozen'},
+  {code:'33777', names:['אנטריקוט עטרה'], cat:'frozen'},
+  {code:'33547', names:['טחון חזה עוף'], cat:'frozen'},
+  {code:'33548', names:['טחון הודו'], cat:'frozen'},
+  {code:'33549', names:['טחון בקר'], cat:'frozen'},
+  {code:'31306', names:['גולש בקר'], cat:'frozen'},
+  {code:'53245', names:['סיגרים תפוח אדמה'], cat:'frozen'},
+  {code:'53243', names:['אגרול סיני'], cat:'frozen'},
+  {code:'53248', names:['פסטלים תפוח אדמה'], cat:'frozen'},
+  {code:'50138', names:['נקנקיות קוקטייל','נקניקיות קוקטייל'], cat:'frozen'},
+  {code:'50139', names:['נקנקיות קראנץ','נקניקיות קראנץ'], cat:'frozen'},
+  {code:'46377', names:['ציפס בטטה'], cat:'frozen'},
+  {code:'30770', names:['כבד עוף מגש'], cat:'frozen'},
+  {code:'45795', names:['חזה פרוס מגש'], cat:'frozen'},
+  {code:'45828', names:['כרעיים עוף מגש','כרעיים עוף'], cat:'frozen'},
+  {code:'45833', names:['ירך עוף מגש','ירך עוף'], cat:'frozen'},
+  {code:'45870', names:['כנף עוף מגש','כנף עוף'], cat:'frozen'},
+  {code:'54297', names:['מס 7 חלק','מס. 7 חלק'], cat:'frozen'},
+  {code:'54592', names:['מס 6 ארג'], cat:'frozen'},
+  {code:'54594', names:['מס 8 ארג'], cat:'frozen'},
+  {code:'53297', names:['פלמיני שלושת האופים','פלמיני'], cat:'frozen'},
+  {code:'53294', names:['קובה במילוי בשר','קובה במילוי'], cat:'frozen'},
+  {code:'53317', names:['קובה למרק'], cat:'frozen'},
+  {code:'94090', names:['לבבות דקל 400 גרם','לבבות דקל'], cat:'dry'},
+];
+
+// ── פונקציית התאמה לפי שם ────────────────────────────────────────────────────
+function normN(s){
+  return String(s||'')
+    .replace(/^\d+\s*[-–—.]\s*/,'')   // הסרת קוד מוביל כמו "45828 - "
+    .replace(/[()[\]'".,]/g,' ')       // פסיקים וסוגריים → רווח
+    .replace(/\s+/g,' ')
+    .trim()
+    .toLowerCase();
+}
+function findEntry(productName){
+  const pn = normN(productName);
+  for(const entry of NETO_DATA){
+    for(const pat of entry.names){
+      const ep = normN(pat);
+      if(pn === ep || pn.includes(ep) || (pn.length >= 4 && ep.includes(pn))) return entry;
+    }
+  }
+  return null;
+}
+
+async function loadNeto(){
+  const snap = await getDocs(collection(db,'products'));
+  return snap.docs.filter(d=>d.data().supplierCode==='4557');
+}
+
+// ── 1. עדכן קוד + קטגוריה (הכי חשוב) ─────────────────────────────────────────
+window.updateCodeAndCat = async function(){
+  const btn = document.getElementById('btn-update');
+  const log = document.getElementById('log');
+  btn.disabled = true;
+  log.innerHTML = '<b>טוען מוצרים...</b><br>';
+  const neto = await loadNeto();
+  log.innerHTML += `נמצאו ${neto.length} מוצרי נטו<br><br>`;
+
+  let updated=0, noMatch=0;
+  for(const d of neto){
+    const {name='', barcode:curBC=''} = d.data();
+    const entry = findEntry(name);
+    if(!entry){
+      log.innerHTML += `<span class="err">❓ לא נמצא: ${name}</span><br>`;
+      noMatch++; log.scrollTop=log.scrollHeight; continue;
+    }
+    const updates = {category: entry.cat};
+    if(entry.code && entry.code !== '0') updates.barcode = entry.code;
+    await updateDoc(d.ref, updates);
+    const icon = entry.cat==='frozen'?'❄️':entry.cat==='chilled'?'🧊':'📦';
+    log.innerHTML += `<span class="ok">✅ ${icon} ${name} → קוד: ${entry.code||'—'}</span><br>`;
+    updated++; log.scrollTop=log.scrollHeight;
+  }
+  log.innerHTML += `<br><strong style="color:#F0F4F8;">✅ עודכנו: ${updated} | לא נמצאו: ${noMatch}</strong>`;
+  btn.textContent = '✅ הסתיים';
+};
+
+// ── 2. הוסף מוצרים חסרים (קיים בNETO_DATA אך לא בFirestore) ─────────────────
+window.addMissingProducts = async function(){
+  const btn = document.getElementById('btn-add-missing');
+  const log = document.getElementById('log');
+  btn.disabled = true;
+  log.innerHTML = '<b>בודק מוצרים חסרים...</b><br>';
+
+  const neto = await loadNeto();
+  const netoData = neto.map(d => d.data());
+
+  const missing = [];
+  for(const entry of NETO_DATA){
+    if(!entry.code) continue;
+    const hasMatch = netoData.some(p => findEntry(p.name) === entry);
+    if(!hasMatch) missing.push(entry);
+  }
+
+  if(missing.length === 0){
+    log.innerHTML += '<span class="ok">✅ כל המוצרים קיימים בFirestore!</span>';
+    btn.disabled = false; btn.textContent = '➕ הוסף מוצרים חסרים'; return;
+  }
+
+  log.innerHTML += `נמצאו <b>${missing.length}</b> מוצרים חסרים:<br><br>`;
+  for(const e of missing){
+    const icon = e.cat==='frozen'?'❄️':e.cat==='chilled'?'🧊':'📦';
+    log.innerHTML += `<span class="warn">${icon} ${e.names[0]} (${e.code})</span><br>`;
+  }
+
+  if(!confirm(`להוסיף ${missing.length} מוצרים לFirestore?`)){ btn.disabled=false; return; }
+
+  for(const e of missing){
+    await addDoc(collection(db,'products'),{
+      name: e.names[0],
+      supplierCode: '4557',
+      barcode: e.code,
+      category: e.cat,
+    });
+    const icon = e.cat==='frozen'?'❄️':e.cat==='chilled'?'🧊':'📦';
+    log.innerHTML += `<span class="ok">✅ ${icon} נוסף: ${e.names[0]}</span><br>`;
+    log.scrollTop = log.scrollHeight;
+  }
+  log.innerHTML += `<br><strong style="color:#F0F4F8;">✅ נוספו ${missing.length} מוצרים</strong>`;
+  btn.textContent = '✅ הסתיים';
+};
+
+// ── 3. הוסף קוד לשמות (אם ברקוד 4-6 ספרות) ──────────────────────────────────
+window.startRename = async function(){
+  const btn = document.getElementById('btn-rename');
+  const log = document.getElementById('log');
+  btn.disabled = true;
+  log.innerHTML = '<b>טוען...</b><br>';
+  const neto = await loadNeto();
+  let updated=0, skipped=0, noCode=0;
+  for(const d of neto){
+    const {name='', barcode=''} = d.data();
+    if(/^\d{4,6}\s*[-–]/.test(name)){ skipped++;
+      log.innerHTML+=`<span class="skip">⏭ כבר יש קוד: ${name}</span><br>`; continue; }
+    const bc = String(barcode);
+    if(/^\d{4,6}$/.test(bc)){
+      const newName = `${bc} - ${name}`;
+      await updateDoc(d.ref,{name:newName});
+      log.innerHTML+=`<span class="ok">✅ ${name} → ${newName}</span><br>`; updated++;
+    } else {
+      log.innerHTML+=`<span class="err">❓ אין קוד: ${name} (${bc||'ריק'})</span><br>`; noCode++;
+    }
+    log.scrollTop=log.scrollHeight;
+  }
+  log.innerHTML+=`<br><strong style="color:#F0F4F8;">עודכנו: ${updated} | כבר: ${skipped} | ללא קוד: ${noCode}</strong>`;
+  btn.textContent='✅ הסתיים';
+};
+
+// ── 3. מיזוג כפילויות לפי שם ────────────────────────────────────────────────
+window.mergeDupes = async function(){
+  if(!confirm('למזג מוצרים עם שם זהה?')) return;
+  const btn=document.getElementById('btn-merge'), log=document.getElementById('log');
+  btn.disabled=true; log.innerHTML='<b>מנתח...</b><br>';
+  const neto = await loadNeto();
+  const byName={};
+  for(const d of neto){
+    const key=normN(d.data().name||'');
+    if(!byName[key]) byName[key]=[];
+    byName[key].push(d);
+  }
+  let merged=0;
+  for(const [,docs] of Object.entries(byName)){
+    if(docs.length<2) continue;
+    docs.sort((a,b)=>Object.values(b.data()).filter(v=>v!=null&&v!=='').length
+                    -Object.values(a.data()).filter(v=>v!=null&&v!=='').length);
+    log.innerHTML+=`<span class="warn">🔀 שומר: ${docs[0].data().name}</span><br>`;
+    for(const d of docs.slice(1)){
+      await deleteDoc(d.ref);
+      log.innerHTML+=`<span class="err">&nbsp;🗑 ${d.data().name}</span><br>`; merged++;
+    }
+    log.scrollTop=log.scrollHeight;
+  }
+  log.innerHTML+=`<br><strong>נמחקו ${merged} כפילויות</strong>${merged===0?'<br><span class="skip">לא נמצאו</span>':''}`;
+  btn.textContent='✅ הסתיים';
+};
+
+// ── 4. מחק neto_ ────────────────────────────────────────────────────────────
+window.deleteDupes = async function(){
+  if(!confirm('למחוק את כל מוצרי neto_?')) return;
+  const btn=document.getElementById('btn-del'), log=document.getElementById('log');
+  btn.disabled=true;
+  const snap=await getDocs(collection(db,'products'));
+  const toDel=snap.docs.filter(d=>d.id.startsWith('neto_'));
+  log.innerHTML+=`<br>מוחק ${toDel.length}...<br>`;
+  for(const d of toDel){ await deleteDoc(d.ref);
+    log.innerHTML+=`<span class="err">🗑 ${d.data().name}</span><br>`; log.scrollTop=log.scrollHeight; }
+  log.innerHTML+=`<strong>✅ נמחקו ${toDel.length}</strong>`;
+  btn.textContent='✅ הסתיים';
+};
+</script>
+</body>
+</html>

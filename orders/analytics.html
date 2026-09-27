@@ -213,15 +213,12 @@ try {
   const { data: { session } } = await sb.auth.getSession();
   if(!session) { location.href = 'index.html'; return; }
   const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+  if(profile?.role !== 'super_admin') { location.href = 'manager.html'; return; }
   const name = profile?.full_name || profile?.email || '';
   document.getElementById('sb-av').textContent = name[0]?.toUpperCase() || '?';
   document.getElementById('sb-name').textContent = name;
-  document.getElementById('sb-role2').textContent = profile?.role === 'super_admin' ? 'Super Admin' : profile?.branch || 'מנהל';
+  document.getElementById('sb-role2').textContent = 'Super Admin';
   window._sbRole = profile?.role;
-  // hide admin-only items for non-admins
-  if(profile?.role !== 'super_admin') {
-    document.querySelectorAll('#sidebar .nav-item').forEach((el,i) => { if(i>=2&&i<=4) el.style.display='none'; });
-  }
 })();
 
 function goTo(page) {
