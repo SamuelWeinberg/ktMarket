@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>הכנת מבצעים לקומקס</title>
+<style>
+:root{
+  --bg:#0D1B2A;--navy2:#112236;--border:rgba(255,255,255,.1);
+  --text:#F0F4F8;--text2:#8FA3B8;--text3:#5A7A96;
+  --blue:#1A6CF2;--green:#22C55E;--red:#EF4444;--gold:#F59E0B;--teal:#009688;
+}
+*{box-sizing:border-box;}
+body{font-family:Arial,sans-serif;background:var(--bg);color:var(--text);direction:rtl;margin:0;}
+
+/* sidebar (shared layout with admin.html) */
+.sidebar{position:fixed;top:0;right:0;width:230px;height:100vh;background:var(--navy2);border-left:1px solid var(--border);padding:24px 0;z-index:100;display:flex;flex-direction:column;font-family:Arial,sans-serif;}
+.sb-logo{padding:0 20px 24px;border-bottom:1px solid var(--border);margin-bottom:12px;}
+.sb-logo .icon{width:40px;height:40px;background:linear-gradient(135deg,var(--blue),#00C2CB);border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:8px;}
+.sb-logo span{display:block;font-size:14px;font-weight:800;}
+.sb-logo small{font-size:11px;color:var(--text3);}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;font-size:13.5px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .15s;position:relative;}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,.04);}
+.nav-item.active{color:var(--text);background:rgba(255,255,255,.07);}
+.nav-item.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blue);border-radius:0 2px 2px 0;}
+.nav-icon{font-size:16px;width:22px;text-align:center;}
+.sb-footer{margin-top:auto;padding:16px 20px;border-top:1px solid var(--border);}
+.user-badge{display:flex;align-items:center;gap:10px;}
+.u-av{width:36px;height:36px;border-radius:50%;background:#EF4444;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;}
+.u-name{font-size:13px;font-weight:600;}
+.u-role{font-size:11px;color:var(--text3);}
+.logout-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:20px;margin-right:auto;padding:2px;}
+.logout-btn:hover{color:var(--red);}
+.main{margin-right:230px;padding:24px 20px;max-width:980px;}
+.mob-header{display:none;position:fixed;top:0;left:0;right:0;height:56px;background:var(--navy2);border-bottom:1px solid var(--border);z-index:200;align-items:center;padding:0 16px;gap:12px;}
+.mob-header h2{flex:1;font-size:16px;font-weight:700;text-align:center;margin:0;}
+.hamburger{background:none;border:none;color:var(--text);font-size:24px;cursor:pointer;padding:4px 8px;line-height:1;}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:150;}
+.sidebar-overlay.show{display:block;}
+@media(max-width:768px){
+  .mob-header{display:flex;}
+  .sidebar{transform:translateX(110%);transition:transform .25s ease;z-index:160;width:82%;top:56px;height:calc(100vh - 56px);overflow-y:auto;}
+  .sidebar.open{transform:translateX(0);}
+  .main{margin-right:0;padding:16px;padding-top:72px;max-width:100%;}
+}
+
+h2{margin:0 0 4px;}
+.sub{color:var(--text2);margin:0 0 22px;font-size:13px;}
+
+.card{background:var(--navy2);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:14px;}
+.card h3{margin:0 0 14px;font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;display:flex;align-items:center;gap:6px;}
+.step-num{background:var(--blue);color:#fff;border-radius:50%;width:20px;height:20px;line-height:20px;text-align:center;font-size:11px;font-weight:700;flex-shrink:0;}
+
+.row{display:flex;gap:14px;flex-wrap:wrap;}
+.field{display:flex;flex-direction:column;gap:5px;flex:1;min-width:150px;}
+.field label{font-size:12px;color:var(--text2);font-weight:600;}
+.field input,.field select{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 12px;font-size:14px;outline:none;font-family:Arial,sans-serif;width:100%;}
+.field .hint{font-size:11px;color:var(--text3);}
+
+.drop-zone{border:2px dashed var(--border);border-radius:12px;padding:34px 20px;text-align:center;cursor:pointer;transition:all .18s;color:var(--text2);}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--blue);background:rgba(26,108,242,.08);color:var(--text);}
+.drop-zone input{display:none;}
+
+.file-item{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-top:10px;}
+.file-item .file-head{display:flex;align-items:center;gap:10px;}
+.file-item .fname{flex:1;font-size:13px;font-weight:600;}
+.file-item .fmt{font-size:11px;padding:3px 8px;border-radius:6px;}
+.file-item .fmt.known{background:rgba(34,197,94,.2);color:#22C55E;}
+.file-item .fmt.unknown{background:rgba(239,68,68,.2);color:#EF4444;}
+.file-item .fcount{font-size:12px;color:var(--text2);}
+.fix-panel{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);}
+.fix-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+@media(max-width:700px){.fix-grid{grid-template-columns:repeat(2,1fr);}}
+.fix-grid .field label{font-size:11px;}
+.fix-grid .field input{padding:7px 8px;font-size:12px;}
+
+.btn{padding:11px 22px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:Arial,sans-serif;color:#fff;transition:opacity .15s;}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+.btn.green{background:rgba(22,163,74,.85);}
+.btn.blue{background:var(--blue);}
+.btn.ghost{background:rgba(255,255,255,.08);}
+.btn.sm{padding:8px 14px;font-size:12px;}
+
+.tbl-wrap{overflow-x:auto;max-height:50vh;overflow-y:auto;border-radius:10px;border:1px solid var(--border);margin-top:10px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{background:rgba(255,255,255,.06);padding:8px 10px;text-align:right;color:var(--text2);font-weight:600;position:sticky;top:0;z-index:1;}
+td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle;}
+.src-tag{font-size:11px;color:var(--text3);}
+tr.uncertain{background:rgba(245,158,11,.08);}
+.name-edit{background:transparent;border:1px solid transparent;color:var(--text);font-family:Arial,sans-serif;font-size:13px;width:100%;padding:4px 6px;border-radius:6px;}
+.name-edit:hover{border-color:var(--border);}
+.name-edit:focus{outline:none;border-color:var(--blue);background:rgba(255,255,255,.06);}
+.warn-box{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--gold);border-radius:10px;padding:12px 14px;font-size:12px;margin-top:10px;}
+.err-box{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#EF4444;border-radius:10px;padding:10px 14px;font-size:12px;margin-top:8px;}
+.ok-note{font-size:11px;color:#22C55E;}
+</style>
+</head>
+<body>
+
+<div class="mob-header">
+  <button class="hamburger" onclick="toggleSidebar()">☰</button>
+  <h2>הכנת מבצעים לקומקס</h2>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sb-logo">
+    <div class="icon">🛒</div>
+    <span>KT Orders</span>
+    <small>ניהול מערכת</small>
+  </div>
+  <div style="flex:1;overflow-y:auto;min-height:0;">
+  <div class="nav-item" onclick="location.href='admin.html'"><span class="nav-icon">🏠</span><span>סקירה כללית</span></div>
+  <div class="nav-item" onclick="location.href='admin.html'"><span class="nav-icon">🚚</span><span>ספקים</span></div>
+  <div class="nav-item" onclick="location.href='admin.html'"><span class="nav-icon">📦</span><span>מוצרים</span></div>
+  <div class="nav-item" onclick="location.href='admin.html'"><span class="nav-icon">📋</span><span>הזמנות</span></div>
+  <div class="nav-item" onclick="location.href='admin.html'"><span class="nav-icon">🏪</span><span>סניפים</span></div>
+  <div class="nav-item" onclick="location.href='admin.html'"><span class="nav-icon">✏️</span><span>הזמנה חדשה</span></div>
+  <div class="nav-item" onclick="location.href='analytics.html'"><span class="nav-icon">📊</span><span>אנליטיקה</span></div>
+  <div class="nav-item" onclick="location.href='admin.html'"><span class="nav-icon">👁️</span><span>פעילות מנהלים</span></div>
+  <div class="nav-item" onclick="location.href='import-excel.html'"><span class="nav-icon">📥</span><span>ייבוא מאקסל</span></div>
+  <div class="nav-item active"><span class="nav-icon">🏷️</span><span>הכנת מבצעים לקומקס</span></div>
+  </div>
+  <div class="sb-footer">
+    <div class="user-badge">
+      <div class="u-av" id="av">?</div>
+      <div><div class="u-name" id="uname">—</div><div class="u-role">Super Admin</div></div>
+      <button class="logout-btn" onclick="doLogout()" title="התנתק">↪</button>
+    </div>
+  </div>
+</nav>
+
+<div class="main">
+
+<h2>🏷️ הכנת מבצעים לקומקס</h2>
+<p class="sub">מעלים קבצי מבצעים מספקים, המערכת מזהה את הפורמט ובונה קבצים מוכנים לייבוא לקומקס — רק למנהל ראשי</p>
+
+<!-- Supplier tracker (Google Sheets) -->
+<div class="card">
+  <h3>📋 מעקב ספקים + מיילים</h3>
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <button class="btn blue sm" id="sheet-connect-btn" onclick="connectSheet()">🔗 התחבר ל-Google (Sheets + Gmail)</button>
+    <span id="sheet-status" style="font-size:12px;color:var(--text3);">לא מחובר — קבצים יעובדו בלי להירשם בטבלה</span>
+    <a href="https://docs.google.com/spreadsheets/d/1u4Osnkk3JeyRMP-vAf74RBs7GzEPR41CR0rGoP0xSNw/edit" target="_blank" style="font-size:12px;color:var(--blue);">פתח את טבלת המעקב ↗</a>
+  </div>
+  <div id="gmail-section" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <button class="btn teal sm" onclick="searchGmail()">📧 חפש מיילים משלמה</button>
+      <span id="gmail-status" style="font-size:12px;color:var(--text3);"></span>
+    </div>
+    <div class="tbl-wrap" id="gmail-results-wrap" style="display:none;">
+      <table>
+        <thead><tr><th>תאריך</th><th>נושא</th><th>קובץ מצורף</th><th>סטטוס</th></tr></thead>
+        <tbody id="gmail-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Step 1: params that must be set every time -->
+<div class="card">
+  <h3><span class="step-num">1</span> פרטי המבצע</h3>
+  <div class="row">
+    <div class="field">
+      <label>קוד התחלה בקומקס (לתגמולים)</label>
+      <input type="number" id="code-start" placeholder="לדוגמה 1683">
+      <span class="hint">תמיד למלא ידנית — זה המספר הרץ אצלכם בקומקס</span>
+    </div>
+    <div class="field">
+      <label>מתאריך</label>
+      <input type="date" id="date-from">
+      <span class="hint" id="date-hint">מתעדכן אוטומטית מהקובץ אם קיים בו תאריך</span>
+    </div>
+    <div class="field">
+      <label>עד תאריך</label>
+      <input type="date" id="date-to">
+    </div>
+  </div>
+</div>
+
+<!-- Step 2: upload -->
+<div class="card">
+  <h3><span class="step-num">2</span> העלה קבצי ספקים (אפשר כמה יחד)</h3>
+  <div class="drop-zone" id="drop-zone"
+       onclick="document.getElementById('file-input').click()"
+       ondragover="onDragOver(event)" ondrop="onDrop(event)" ondragleave="onDragLeave()">
+    <div style="font-size:38px;margin-bottom:8px;">📂</div>
+    <div style="font-weight:700;margin-bottom:4px;">גרור קבצי אקסל לכאן</div>
+    <div style="font-size:12px;">או לחץ לבחירה &nbsp;·&nbsp; xlsx / xlsb</div>
+    <input type="file" id="file-input" accept=".xlsx,.xls,.xlsb" multiple onchange="onFileSelected(this)">
+  </div>
+  <div id="file-list"></div>
+  <datalist id="supplier-list"></datalist>
+  <div style="margin-top:10px;">
+    <button class="btn ghost sm" onclick="resetFiles()">🔄 התחל מחדש (נקה קבצים)</button>
+  </div>
+</div>
+
+<!-- Step 3: preview + build -->
+<div class="card" id="step3-card" style="display:none">
+  <h3><span class="step-num">3</span> תצוגה מקדימה — תגמולים (מבצעי צרכן)</h3>
+  <div id="preview-summary" style="font-size:13px;color:var(--text2);margin-bottom:8px;"></div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>קוד</th><th>מקור</th><th>שם</th><th>כמות ב-מחיר</th><th># ברקודים</th></tr></thead>
+      <tbody id="preview-body"></tbody>
+    </table>
+  </div>
+
+  <h3 style="margin-top:18px;">מחיר קנייה במבצע (עלות) — שורה לכל ברקוד</h3>
+  <div id="cost-summary" style="font-size:13px;color:var(--text2);margin-bottom:8px;"></div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>מקור</th><th>ברקוד</th><th>מחיר קנייה</th></tr></thead>
+      <tbody id="cost-body"></tbody>
+    </table>
+  </div>
+
+  <h3 style="margin-top:18px;">מימוש — שורה לכל ברקוד</h3>
+  <div id="realization-summary" style="font-size:13px;color:var(--text2);margin-bottom:8px;"></div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>מקור</th><th>ברקוד</th><th>הסכום</th></tr></thead>
+      <tbody id="realization-body"></tbody>
+    </table>
+  </div>
+
+  <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+    <button class="btn green" id="download-btn" onclick="downloadAll()">⬇️ הורד את כל הקבצים (תגמולים + מחיר קנייה + מימוש)</button>
+  </div>
+  <div class="warn-box">⚠️ זו הכנה אוטומטית — תמיד לעבור על התוצאה לפני ייבוא בפועל לקומקס.</div>
+</div>
+</div><!-- /.main -->
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+const sb = createClient(
+  'https://dkpqgyieoidrydxfiwhd.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRrcHFneWllb2lkcnlkeGZpd2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MzA4NDgsImV4cCI6MjA4OTMwNjg0OH0.cFYdJK7P58pc_VlQxCo4HdLVRPkyiLz_8hMLepoK3Ws'
+);
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { location.href = 'index.html'; return; }
+  const { data: profile } = await sb.from('profiles').select('role, full_name, email').eq('id', session.user.id).single();
+  if (profile?.role !== 'super_admin') { location.href = 'manager.html'; return; }
+  const name = profile.full_name || profile.email || '';
+  document.getElementById('av').textContent = name[0]?.toUpperCase() || 'A';
+  document.getElementById('uname').textContent = name;
+})();
+window.doLogout = async function () { await sb.auth.signOut(); location.href = 'index.html'; };
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+const db = getFirestore(initializeApp({
+  apiKey: "AIzaSyAkDN3aDsaHAScm8vymAJFhvT6aaY1pWsw",
+  authDomain: "ktmarket.firebaseapp.com", projectId: "ktmarket",
+  storageBucket: "ktmarket.firebasestorage.app",
+  messagingSenderId: "293459990906",
+  appId: "1:293459990906:web:468b68227cc17e55389ec3"
+}));
+(async () => {
+  const snap = await getDocs(collection(db, 'suppliers'));
+  const names = snap.docs.map(d => d.data().name).filter(Boolean).sort((a, b) => a.localeCompare(b, 'he'));
+  window.__supplierNames = names;
+  const dl = document.getElementById('supplier-list');
+  dl.innerHTML = names.map(n => `<option value="${n}">`).join('');
+})();
+</script>
+<script>
+window.toggleSidebar = function () {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('show');
+};
+window.closeSidebar = function () {
+  document.getElementById('sidebar')?.classList.remove('open');
+  document.getElementById('sidebar-overlay')?.classList.remove('show');
+};
+
+// ── Supplier tracker (Google Sheets) ────────────────────────────────────────────
+const SHEET_ID = '1u4Osnkk3JeyRMP-vAf74RBs7GzEPR41CR0rGoP0xSNw';
+const GOOGLE_CLIENT_ID = '460212240627-ev6k02vn610to53q6df3tbdigg9f7q14.apps.googleusercontent.com';
+const SHEET_SCOPE = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/gmail.readonly';
+let sheetAccessToken = null;
+let sheetTokenClient = null;
+
+function initSheetAuth() {
+  if (!window.google?.accounts?.oauth2) { setTimeout(initSheetAuth, 300); return; }
+  sheetTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: SHEET_SCOPE,
+    callback: (resp) => {
+      if (resp.error) { alert('שגיאת התחברות ל-Google: ' + resp.error); return; }
+      sheetAccessToken = resp.access_token;
+      document.getElementById('sheet-status').textContent = '✅ מחובר — קבצים שיזוהו יירשמו אוטומטית בטבלה';
+      document.getElementById('sheet-connect-btn').textContent = '🔗 מחובר';
+      document.getElementById('gmail-section').style.display = 'block';
+    },
+  });
+}
+window.connectSheet = function () {
+  if (!sheetTokenClient) { alert('עדיין טוען את חיבור Google, נסה שוב בעוד רגע'); return; }
+  sheetTokenClient.requestAccessToken();
+};
+initSheetAuth();
+
+const SHEETS_BASE = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values`;
+async function sheetsAuthedFetch(url, method, body) {
+  const res = await fetch(url, {
+    method,
+    headers: { Authorization: `Bearer ${sheetAccessToken}`, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) throw new Error(`Sheets API ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+const sheetsGet = range => sheetsAuthedFetch(`${SHEETS_BASE}/${encodeURIComponent(range)}`, 'GET');
+const sheetsUpdate = (range, values) =>
+  sheetsAuthedFetch(`${SHEETS_BASE}/${encodeURIComponent(range)}?valueInputOption=RAW`, 'PUT', { values });
+const sheetsAppend = (range, values) =>
+  sheetsAuthedFetch(`${SHEETS_BASE}/${encodeURIComponent(range)}:append?valueInputOption=RAW`, 'POST', { values });
+
+// Upserts one row per supplier: updates its date/status if already listed,
+// appends a new row otherwise. Silent no-op when not connected — the
+// conversion tool itself never depends on this succeeding.
+async function logToSheet(supplierKey, fileName) {
+  if (!sheetAccessToken) return;
+  try {
+    const read = await sheetsGet('A:A');
+    const col = read.values || [];
+    if (col.length === 0) {
+      await sheetsUpdate('A1:D1', [['ספק', 'תאריך עיבוד אחרון', 'סטטוס', 'קובץ אחרון']]);
+      col.push(['ספק']);
+    }
+    const today = new Date().toISOString().split('T')[0];
+    const rowIdx = col.findIndex((r, i) => i > 0 && r[0] === supplierKey);
+    const rowValues = [[supplierKey, today, 'מעובד', fileName]];
+    if (rowIdx > 0) {
+      await sheetsUpdate(`A${rowIdx + 1}:D${rowIdx + 1}`, rowValues);
+    } else {
+      await sheetsAppend('A:D', rowValues);
+    }
+  } catch (err) {
+    console.error('sheet log failed', err);
+    alert('כתיבה לטבלת המעקב נכשלה (ראה קונסול) — זה לא משפיע על קובצי ההמרה עצמם.');
+  }
+}
+window.onSupplierChosen = function (id, supplierName) {
+  supplierName = supplierName.trim();
+  if (!supplierName) return;
+  const f = filesData.find(x => x.id === id);
+  logToSheet(supplierName, f ? f.fileName : '');
+};
+
+// ── Gmail search (same Google sign-in as the Sheets tracker) ───────────────────
+const SHLOMO_ADDRESSES = ['sh.b.linden@gmail.com', 'shlomo@kt-ltd.co.il'];
+async function gmailFetch(path) {
+  const res = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/${path}`, {
+    headers: { Authorization: `Bearer ${sheetAccessToken}` },
+  });
+  if (!res.ok) throw new Error(`Gmail API ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+function headerVal(headers, name) {
+  const h = (headers || []).find(x => x.name === name);
+  return h ? h.value : '';
+}
+function collectAttachments(part, out) {
+  if (!part) return out;
+  if (part.filename && part.body?.attachmentId) {
+    out.push({ filename: part.filename, attachmentId: part.body.attachmentId, mimeType: part.mimeType || 'application/octet-stream' });
+  }
+  (part.parts || []).forEach(p => collectAttachments(p, out));
+  return out;
+}
+const HEBREW_MONTH_NAMES = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
+let gmailRowsCache = []; // keeps full row data (incl. attachment ids) for the download buttons
+
+window.downloadGmailAttachment = async function (messageId, attachmentId, filename) {
+  try {
+    const att = await gmailFetch(`messages/${messageId}/attachments/${attachmentId}`);
+    const b64 = att.data.replace(/-/g, '+').replace(/_/g, '/');
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const blob = new Blob([bytes]);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error(err);
+    alert('הורדת הקובץ נכשלה (ראה קונסול)');
+  }
+};
+
+window.searchGmail = async function () {
+  if (!sheetAccessToken) { alert('תתחבר קודם ל-Google'); return; }
+  const statusEl = document.getElementById('gmail-status');
+  statusEl.textContent = 'מחפש...';
+  try {
+    const q = `from:(${SHLOMO_ADDRESSES.join(' OR ')})`;
+    const list = await gmailFetch(`messages?maxResults=50&q=${encodeURIComponent(q)}`);
+    const msgs = list.messages || [];
+    if (!msgs.length) { statusEl.textContent = 'לא נמצאו מיילים משלמה'; return; }
+
+    // Cross-reference against filenames already logged in the tracker sheet,
+    // as a best-effort "probably handled" guess — not a certainty.
+    let loggedFiles = [];
+    try {
+      const read = await sheetsGet('D:D');
+      loggedFiles = (read.values || []).flat().filter(Boolean);
+    } catch (e) { /* tracker read is optional */ }
+
+    const rows = [];
+    for (const m of msgs) {
+      const full = await gmailFetch(`messages/${m.id}?format=full`);
+      const subject = headerVal(full.payload?.headers, 'Subject') || '(ללא נושא)';
+      const dateHeader = headerVal(full.payload?.headers, 'Date');
+      const d = dateHeader ? new Date(dateHeader) : null;
+      const attachments = collectAttachments(full.payload, []);
+      const matched = attachments.some(a => loggedFiles.some(f => f.includes(a.filename) || a.filename.includes(f)));
+      rows.push({ messageId: m.id, date: d, subject, attachments, matched });
+    }
+    rows.sort((a, b) => (b.date?.getTime() || 0) - (a.date?.getTime() || 0));
+    gmailRowsCache = rows;
+
+    // Group by year-month
+    const groups = {};
+    const order = [];
+    for (const r of rows) {
+      const key = r.date ? `${r.date.getFullYear()}-${String(r.date.getMonth() + 1).padStart(2, '0')}` : 'ללא תאריך';
+      if (!(key in groups)) { groups[key] = []; order.push(key); }
+      groups[key].push(r);
+    }
+
+    const rowHtml = r => {
+      const dateStr = r.date ? r.date.toLocaleDateString('he-IL') : '';
+      const attHtml = r.attachments.length
+        ? r.attachments.map(a => `${a.filename} <button class="btn ghost sm" style="padding:2px 8px;font-size:11px;" onclick="downloadGmailAttachment('${r.messageId}','${a.attachmentId}','${a.filename.replace(/'/g, "\\'")}')">⬇️</button>`).join('<br>')
+        : '—';
+      const statusHtml = r.attachments.length === 0 ? '<span class="src-tag">אין קובץ</span>'
+        : r.matched ? '<span class="ok-note">✅ כנראה טופל</span>'
+        : '<span style="color:var(--gold);">⚠️ כדאי לבדוק</span>';
+      return `<tr><td>${dateStr}</td><td>${r.subject}</td><td>${attHtml}</td><td>${statusHtml}</td></tr>`;
+    };
+
+    let html = '';
+    for (const key of order) {
+      let label = key;
+      if (key !== 'ללא תאריך') {
+        const [y, mo] = key.split('-');
+        label = `${HEBREW_MONTH_NAMES[parseInt(mo) - 1]} ${y}`;
+      }
+      html += `<tr><td colspan="4" style="background:rgba(255,255,255,.06);font-weight:700;">${label} (${groups[key].length})</td></tr>`;
+      html += groups[key].map(rowHtml).join('');
+    }
+    document.getElementById('gmail-body').innerHTML = html;
+    document.getElementById('gmail-results-wrap').style.display = 'block';
+    statusEl.textContent = `נמצאו ${rows.length} מיילים`;
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = 'שגיאה בחיפוש (ראה קונסול)';
+  }
+};
+
+// ── Deal-text parsing ──────────────────────────────────────────────────────────
+function parseDeal(text) {
+  if (text === null || text === undefined) return null;
+  text = String(text).trim();
+  if (!text) return null;
+  const m = text.match(/(\d+(?:\.\d+)?)\s*ב\s*(\d+(?:\.\d+)?)/);
+  if (m) return { qty: numify(parseFloat(m[1])), price: parseFloat(m[2]) };
+  const cleaned = text.replace(/[₪,\s]/g, '');
+  if (/^\d+(\.\d+)?$/.test(cleaned)) return { qty: 1, price: parseFloat(cleaned) };
+  return null;
+}
+function numify(x){ return (x === Math.floor(x)) ? Math.floor(x) : x; }
+function isValidBarcode(v) {
+  if (v === null || v === undefined) return false;
+  if (typeof v === 'number') return true;
+  return /^\d+$/.test(String(v).trim());
+}
+function parsePrice(v) {
+  if (v === null || v === undefined) return null;
+  if (typeof v === 'number') return v;
+  // Pulls the first number out of the cell regardless of surrounding text
+  // (e.g. "מימוש 0.3 אג' ליח'", "1.5 ₪", "2.38 ₪") rather than requiring the
+  // whole cell to be numeric.
+  const m = String(v).match(/(\d+(?:\.\d+)?)/);
+  return m ? parseFloat(m[1]) : null;
+}
+
+// ── Merge helpers ──────────────────────────────────────────────────────────────
+function mergeAnchorMap(sheet, col) {
+  const merges = sheet['!merges'] || [];
+  const map = {};
+  for (const m of merges) {
+    if (m.s.c === col && m.e.c === col) {
+      for (let r = m.s.r; r <= m.e.r; r++) map[r] = m.s.r;
+    }
+  }
+  return map;
+}
+function cellAt(sheet, r, c) {
+  const addr = XLSX.utils.encode_cell({ r, c });
+  const cell = sheet[addr];
+  return cell ? cell.v : null;
+}
+function isBlockedStatus(v) {
+  return typeof v === 'string' && v.includes('חסימה');
+}
+function namesShareWord(names) {
+  const wordSets = names.map(n => new Set(n.replace(/["'׳״.,]/g, '').split(/\s+/).filter(Boolean)));
+  const [first, ...rest] = wordSets;
+  for (const w of first) {
+    if (rest.every(set => set.has(w))) return true;
+  }
+  return false;
+}
+// opts: { qtyCol, statusCol } — both optional. qtyCol overrides the qty parsed from
+// the deal text (some formats carry qty in its own column); statusCol excludes a
+// barcode from its group when the status text contains "חסימה" (temporarily blocked).
+function buildGroups(sheet, rowStart, rowEnd, barcodeCol, nameCol, dealCol, opts) {
+  opts = opts || {};
+  if (dealCol === null || dealCol === undefined) return []; // flat formats have no consumer-deal column
+  const anchorMap = mergeAnchorMap(sheet, dealCol);
+  const groups = {}; const order = [];
+  for (let r = rowStart; r <= rowEnd; r++) {
+    const bc = cellAt(sheet, r, barcodeCol);
+    if (!isValidBarcode(bc)) continue;
+    const anchor = anchorMap[r] !== undefined ? anchorMap[r] : r;
+    if (!(anchor in groups)) { groups[anchor] = { barcodes: [], name: null, names: [], qty: null }; order.push(anchor); }
+    if (opts.statusCol !== undefined && isBlockedStatus(cellAt(sheet, r, opts.statusCol))) continue;
+    const g = groups[anchor];
+    g.barcodes.push(String(bc));
+    const nm = cellAt(sheet, r, nameCol);
+    if (nm) {
+      g.names.push(String(nm).trim());
+      if (!g.name) g.name = String(nm).trim();
+    }
+    if (g.qty === null && opts.qtyCol !== undefined) {
+      const q = cellAt(sheet, r, opts.qtyCol);
+      if (q !== null && q !== undefined && q !== '') g.qty = q;
+    }
+  }
+  const results = [];
+  for (const anchor of order) {
+    const g = groups[anchor];
+    if (!g.barcodes.length) continue; // every barcode in this group was blocked
+    const dealText = cellAt(sheet, anchor, dealCol);
+    const parsed = parseDeal(dealText);
+    if (!parsed) continue;
+    const qty = g.qty !== null ? g.qty : parsed.qty;
+    // Flag groups whose item names share no common word — the picked label
+    // (the first item's name) may not represent the whole bundle well, so this
+    // is a hint to double-check it manually rather than a guaranteed problem.
+    const uncertainName = g.names.length > 1 && !namesShareWord(g.names);
+    results.push({ barcodes: g.barcodes, name: g.name, qty, price: parsed.price, uncertainName });
+  }
+  return results;
+}
+function buildCostRows(sheet, rowStart, rowEnd, barcodeCol, costCol, opts) {
+  opts = opts || {};
+  if (costCol === null || costCol === undefined) return [];
+  // The cost column can be merged over a narrower block than the deal column
+  // (each pricing block keeps its own cost, even when several blocks share one
+  // consumer deal) — resolve through its own anchor map rather than assuming
+  // the value sits directly on every row. A cell that merely LOOKS blank because
+  // it's the tail of a merge can still hold a residual formula (e.g. evaluating
+  // to 0 off other blanked-out cells in the same row) — the anchor is what's real.
+  const costAnchorMap = mergeAnchorMap(sheet, costCol);
+  const results = [];
+  for (let r = rowStart; r <= rowEnd; r++) {
+    const bc = cellAt(sheet, r, barcodeCol);
+    if (!isValidBarcode(bc)) continue;
+    if (opts.statusCol !== undefined && isBlockedStatus(cellAt(sheet, r, opts.statusCol))) continue;
+    const costRow = costAnchorMap[r] !== undefined ? costAnchorMap[r] : r;
+    const price = parsePrice(cellAt(sheet, costRow, costCol));
+    if (price === null) continue;
+    results.push({ barcode: String(bc), price });
+  }
+  return results;
+}
+
+// ── Date auto-detection from file header text ───────────────────────────────────
+function parseDateString(s) {
+  const m = s.match(/(\d{1,2})[.\/](\d{1,2})[.\/](\d{2,4})/);
+  if (!m) return null;
+  let [, d, mo, y] = m;
+  if (y.length === 2) y = '20' + y;
+  return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
+}
+// Reads a date out of a raw cell object. Deliberately avoids SheetJS's cellDates
+// Date conversion (XLSX serial -> JS Date can drift a few hours off midnight,
+// which flips the calendar day once local/UTC getters are applied) — instead
+// converts the Excel day-serial ourselves so the date is exact.
+function dateFromCellObj(cell) {
+  if (!cell) return null;
+  if (cell.t === 's' || cell.t === 'str') return parseDateString(String(cell.v));
+  if (cell.t === 'n') {
+    const days = Math.round(cell.v); // whole calendar day — no time-of-day involved
+    const ms = Date.UTC(1899, 11, 30) + days * 86400000;
+    const d = new Date(ms);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+  }
+  return null;
+}
+function extractDateRange(sheet) {
+  const ref = sheet['!ref'];
+  if (!ref) return null;
+  const range = XLSX.utils.decode_range(ref);
+  let text = '';
+  for (let r = range.s.r; r <= Math.min(range.e.r, 10); r++) {
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const v = cellAt(sheet, r, c);
+      if (typeof v === 'string') text += v + ' ';
+    }
+  }
+  const re = /(\d{1,2})[.\/](\d{1,2})[.\/](\d{2,4})/g;
+  const matches = [...text.matchAll(re)];
+  if (matches.length < 2) return null;
+  const toIso = m => {
+    let [, d, mo, y] = m;
+    if (y.length === 2) y = '20' + y;
+    return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  };
+  return { from: toIso(matches[0]), to: toIso(matches[1]) };
+}
+
+// ── Known supplier formats: detection signature + column layout ────────────────
+// All row/col indices are 0-based (SheetJS convention).
+const FORMATS = [
+  { key: 'קייטי', signature: s => sheetHasHeader(s, 'מבצע לצרכן'),
+    rowStart: 1, barcodeCol: 1, nameCol: 2, dealCol: 6, costCol: 4 },
+  { key: 'שסטוביץ', signature: s => sheetHasHeader(s, 'ברקוד יחידה') && sheetHasHeader(s, 'פריט מרכז'),
+    rowStart: 7, barcodeCol: 2, nameCol: 3, dealCol: 7, costCol: 5 },
+  { key: 'חטיפים', signature: s => sheetHasHeader(s, 'מחיר קניה במבצע'),
+    rowStart: 7, barcodeCol: 0, nameCol: 1, dealCol: 5, costCol: 3 },
+  { key: 'KA', signature: s => sheetHasHeader(s, 'אחוז הנחת מבצע'),
+    rowStart: 2, barcodeCol: 2, nameCol: 3, dealCol: 12, costCol: 7,
+    qtyCol: 8, statusCol: 10,
+    dateCells: { from: { r: 0, c: 2 }, to: { r: 0, c: 5 } } },
+  // מימוש (realization/rebate): flat one-row-per-barcode report, no consumer
+  // deal or grouping involved — barcodeCol + realizationCol is all it needs.
+  { key: 'מימוש (תנובה)', signature: s => sheetHasHeader(s, 'אחוז הנחה למימוש') || sheetHasHeader(s, 'עלות מימוש ליחידה'),
+    rowStart: 4, barcodeCol: 2, realizationCol: 7 },
+  // מימוש (סוגת): same idea, different layout — category-label rows and a
+  // repeated header row are interspersed, but isValidBarcode already skips them.
+  { key: 'מימוש (סוגת)', signature: s => sheetHasHeader(s, 'מימוש') && (sheetHasHeader(s, 'מקט') || sheetHasHeader(s, 'מק"ט')),
+    rowStart: 3, barcodeCol: 1, realizationCol: 5 },
+];
+
+function sheetHasHeader(sheet, text) {
+  const ref = sheet['!ref'];
+  if (!ref) return false;
+  const range = XLSX.utils.decode_range(ref);
+  for (let r = range.s.r; r <= Math.min(range.e.r, 15); r++) {
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const v = cellAt(sheet, r, c);
+      if (typeof v === 'string' && v.trim() === text) return true;
+    }
+  }
+  return false;
+}
+
+function detectFormatAndSheet(workbook) {
+  for (const sheetName of workbook.SheetNames) {
+    const sheet = workbook.Sheets[sheetName];
+    for (const fmt of FORMATS) {
+      if (fmt.signature(sheet)) return { fmt, sheet, sheetName };
+    }
+  }
+  return null;
+}
+
+// ── State ───────────────────────────────────────────────────────────────────────
+let filesData = []; // { fileName, workbook, groups: [...], costRows: [...], realizationRows: [...], detected }
+let fileSeq = 0;
+
+window.onDragOver  = e => { e.preventDefault(); document.getElementById('drop-zone').classList.add('drag-over'); };
+window.onDragLeave = ()  => document.getElementById('drop-zone').classList.remove('drag-over');
+window.onDrop      = e  => { e.preventDefault(); onDragLeave(); handleFiles(e.dataTransfer.files); };
+window.onFileSelected = inp => { handleFiles(inp.files); inp.value = ''; };
+
+window.resetFiles = function () {
+  filesData = [];
+  document.getElementById('file-list').innerHTML = '';
+  document.getElementById('file-input').value = '';
+  document.getElementById('step3-card').style.display = 'none';
+};
+
+function handleFiles(fileList) {
+  for (const file of fileList) processFile(file);
+}
+
+// Prefixes rather than full names, so both the spelled-out month ("אוקטובר")
+// and common abbreviated forms ("אוק'") match the same rule.
+const HEBREW_MONTHS = {
+  'ינו': 1, 'פבר': 2, 'מרץ': 3, 'מרס': 3, 'אפר': 4, 'מאי': 5, 'יונ': 6,
+  'יול': 7, 'אוג': 8, 'ספט': 9, 'אוק': 10, 'נוב': 11, 'דצמ': 12,
+};
+function monthRangeFromText(text) {
+  for (const [prefix, month] of Object.entries(HEBREW_MONTHS)) {
+    const re = new RegExp(prefix + "[א-ת']*\\s*(\\d{2,4})");
+    const m = text.match(re);
+    if (m) {
+      let y = m[1];
+      y = y.length === 2 ? '20' + y : y;
+      const pad = n => String(n).padStart(2, '0');
+      const last = new Date(parseInt(y), month, 0).getDate();
+      return { from: `${y}-${pad(month)}-01`, to: `${y}-${pad(month)}-${pad(last)}` };
+    }
+  }
+  return null;
+}
+function monthRangeFromSheet(sheet) {
+  const ref = sheet['!ref'];
+  if (!ref) return null;
+  const range = XLSX.utils.decode_range(ref);
+  let text = '';
+  for (let r = range.s.r; r <= Math.min(range.e.r, 10); r++) {
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const v = cellAt(sheet, r, c);
+      if (typeof v === 'string') text += v + ' ';
+    }
+  }
+  return monthRangeFromText(text);
+}
+function currentMonthRange() {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth();
+  const last = new Date(y, m + 1, 0).getDate();
+  const pad = n => String(n).padStart(2, '0');
+  return { from: `${y}-${pad(m + 1)}-01`, to: `${y}-${pad(m + 1)}-${pad(last)}` };
+}
+function maybeFillDates(sheet, fmt, fileName) {
+  const dfEl = document.getElementById('date-from'), dtEl = document.getElementById('date-to');
+  if (dfEl.value && dtEl.value) return; // user/previous file already set them
+  let range = null;
+  if (fmt && fmt.dateCells) {
+    const fromAddr = XLSX.utils.encode_cell(fmt.dateCells.from);
+    const toAddr = XLSX.utils.encode_cell(fmt.dateCells.to);
+    const from = dateFromCellObj(sheet[fromAddr]);
+    const to = dateFromCellObj(sheet[toAddr]);
+    if (from && to) range = { from, to };
+  }
+  if (!range) range = extractDateRange(sheet);
+  const hint = document.getElementById('date-hint');
+  if (range) {
+    dfEl.value = range.from; dtEl.value = range.to;
+    hint.textContent = 'זוהה אוטומטית מהקובץ — אפשר לשנות';
+    hint.className = 'ok-note';
+    return;
+  }
+  // No explicit date range in the sheet — look for a Hebrew month name + year,
+  // in the sheet text first, then the filename (e.g. "...אוקטובר 2026...").
+  // Only as a last resort fall back to today's real-world month, which has no
+  // relation to the promo period the file is actually for.
+  range = monthRangeFromSheet(sheet) || (fileName && monthRangeFromText(fileName));
+  if (range) {
+    dfEl.value = range.from; dtEl.value = range.to;
+    hint.textContent = 'החודש זוהה משם/תוכן הקובץ — אפשר לשנות';
+    hint.className = 'ok-note';
+  } else {
+    range = currentMonthRange();
+    dfEl.value = range.from; dtEl.value = range.to;
+    hint.textContent = 'לא נמצא חודש בקובץ — הוגדר לחודש הנוכחי, בדוק שזה נכון';
+    hint.className = 'ok-note';
+  }
+}
+
+function processFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const id = 'f' + (fileSeq++);
+      const listDiv = document.getElementById('file-list');
+      const item = document.createElement('div');
+      item.className = 'file-item';
+      item.id = id;
+      listDiv.appendChild(item); // must be in the DOM before applyFormat looks it up by id
+
+      const detection = detectFormatAndSheet(wb);
+      if (!detection) {
+        filesData.push({ id, fileName: file.name, workbook: wb, groups: [], costRows: [], realizationRows: [], detected: null });
+        item.innerHTML = fixPanelHtml(id, file.name, wb, null);
+        renderPreview();
+        return;
+      }
+      const { fmt, sheet, sheetName } = detection;
+      applyFormat(id, file.name, wb, sheetName, fmt);
+      maybeFillDates(sheet, fmt, file.name);
+    } catch (err) {
+      alert('שגיאה בקריאת ' + file.name + ': ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function applyFormat(id, fileName, wb, sheetName, fmt) {
+  const sheet = wb.Sheets[sheetName];
+  const range = XLSX.utils.decode_range(sheet['!ref']);
+  const opts = { qtyCol: fmt.qtyCol, statusCol: fmt.statusCol };
+  const groups = buildGroups(sheet, fmt.rowStart, range.e.r, fmt.barcodeCol, fmt.nameCol, fmt.dealCol, opts);
+  const costRows = buildCostRows(sheet, fmt.rowStart, range.e.r, fmt.barcodeCol, fmt.costCol, opts);
+  const realizationRows = buildCostRows(sheet, fmt.rowStart, range.e.r, fmt.barcodeCol, fmt.realizationCol, opts);
+  const existing = filesData.find(f => f.id === id);
+  if (existing) {
+    existing.groups = groups; existing.costRows = costRows; existing.realizationRows = realizationRows; existing.detected = fmt.key;
+  } else {
+    filesData.push({ id, fileName, workbook: wb, groups, costRows, realizationRows, detected: fmt.key });
+  }
+  const item = document.getElementById(id);
+  item.innerHTML = `<div class="file-head">
+      <span class="fname">${fileName}</span>
+      <span class="fmt known">זוהה: ${fmt.key}</span>
+      <span class="fcount">${groups.length} תגמולים · ${costRows.length} מחירי קנייה · ${realizationRows.length} מימוש</span>
+    </div>
+    <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
+      <label style="font-size:12px;color:var(--text2);white-space:nowrap;">ספק אמיתי (לרישום במעקב):</label>
+      <input type="text" list="supplier-list" placeholder="התחל להקליד..." class="name-edit" style="border:1px solid var(--border);max-width:260px;" onchange="onSupplierChosen('${id}', this.value)">
+    </div>`;
+  renderPreview();
+}
+
+function fixPanelHtml(id, fileName, wb, prevValues) {
+  const sheetOptions = wb.SheetNames.map(n => `<option value="${n}">${n}</option>`).join('');
+  const v = prevValues || { sheet: wb.SheetNames[0], row: 2, bc: 'B', name: 'C', deal: 'G', cost: 'E' };
+  return `<div class="file-head">
+      <span class="fname">${fileName}</span>
+      <span class="fmt unknown">פורמט לא מזוהה</span>
+    </div>
+    <div class="err-box">לא הכרתי את המבנה של הקובץ הזה. אפשר להגדיר ידנית את העמודות למטה, או לשלוח את הקובץ הזה כדי שתתווסף לו זיהוי קבוע.</div>
+    <div class="fix-panel">
+      <div class="fix-grid">
+        <div class="field"><label>גיליון</label><select id="${id}-sheet">${sheetOptions}</select></div>
+        <div class="field"><label>שורת התחלה</label><input type="number" id="${id}-row" value="${v.row}"></div>
+        <div class="field"><label>עמודת ברקוד</label><input type="text" id="${id}-bc" value="${v.bc}" maxlength="2"></div>
+        <div class="field"><label>עמודת שם</label><input type="text" id="${id}-name" value="${v.name}" maxlength="2"></div>
+        <div class="field"><label>עמודת מבצע לצרכן</label><input type="text" id="${id}-deal" value="${v.deal}" maxlength="2"></div>
+      </div>
+      <div class="fix-grid" style="margin-top:8px;">
+        <div class="field"><label>עמודת מחיר קנייה (לא חובה)</label><input type="text" id="${id}-cost" value="${v.cost}" maxlength="2"></div>
+      </div>
+      <button class="btn blue sm" style="margin-top:10px;" onclick="applyManual('${id}')">🔧 עבד עם ההגדרות האלה</button>
+    </div>`;
+}
+
+window.applyManual = function (id) {
+  const f = filesData.find(x => x.id === id);
+  const sheetName = document.getElementById(`${id}-sheet`).value;
+  const row = parseInt(document.getElementById(`${id}-row`).value) - 1; // to 0-indexed
+  const colLetter = key => document.getElementById(`${id}-${key}`).value.trim().toUpperCase();
+  const toCol = letter => letter ? XLSX.utils.decode_col(letter) : null;
+  const fmt = {
+    key: 'ידני', rowStart: row,
+    barcodeCol: toCol(colLetter('bc')), nameCol: toCol(colLetter('name')),
+    dealCol: toCol(colLetter('deal')), costCol: toCol(colLetter('cost')),
+  };
+  applyFormat(id, f.fileName, f.workbook, sheetName, fmt);
+  maybeFillDates(f.workbook.Sheets[sheetName], fmt, f.fileName);
+};
+
+window.onNameEdited = function (fileId, groupIdx, value) {
+  const f = filesData.find(x => x.id === fileId);
+  if (f) f.groups[groupIdx].name = value;
+};
+
+function renderPreview() {
+  const codeStart = parseInt(document.getElementById('code-start').value) || null;
+  const tbody = document.getElementById('preview-body');
+  const costBody = document.getElementById('cost-body');
+  const realizationBody = document.getElementById('realization-body');
+  let html = '', costHtml = '', realizationHtml = '';
+  let code = codeStart;
+  let total = 0, costTotal = 0, uncertainCount = 0, realizationTotal = 0;
+  for (const f of filesData) {
+    f.groups.forEach((g, i) => {
+      total++;
+      if (g.uncertainName) uncertainCount++;
+      const codeDisplay = code !== null ? code++ : '—';
+      const rowClass = g.uncertainName ? ' class="uncertain"' : '';
+      const warnIcon = g.uncertainName ? '<span title="הפריטים בקבוצה הזו לא חולקים מילה משותפת — כדאי לבדוק שהשם מתאים לכולם">⚠️</span> ' : '';
+      html += `<tr${rowClass}><td>${codeDisplay}</td><td class="src-tag">${f.detected || '—'}</td>
+        <td>${warnIcon}<input type="text" class="name-edit" value="${(g.name || '').replace(/"/g, '&quot;')}" oninput="onNameEdited('${f.id}', ${i}, this.value)"></td>
+        <td>${g.qty}ב${g.price}</td><td>${g.barcodes.length}</td></tr>`;
+    });
+    for (const c of f.costRows.slice(0, 5)) {
+      costTotal++;
+      costHtml += `<tr><td class="src-tag">${f.detected || '—'}</td><td>${c.barcode}</td><td>${c.price}</td></tr>`;
+    }
+    costTotal += Math.max(0, f.costRows.length - 5);
+    for (const c of f.realizationRows.slice(0, 5)) {
+      realizationTotal++;
+      realizationHtml += `<tr><td class="src-tag">${f.detected || '—'}</td><td>${c.barcode}</td><td>${c.price}</td></tr>`;
+    }
+    realizationTotal += Math.max(0, f.realizationRows.length - 5);
+  }
+  tbody.innerHTML = html || '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px;">אין תגמולים עדיין</td></tr>';
+  costBody.innerHTML = costHtml || '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px;">אין מחירי קנייה עדיין</td></tr>';
+  realizationBody.innerHTML = realizationHtml || '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px;">אין מימוש עדיין</td></tr>';
+  document.getElementById('preview-summary').textContent = `סה"כ ${total} תגמולים מ-${filesData.length} קבצים` +
+    (uncertainCount ? ` · ⚠️ ${uncertainCount} עם שם לא ודאי — כדאי לבדוק` : '');
+  document.getElementById('cost-summary').textContent = `סה"כ ${costTotal} שורות מחיר קנייה (מוצגות עד 5 לכל קובץ כדוגמה)`;
+  document.getElementById('realization-summary').textContent = `סה"כ ${realizationTotal} שורות מימוש (מוצגות עד 5 לכל קובץ כדוגמה)`;
+  document.getElementById('step3-card').style.display = 'block';
+}
+document.getElementById('code-start').addEventListener('input', renderPreview);
+
+// ── Build + download output files ───────────────────────────────────────────────
+const REWARD_HEADERS = ['קוד (A)', 'ברקוד פריטים (B)\nמרובים - מופרדים ב- /', 'שם (C)', 'סוג (D)', 'כמות (E)',
+  'בסכום (F)\nמחיר ללקוח', 'מתאריך (G)', 'עד תאריך (H)', ...Array(10).fill(''), 'תאור להדפסה (S)'];
+const COST_HEADERS = ['ברקוד', '', 'מחיר', '', 'מתאריך', 'עד תאריך'];
+const REALIZATION_HEADERS = ['ברקוד', 'הסכום', '', 'מתאריך', 'עד תאריך'];
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+window.downloadAll = function () {
+  const codeStartVal = parseInt(document.getElementById('code-start').value);
+  const fromDate = fmtDate(document.getElementById('date-from').value);
+  const toDate = fmtDate(document.getElementById('date-to').value);
+  const hasRewardGroups = filesData.some(f => f.groups.length);
+  // קוד התחלה is only needed for the תגמולים (Comax rewards) file — a batch
+  // that's only מימוש / מחיר קנייה has nothing that needs a code at all.
+  if (hasRewardGroups && !codeStartVal) { alert('נא למלא קוד התחלה'); return; }
+  if (!fromDate || !toDate) { alert('נא למלא טווח תאריכים'); return; }
+
+  let code = codeStartVal;
+  for (const f of filesData) {
+    const base = f.fileName.replace(/\.[^.]+$/, '');
+
+    if (f.groups.length) {
+      const aoa = [REWARD_HEADERS];
+      for (const g of f.groups) {
+        const row = new Array(19).fill('');
+        row[0] = code; row[1] = g.barcodes.join('/'); row[2] = `${g.name || ''} ${g.qty}ב${g.price}`;
+        row[3] = 1; row[4] = g.qty; row[5] = g.price; row[6] = fromDate; row[7] = toDate; row[18] = g.name || '';
+        aoa.push(row); code++;
+      }
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'תגמולים');
+      XLSX.writeFile(wb, `${base}-קומקס-תגמולים.xlsx`);
+    }
+
+    if (f.costRows.length) {
+      const aoa = [COST_HEADERS];
+      for (const c of f.costRows) {
+        aoa.push([c.barcode, '', c.price, '', fromDate, toDate]);
+      }
+      const ws2 = XLSX.utils.aoa_to_sheet(aoa);
+      const wb2 = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb2, ws2, 'מחיר קניה');
+      XLSX.writeFile(wb2, `${base}-קומקס-מחיר-קניה.xlsx`);
+    }
+
+    if (f.realizationRows.length) {
+      const aoa = [REALIZATION_HEADERS];
+      for (const c of f.realizationRows) {
+        aoa.push([c.barcode, c.price, '', fromDate, toDate]);
+      }
+      const ws3 = XLSX.utils.aoa_to_sheet(aoa);
+      const wb3 = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb3, ws3, 'מימוש');
+      XLSX.writeFile(wb3, `${base}-קומקס-מימוש.xlsx`);
+    }
+  }
+};
+</script>
+</body>
+</html>
