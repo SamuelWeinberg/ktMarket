@@ -579,13 +579,16 @@ function buildCostRows(sheet, rowStart, rowEnd, barcodeCol, costCol, opts) {
     if (!isValidBarcode(bc)) continue;
     if (opts.statusCol !== undefined && isBlockedStatus(cellAt(sheet, r, opts.statusCol))) continue;
     const costRow = costAnchorMap[r] !== undefined ? costAnchorMap[r] : r;
-    const price = parsePrice(cellAt(sheet, costRow, costCol));
-    if (price === null) continue;
+    let price = parsePrice(cellAt(sheet, costRow, costCol));
     let pct = null;
     if (opts.pctCol !== undefined) {
       const pctRow = pctAnchorMap[r] !== undefined ? pctAnchorMap[r] : r;
       pct = parsePercent(cellAt(sheet, pctRow, opts.pctCol));
     }
+    // A discount % means the regular price is already in Comax — the row
+    // carries only the percentage, with the price column left empty.
+    if (pct !== null) price = null;
+    if (price === null && pct === null) continue;
     results.push({ barcode: String(bc), price, pct });
   }
   return results;
@@ -825,7 +828,7 @@ function applyFormat(id, fileName, wb, sheetName, fmt) {
   const opts = { qtyCol: fmt.qtyCol, statusCol: fmt.statusCol, pctCol: fmt.pctCol };
   const groups = buildGroups(sheet, fmt.rowStart, range.e.r, fmt.barcodeCol, fmt.nameCol, fmt.dealCol, opts);
   const costRows = buildCostRows(sheet, fmt.rowStart, range.e.r, fmt.barcodeCol, fmt.costCol, opts);
-  const realizationRows = buildCostRows(sheet, fmt.rowStart, range.e.r, fmt.barcodeCol, fmt.realizationCol, opts);
+  const realizationRows = buildCostRows(sheet, fmt.rowStart, range.e.r, fmt.barcodeCol, fmt.realizationCol, { ...opts, pctCol: undefined });
   const existing = filesData.find(f => f.id === id);
   if (existing) {
     existing.groups = groups; existing.costRows = costRows; existing.realizationRows = realizationRows; existing.detected = fmt.key;
@@ -909,7 +912,7 @@ function renderPreview() {
     });
     for (const c of f.costRows.slice(0, 5)) {
       costTotal++;
-      costHtml += `<tr><td class="src-tag">${f.detected || '—'}</td><td>${c.barcode}</td><td>${c.price}</td><td>${c.pct ?? '—'}</td></tr>`;
+      costHtml += `<tr><td class="src-tag">${f.detected || '—'}</td><td>${c.barcode}</td><td>${c.price ?? ''}</td><td>${c.pct ?? ''}</td></tr>`;
     }
     costTotal += Math.max(0, f.costRows.length - 5);
     for (const c of f.realizationRows.slice(0, 5)) {
@@ -972,7 +975,7 @@ window.downloadAll = function () {
     if (f.costRows.length) {
       const aoa = [COST_HEADERS];
       for (const c of f.costRows) {
-        aoa.push([c.barcode, '', c.price, c.pct ?? '', fromDate, toDate]);
+        aoa.push([c.barcode, '', c.price ?? '', c.pct ?? '', fromDate, toDate]);
       }
       const ws2 = XLSX.utils.aoa_to_sheet(aoa);
       const wb2 = XLSX.utils.book_new();
