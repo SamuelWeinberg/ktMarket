@@ -211,7 +211,7 @@ tr.uncertain{background:rgba(245,158,11,.08);}
   <div id="cost-summary" style="font-size:13px;color:var(--text2);margin-bottom:8px;"></div>
   <div class="tbl-wrap">
     <table>
-      <thead><tr><th>מקור</th><th>ברקוד</th><th>מחיר קנייה</th><th>הנחה %</th></tr></thead>
+      <thead><tr><th>מקור</th><th>ברקוד</th><th>הנחה %</th><th>מחיר קנייה</th></tr></thead>
       <tbody id="cost-body"></tbody>
     </table>
   </div>
@@ -668,8 +668,8 @@ const FORMATS = [
   // repeated header row are interspersed, but isValidBarcode already skips them.
   { key: 'מימוש (סוגת)', signature: s => sheetHasHeader(s, 'מימוש') && (sheetHasHeader(s, 'מקט') || sheetHasHeader(s, 'מק"ט')),
     rowStart: 3, barcodeCol: 1, realizationCol: 5 },
-  // Supplier gives list price + discount %: cost file gets C = list price,
-  // D = discount as a whole number; Comax applies the discount itself.
+  // Supplier gives list price + discount %: the cost file gets only the
+  // discount, as a whole number in column B (price column C left empty).
   { key: 'גלאט עוף', signature: s => sheetHasHeader(s, 'הנחה') && sheetHasHeader(s, 'מחירון'),
     rowStart: 3, barcodeCol: 2, nameCol: 3, dealCol: 7, costCol: 5, pctCol: 6 },
 ];
@@ -912,7 +912,7 @@ function renderPreview() {
     });
     for (const c of f.costRows.slice(0, 5)) {
       costTotal++;
-      costHtml += `<tr><td class="src-tag">${f.detected || '—'}</td><td>${c.barcode}</td><td>${c.price ?? ''}</td><td>${c.pct ?? ''}</td></tr>`;
+      costHtml += `<tr><td class="src-tag">${f.detected || '—'}</td><td>${c.barcode}</td><td>${c.pct ?? ''}</td><td>${c.price ?? ''}</td></tr>`;
     }
     costTotal += Math.max(0, f.costRows.length - 5);
     for (const c of f.realizationRows.slice(0, 5)) {
@@ -975,7 +975,7 @@ window.downloadAll = function () {
     if (f.costRows.length) {
       const aoa = [COST_HEADERS];
       for (const c of f.costRows) {
-        aoa.push([c.barcode, '', c.price ?? '', c.pct ?? '', fromDate, toDate]);
+        aoa.push([c.barcode, c.pct ?? '', c.price ?? '', '', fromDate, toDate]);
       }
       const ws2 = XLSX.utils.aoa_to_sheet(aoa);
       const wb2 = XLSX.utils.book_new();
