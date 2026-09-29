@@ -211,7 +211,7 @@ tr.uncertain{background:rgba(245,158,11,.08);}
   <div id="cost-summary" style="font-size:13px;color:var(--text2);margin-bottom:8px;"></div>
   <div class="tbl-wrap">
     <table>
-      <thead><tr><th>מקור</th><th>ברקוד</th><th>מחיר קנייה</th></tr></thead>
+      <thead><tr><th>מקור</th><th>ברקוד</th><th>מחיר קנייה</th><th>הנחה %</th></tr></thead>
       <tbody id="cost-body"></tbody>
     </table>
   </div>
@@ -572,6 +572,7 @@ function buildCostRows(sheet, rowStart, rowEnd, barcodeCol, costCol, opts) {
   // it's the tail of a merge can still hold a residual formula (e.g. evaluating
   // to 0 off other blanked-out cells in the same row) — the anchor is what's real.
   const costAnchorMap = mergeAnchorMap(sheet, costCol);
+  const pctAnchorMap = opts.pctCol !== undefined ? mergeAnchorMap(sheet, opts.pctCol) : {};
   const results = [];
   for (let r = rowStart; r <= rowEnd; r++) {
     const bc = cellAt(sheet, r, barcodeCol);
@@ -580,9 +581,22 @@ function buildCostRows(sheet, rowStart, rowEnd, barcodeCol, costCol, opts) {
     const costRow = costAnchorMap[r] !== undefined ? costAnchorMap[r] : r;
     const price = parsePrice(cellAt(sheet, costRow, costCol));
     if (price === null) continue;
-    results.push({ barcode: String(bc), price });
+    let pct = null;
+    if (opts.pctCol !== undefined) {
+      const pctRow = pctAnchorMap[r] !== undefined ? pctAnchorMap[r] : r;
+      pct = parsePercent(cellAt(sheet, pctRow, opts.pctCol));
+    }
+    results.push({ barcode: String(bc), price, pct });
   }
   return results;
+}
+// Excel stores 15% as 0.15 — the output wants the whole number (15).
+// A value above 1 is assumed to already be a whole percentage.
+function parsePercent(v) {
+  const n = parsePrice(v);
+  if (n === null) return null;
+  const whole = n <= 1 ? n * 100 : n;
+  return Math.round(whole * 100) / 100;
 }
 
 // ── Date auto-detection from file header text ───────────────────────────────────
@@ -651,6 +665,10 @@ const FORMATS = [
   // repeated header row are interspersed, but isValidBarcode already skips them.
   { key: 'מימוש (סוגת)', signature: s => sheetHasHeader(s, 'מימוש') && (sheetHasHeader(s, 'מקט') || sheetHasHeader(s, 'מק"ט')),
     rowStart: 3, barcodeCol: 1, realizationCol: 5 },
+  // Supplier gives list price + discount %: cost file gets C = list price,
+  // D = discount as a whole number; Comax applies the discount itself.
+  { key: 'גלאט עוף', signature: s => sheetHasHeader(s, 'הנחה') && sheetHasHeader(s, 'מחירון'),
+    rowStart: 3, barcodeCol: 2, nameCol: 3, dealCol: 7, costCol: 5, pctCol: 6 },
 ];
 
 function sheetHasHeader(sheet, text) {
@@ -804,7 +822,7 @@ function processFile(file) {
 function applyFormat(id, fileName, wb, sheetName, fmt) {
   const sheet = wb.Sheets[sheetName];
   const range = XLSX.utils.decode_range(sheet['!ref']);
-  const opts = { qtyCol: fmt.qtyCol, statusCol: fmt.statusCol };
+  const opts = { qtyCol: fmt.qtyCol, statusCol: fmt.statusCol, pctCol: fmt.pctCol };
   const groups = buildGroups(sheet, fmt.rowStart, range.e.r, fmt.barcodeCol, fmt.nameCol, fmt.dealCol, opts);
   const costRows = buildCostRows(sheet, fmt.rowStart, range.e.r, fmt.barcodeCol, fmt.costCol, opts);
   const realizationRows = buildCostRows(sheet, fmt.rowStart, range.e.r, fmt.barcodeCol, fmt.realizationCol, opts);
@@ -891,7 +909,7 @@ function renderPreview() {
     });
     for (const c of f.costRows.slice(0, 5)) {
       costTotal++;
-      costHtml += `<tr><td class="src-tag">${f.detected || '—'}</td><td>${c.barcode}</td><td>${c.price}</td></tr>`;
+      costHtml += `<tr><td class="src-tag">${f.detected || '—'}</td><td>${c.barcode}</td><td>${c.price}</td><td>${c.pct ?? '—'}</td></tr>`;
     }
     costTotal += Math.max(0, f.costRows.length - 5);
     for (const c of f.realizationRows.slice(0, 5)) {
@@ -901,7 +919,7 @@ function renderPreview() {
     realizationTotal += Math.max(0, f.realizationRows.length - 5);
   }
   tbody.innerHTML = html || '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px;">אין תגמולים עדיין</td></tr>';
-  costBody.innerHTML = costHtml || '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px;">אין מחירי קנייה עדיין</td></tr>';
+  costBody.innerHTML = costHtml || '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px;">אין מחירי קנייה עדיין</td></tr>';
   realizationBody.innerHTML = realizationHtml || '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px;">אין מימוש עדיין</td></tr>';
   document.getElementById('preview-summary').textContent = `סה"כ ${total} תגמולים מ-${filesData.length} קבצים` +
     (uncertainCount ? ` · ⚠️ ${uncertainCount} עם שם לא ודאי — כדאי לבדוק` : '');
@@ -954,7 +972,7 @@ window.downloadAll = function () {
     if (f.costRows.length) {
       const aoa = [COST_HEADERS];
       for (const c of f.costRows) {
-        aoa.push([c.barcode, '', c.price, '', fromDate, toDate]);
+        aoa.push([c.barcode, '', c.price, c.pct ?? '', fromDate, toDate]);
       }
       const ws2 = XLSX.utils.aoa_to_sheet(aoa);
       const wb2 = XLSX.utils.book_new();
