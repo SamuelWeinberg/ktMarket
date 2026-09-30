@@ -400,18 +400,21 @@ window.onSupplierChosen = function (id, supplierName, inputEl) {
 
 // ── Download history (tab "היסטוריה" in the tracker sheet) ──────────────────────
 const HISTORY_TAB = 'היסטוריה';
-const HISTORY_HEADER = ['תאריך', 'שעה', 'קובץ', 'ספק', 'תגמולים', 'מחיר קנייה', 'מימוש'];
+// New columns go at the end so rows logged before they existed stay aligned.
+const HISTORY_HEADER = ['תאריך', 'שעה', 'קובץ', 'ספק', 'תגמולים', 'מחיר קנייה', 'מימוש', 'מקוד תגמול', 'עד קוד תגמול'];
 async function ensureHistoryTab() {
   const meta = await googleAuthedFetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=sheets.properties.title`, {}, 'Sheets API');
   const exists = (meta.sheets || []).some(s => s.properties.title === HISTORY_TAB);
-  if (exists) return;
-  await googleAuthedFetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ requests: [{ addSheet: { properties: { title: HISTORY_TAB } } }] }),
-  }, 'Sheets API');
-  await sheetsUpdate(`${HISTORY_TAB}!A1:G1`, [HISTORY_HEADER]);
+  if (!exists) {
+    await googleAuthedFetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests: [{ addSheet: { properties: { title: HISTORY_TAB } } }] }),
+    }, 'Sheets API');
+  }
+  // Rewritten every time so a tab created before a column was added gets its header.
+  await sheetsUpdate(`${HISTORY_TAB}!A1:I1`, [HISTORY_HEADER]);
 }
 // Appends one row per downloaded source file. No-op if never connected to Google.
 async function logHistory(files) {
@@ -422,8 +425,8 @@ async function logHistory(files) {
     const date = now.toISOString().split('T')[0];
     const time = now.toTimeString().slice(0, 5);
     const rows = files.map(f => [date, time, f.fileName, f.supplierName || f.detected || '',
-      f.groups.length, f.costRows.length, f.realizationRows.length]);
-    await sheetsAppend(`${HISTORY_TAB}!A:G`, rows);
+      f.groups.length, f.costRows.length, f.realizationRows.length, f.codeFrom ?? '', f.codeTo ?? '']);
+    await sheetsAppend(`${HISTORY_TAB}!A:I`, rows);
   } catch (err) {
     console.error('history log failed', err);
     alert('רישום ההיסטוריה בטבלה נכשל (ראה קונסול) — הקבצים עצמם ירדו כרגיל.');
@@ -1057,7 +1060,10 @@ window.downloadAll = function () {
   for (const f of filesData) {
     const base = f.fileName.replace(/\.[^.]+$/, '');
 
+    f.codeFrom = f.codeTo = null;
     if (f.groups.length) {
+      f.codeFrom = code;
+      f.codeTo = code + f.groups.length - 1;
       const aoa = [REWARD_HEADERS];
       for (const g of f.groups) {
         const row = new Array(19).fill('');
