@@ -381,10 +381,19 @@ async function logToSheet(supplierKey, fileName) {
     alert('כתיבה לטבלת המעקב נכשלה (ראה קונסול) — זה לא משפיע על קובצי ההמרה עצמם.');
   }
 }
-window.onSupplierChosen = function (id, supplierName) {
+// Only names from the real supplier list are accepted, so a typo (or text
+// typed with the wrong keyboard layout) never lands in the tracker as a row.
+window.onSupplierChosen = function (id, supplierName, inputEl) {
   supplierName = supplierName.trim();
-  if (!supplierName) return;
   const f = filesData.find(x => x.id === id);
+  const known = window.__supplierNames;
+  if (!supplierName || (known && !known.includes(supplierName))) {
+    if (f) f.supplierName = null;
+    if (inputEl) inputEl.style.borderColor = supplierName ? 'var(--red)' : 'var(--border)';
+    if (supplierName) alert('הספק לא נמצא ברשימה — בחר ספק מהרשימה שנפתחת בזמן ההקלדה.');
+    return;
+  }
+  if (inputEl) inputEl.style.borderColor = 'var(--green)';
   if (f) f.supplierName = supplierName;
   logToSheet(supplierName, f ? f.fileName : '');
 };
@@ -918,6 +927,7 @@ function applyFormat(id, fileName, wb, sheetName, fmt) {
   } else {
     filesData.push({ id, fileName, workbook: wb, groups, costRows, realizationRows, detected: fmt.key });
   }
+  const chosen = existing?.supplierName || '';
   const item = document.getElementById(id);
   item.innerHTML = `<div class="file-head">
       <span class="fname">${fileName}</span>
@@ -925,8 +935,8 @@ function applyFormat(id, fileName, wb, sheetName, fmt) {
       <span class="fcount">${groups.length} תגמולים · ${costRows.length} מחירי קנייה · ${realizationRows.length} מימוש</span>
     </div>
     <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
-      <label style="font-size:12px;color:var(--text2);white-space:nowrap;">ספק אמיתי (לרישום במעקב):</label>
-      <input type="text" list="supplier-list" placeholder="התחל להקליד..." class="name-edit" style="border:1px solid var(--border);max-width:260px;" onchange="onSupplierChosen('${id}', this.value)">
+      <label style="font-size:12px;color:var(--text2);white-space:nowrap;">ספק (חובה לפני הורדה):</label>
+      <input type="text" list="supplier-list" placeholder="התחל להקליד..." class="name-edit" value="${chosen.replace(/"/g, '&quot;')}" style="border:1px solid ${chosen ? 'var(--green)' : 'var(--border)'};max-width:260px;" onchange="onSupplierChosen('${id}', this.value, this)">
     </div>`;
   renderPreview();
 }
@@ -1034,6 +1044,12 @@ window.downloadAll = function () {
   const hasRewardGroups = filesData.some(f => f.groups.length);
   // קוד התחלה is only needed for the תגמולים (Comax rewards) file — a batch
   // that's only מימוש / מחיר קנייה has nothing that needs a code at all.
+  const missingSupplier = filesData.filter(f =>
+    (f.groups.length || f.costRows.length || f.realizationRows.length) && !f.supplierName);
+  if (missingSupplier.length) {
+    alert('צריך לבחור ספק מהרשימה לכל קובץ לפני ההורדה:\n\n' + missingSupplier.map(f => '• ' + f.fileName).join('\n'));
+    return;
+  }
   if (hasRewardGroups && !codeStartVal) { alert('נא למלא קוד התחלה'); return; }
   if (!fromDate || !toDate) { alert('נא למלא טווח תאריכים'); return; }
 
