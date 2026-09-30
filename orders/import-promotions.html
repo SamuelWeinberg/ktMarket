@@ -453,13 +453,27 @@ function collectAttachments(part, out) {
 const HEBREW_MONTH_NAMES = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
 let gmailRowsCache = []; // keeps full row data (incl. attachment ids) for the download buttons
 
+async function fetchAttachmentBytes(messageId, attachmentId) {
+  const att = await gmailFetch(`messages/${messageId}/attachments/${attachmentId}`);
+  const bin = atob(att.data.replace(/-/g, '+').replace(/_/g, '/'));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+// Feeds the attachment straight into the same pipeline as a manual upload.
+window.loadGmailAttachment = async function (messageId, attachmentId, filename) {
+  try {
+    const bytes = await fetchAttachmentBytes(messageId, attachmentId);
+    processFile(new File([bytes], filename));
+    document.getElementById('file-list').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch (err) {
+    console.error(err);
+    alert('טעינת הקובץ מהמייל נכשלה (ראה קונסול)');
+  }
+};
 window.downloadGmailAttachment = async function (messageId, attachmentId, filename) {
   try {
-    const att = await gmailFetch(`messages/${messageId}/attachments/${attachmentId}`);
-    const b64 = att.data.replace(/-/g, '+').replace(/_/g, '/');
-    const bin = atob(b64);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const bytes = await fetchAttachmentBytes(messageId, attachmentId);
     const blob = new Blob([bytes]);
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -519,7 +533,13 @@ window.searchGmail = async function () {
     const rowHtml = r => {
       const dateStr = r.date ? r.date.toLocaleDateString('he-IL') : '';
       const attHtml = r.attachments.length
-        ? r.attachments.map(a => `${a.filename} <button class="btn ghost sm" style="padding:2px 8px;font-size:11px;" onclick="downloadGmailAttachment('${r.messageId}','${a.attachmentId}','${a.filename.replace(/'/g, "\\'")}')">⬇️</button>`).join('<br>')
+        ? r.attachments.map(a => {
+            const args = `'${r.messageId}','${a.attachmentId}','${a.filename.replace(/'/g, "\\'")}'`;
+            const loadBtn = /\.(xlsx|xls|xlsb)$/i.test(a.filename)
+              ? `<button class="btn blue sm" style="padding:2px 8px;font-size:11px;" onclick="loadGmailAttachment(${args})">📥 טען לכלי</button> `
+              : '';
+            return `${a.filename} ${loadBtn}<button class="btn ghost sm" style="padding:2px 8px;font-size:11px;" title="שמור למחשב" onclick="downloadGmailAttachment(${args})">⬇️</button>`;
+          }).join('<br>')
         : '—';
       const statusHtml = r.attachments.length === 0 ? '<span class="src-tag">אין קובץ</span>'
         : r.matched ? '<span class="ok-note">✅ כנראה טופל</span>'
