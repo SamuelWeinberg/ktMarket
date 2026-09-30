@@ -385,8 +385,41 @@ window.onSupplierChosen = function (id, supplierName) {
   supplierName = supplierName.trim();
   if (!supplierName) return;
   const f = filesData.find(x => x.id === id);
+  if (f) f.supplierName = supplierName;
   logToSheet(supplierName, f ? f.fileName : '');
 };
+
+// ── Download history (tab "היסטוריה" in the tracker sheet) ──────────────────────
+const HISTORY_TAB = 'היסטוריה';
+const HISTORY_HEADER = ['תאריך', 'שעה', 'קובץ', 'ספק', 'תגמולים', 'מחיר קנייה', 'מימוש'];
+async function ensureHistoryTab() {
+  const meta = await googleAuthedFetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=sheets.properties.title`, {}, 'Sheets API');
+  const exists = (meta.sheets || []).some(s => s.properties.title === HISTORY_TAB);
+  if (exists) return;
+  await googleAuthedFetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requests: [{ addSheet: { properties: { title: HISTORY_TAB } } }] }),
+  }, 'Sheets API');
+  await sheetsUpdate(`${HISTORY_TAB}!A1:G1`, [HISTORY_HEADER]);
+}
+// Appends one row per downloaded source file. No-op if never connected to Google.
+async function logHistory(files) {
+  if (!sheetTokenExpiresAt || !files.length) return;
+  try {
+    await ensureHistoryTab();
+    const now = new Date();
+    const date = now.toISOString().split('T')[0];
+    const time = now.toTimeString().slice(0, 5);
+    const rows = files.map(f => [date, time, f.fileName, f.supplierName || f.detected || '',
+      f.groups.length, f.costRows.length, f.realizationRows.length]);
+    await sheetsAppend(`${HISTORY_TAB}!A:G`, rows);
+  } catch (err) {
+    console.error('history log failed', err);
+    alert('רישום ההיסטוריה בטבלה נכשל (ראה קונסול) — הקבצים עצמם ירדו כרגיל.');
+  }
+}
 
 // ── Gmail search (same Google sign-in as the Sheets tracker) ───────────────────
 const SHLOMO_ADDRESSES = ['sh.b.linden@gmail.com', 'shlomo@kt-ltd.co.il'];
@@ -444,6 +477,10 @@ window.searchGmail = async function () {
       const read = await sheetsGet('D:D');
       loggedFiles = (read.values || []).flat().filter(Boolean);
     } catch (e) { /* tracker read is optional */ }
+    try {
+      const hist = await sheetsGet(`${HISTORY_TAB}!C:C`);
+      loggedFiles = loggedFiles.concat((hist.values || []).flat().filter(Boolean));
+    } catch (e) { /* history tab may not exist yet */ }
 
     const rows = [];
     for (const m of msgs) {
@@ -742,6 +779,13 @@ window.resetFiles = function () {
   document.getElementById('file-list').innerHTML = '';
   document.getElementById('file-input').value = '';
   document.getElementById('step3-card').style.display = 'none';
+  // Dates come from the file, so a fresh batch must detect them again
+  // rather than inherit the previous file's range.
+  document.getElementById('date-from').value = '';
+  document.getElementById('date-to').value = '';
+  const hint = document.getElementById('date-hint');
+  hint.textContent = 'מתעדכן אוטומטית מהקובץ אם קיים בו תאריך';
+  hint.className = 'hint';
 };
 
 function handleFiles(fileList) {
@@ -1024,6 +1068,17 @@ window.downloadAll = function () {
       XLSX.utils.book_append_sheet(wb3, ws3, 'מימוש');
       XLSX.writeFile(wb3, `${base}-קומקס-מימוש.xlsx`);
     }
+  }
+
+  logHistory(filesData.slice());
+  resetFiles();
+  // The used codes must not be reused — clear the field (it's always entered
+  // by hand) and show where the next batch should continue from.
+  if (hasRewardGroups) {
+    const codeEl = document.getElementById('code-start');
+    codeEl.value = '';
+    codeEl.placeholder = `הקוד הבא: ${code}`;
+    codeEl.parentElement.querySelector('.hint').textContent = `ההורדה האחרונה הסתיימה בקוד ${code - 1} — הבא בתור: ${code}`;
   }
 };
 </script>
