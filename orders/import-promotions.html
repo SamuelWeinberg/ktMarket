@@ -182,7 +182,7 @@ tr.uncertain{background:rgba(245,158,11,.08);}
 <div class="card">
   <h3><span class="step-num">2</span> העלה קבצי ספקים (אפשר כמה יחד)</h3>
   <div class="drop-zone" id="drop-zone"
-       onclick="document.getElementById('file-input').click()"
+       onclick="openFilePicker()"
        ondragover="onDragOver(event)" ondrop="onDrop(event)" ondragleave="onDragLeave()">
     <div style="font-size:38px;margin-bottom:8px;">📂</div>
     <div style="font-weight:700;margin-bottom:4px;">גרור קבצי אקסל לכאן</div>
@@ -771,8 +771,16 @@ let fileSeq = 0;
 
 window.onDragOver  = e => { e.preventDefault(); document.getElementById('drop-zone').classList.add('drag-over'); };
 window.onDragLeave = ()  => document.getElementById('drop-zone').classList.remove('drag-over');
-window.onDrop      = e  => { e.preventDefault(); onDragLeave(); handleFiles(e.dataTransfer.files); };
-window.onFileSelected = inp => { handleFiles(inp.files); inp.value = ''; };
+// Uploads are blocked until Google is connected, so every processed file
+// makes it into the tracker / history sheet.
+function requireGoogleConnection() {
+  if (sheetTokenExpiresAt) return true;
+  if (confirm('לא מחובר ל-Google — הקבצים לא יירשמו בטבלת המעקב ובהיסטוריה.\n\nלהתחבר עכשיו?')) connectSheet();
+  return false;
+}
+window.openFilePicker = () => { if (requireGoogleConnection()) document.getElementById('file-input').click(); };
+window.onDrop      = e  => { e.preventDefault(); onDragLeave(); if (requireGoogleConnection()) handleFiles(e.dataTransfer.files); };
+window.onFileSelected = inp => { if (requireGoogleConnection()) handleFiles(inp.files); inp.value = ''; };
 
 window.resetFiles = function () {
   filesData = [];
